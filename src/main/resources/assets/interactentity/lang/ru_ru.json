@@ -1,0 +1,23 @@
+{
+  "key.interactentity.journal": "Открыть журнал",
+  "key.categories.interactentity": "InteractEntity",
+
+  "gui.interactentity.dialogue": "Диалог",
+  "gui.interactentity.journal": "Журнал",
+  "gui.interactentity.tab.dialogues": "Диалоги",
+  "gui.interactentity.tab.quests": "Квесты",
+
+  "gui.interactentity.dialogue.you": "Вы",
+
+  "gui.interactentity.hint.close": "ПКМ — закрыть",
+  "gui.interactentity.hint.next": "ПКМ →",
+  "gui.interactentity.hint.choose": "ПКМ — ответить",
+
+  "gui.interactentity.quests.empty": "Квестов пока нет.",
+  "gui.interactentity.quest.active": "Активные",
+  "gui.interactentity.quest.completed": "Завершённые",
+  "gui.interactentity.quest.failed": "Проваленные",
+  "gui.interactentity.quest.from": "    От: %s",
+
+  "command.interactentity.reloaded": "[InteractEntity] Диалоги перезагружены."
+}

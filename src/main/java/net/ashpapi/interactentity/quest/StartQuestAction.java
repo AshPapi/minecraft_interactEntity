@@ -1,0 +1,100 @@
+package net.ashpapi.interactentity.quest;
+
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import net.ashpapi.interactentity.InteractEntityMod;
+import net.ashpapi.interactentity.action.DialogueAction;
+import net.ashpapi.interactentity.data.DialogueSavedData;
+import net.ashpapi.interactentity.network.ModNetwork;
+import net.ashpapi.interactentity.network.QuestUpdatePacket;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraftforge.registries.ForgeRegistries;
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class StartQuestAction implements DialogueAction {
+
+    @Override
+    public void execute(ServerPlayer player, LivingEntity entity, JsonObject params) {
+        JsonObject questJson = params.getAsJsonObject("quest");
+        String id = questJson.get("id").getAsString();
+
+        DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
+        QuestState existing = data.getQuest(id);
+
+        // Исправлено: не запускаем, если квест уже active ИЛИ completed
+        if (existing != null && ("active".equals(existing.getStatus()) || "completed".equals(existing.getStatus()))) {
+            InteractEntityMod.LOGGER.debug("Quest {} already {} for this world, skipping start", id, existing.getStatus());
+            return;
+        }
+
+        String title = questJson.get("title").getAsString();
+        String description = questJson.has("description") ? questJson.get("description").getAsString() : "";
+
+        List<String> objectives = new ArrayList<>();
+        if (questJson.has("objectives")) {
+            JsonArray arr = questJson.getAsJsonArray("objectives");
+            for (int i = 0; i < arr.size(); i++) {
+                objectives.add(arr.get(i).getAsString());
+            }
+        }
+
+        String giverName = entity.getCustomName() != null
+                ? entity.getCustomName().getString()
+                : entity.getType().getDescription().getString();
+
+        QuestState quest = new QuestState(id, title, description, objectives, "active", giverName);
+
+        // Добавление required_item (если есть в JSON)
+        if (questJson.has("required_item")) {
+            JsonObject reqItem = questJson.getAsJsonObject("required_item");
+            String itemId = reqItem.get("id").getAsString();
+            int count = reqItem.has("count") ? reqItem.get("count").getAsInt() : 1;
+            quest.setRequiredItem(itemId, count);
+        }
+
+        data.setQuest(quest);
+
+        // === НОВОЕ: проверка, есть ли уже нужное количество предметов ===
+        if (quest.getRequiredItemId() != null) {
+            int totalInInventory = countItemInInventory(player, quest.getRequiredItemId());
+            if (totalInInventory >= quest.getRequiredCount()) {
+                quest.markItemCollected();
+
+                List<String> updatedObjectives = new ArrayList<>(quest.getObjectives());
+                if (!updatedObjectives.isEmpty()) {
+                    String first = updatedObjectives.get(0);
+                    String updated = first.replace("[ ]", "&a[✔]");
+                    updatedObjectives.set(0, updated);
+                }
+                quest.setObjectives(updatedObjectives);
+
+                data.setDirty();
+                ModNetwork.sendToAll(new QuestUpdatePacket(quest));
+                InteractEntityMod.LOGGER.debug("Quest {} item objective auto-completed on start (player already had items)", id);
+            }
+        }
+
+        // Обычный синхрон
+        ModNetwork.sendToAll(new QuestUpdatePacket(quest));
+    }
+
+    // Вспомогательный метод (дубликат из QuestEventHandler, чтобы не плодить зависимости)
+    // TODO: в будущем можно вынести в QuestUtils
+    private static int countItemInInventory(ServerPlayer player, String itemId) {
+        int count = 0;
+        for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (!stack.isEmpty()) {
+                String id = ForgeRegistries.ITEMS.getKey(stack.getItem()).toString();
+                if (id.equals(itemId)) {
+                    count += stack.getCount();
+                }
+            }
+        }
+        return count;
+    }
+}

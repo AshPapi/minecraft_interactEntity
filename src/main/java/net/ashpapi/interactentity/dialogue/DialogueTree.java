@@ -1,0 +1,92 @@
+package net.ashpapi.interactentity.dialogue;
+
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import net.minecraft.resources.ResourceLocation;
+
+import javax.annotation.Nullable;
+import java.util.HashMap;
+import java.util.Map;
+
+public class DialogueTree {
+    private final String id;
+    private final DialogueTarget target;
+    private final String displayName;
+    private final String entryNodeId;
+    private final Map<String, DialogueNode> nodes;
+    @Nullable private final RevisitConfig revisitConfig;
+    @Nullable private final JsonObject summonConfig;
+    @Nullable private final ResourceLocation avatar;
+    @Nullable private final ResourceLocation background;
+    @Nullable private final ResourceLocation optionsBackground;
+    private final boolean invulnerable;
+
+    public DialogueTree(String id, DialogueTarget target, String displayName, String entryNodeId,
+                        Map<String, DialogueNode> nodes, @Nullable RevisitConfig revisitConfig,
+                        @Nullable JsonObject summonConfig, @Nullable ResourceLocation avatar,
+                        @Nullable ResourceLocation background, @Nullable ResourceLocation optionsBackground,
+                        boolean invulnerable) {
+        this.id = id;
+        this.target = target;
+        this.displayName = displayName;
+        this.entryNodeId = entryNodeId;
+        this.nodes = nodes;
+        this.revisitConfig = revisitConfig;
+        this.summonConfig = summonConfig;
+        this.avatar = avatar;
+        this.background = background;
+        this.optionsBackground = optionsBackground;
+        this.invulnerable = invulnerable;
+    }
+
+    public String getId() { return id; }
+    public DialogueTarget getTarget() { return target; }
+    public String getDisplayName() { return displayName; }
+    public String getEntryNodeId() { return entryNodeId; }
+    @Nullable public DialogueNode getNode(String id) { return nodes.get(id); }
+    public DialogueNode getEntryNode() { return nodes.get(entryNodeId); }
+    public Map<String, DialogueNode> getNodes() { return nodes; }
+    @Nullable public RevisitConfig getRevisitConfig() { return revisitConfig; }
+    @Nullable public JsonObject getSummonConfig() { return summonConfig; }
+    @Nullable public ResourceLocation getAvatar() { return avatar; }
+    @Nullable public ResourceLocation getBackground() { return background; }
+    @Nullable public ResourceLocation getOptionsBackground() { return optionsBackground; }
+    public boolean isInvulnerable() { return invulnerable; }
+
+    public static DialogueTree fromJson(String id, JsonObject json) {
+        DialogueTarget target = DialogueTarget.fromJson(json.getAsJsonObject("target"));
+        String displayName = json.has("display_name") ? json.get("display_name").getAsString() : target.getName();
+        String entry = json.get("entry").getAsString();
+
+        Map<String, DialogueNode> nodes = new HashMap<>();
+        JsonObject nodesJson = json.getAsJsonObject("nodes");
+        for (Map.Entry<String, JsonElement> nodeEntry : nodesJson.entrySet()) {
+            nodes.put(nodeEntry.getKey(), DialogueNode.fromJson(nodeEntry.getKey(), nodeEntry.getValue().getAsJsonObject()));
+        }
+
+        RevisitConfig revisitConfig = json.has("on_revisit")
+                ? RevisitConfig.fromJson(json.getAsJsonObject("on_revisit"))
+                : null;
+
+        JsonObject summonConfig = json.has("summon") ? json.getAsJsonObject("summon") : null;
+
+        ResourceLocation avatar = null;
+        if (json.has("avatar") && json.get("avatar").isJsonPrimitive()) {
+            avatar = ResourceLocation.tryParse(json.get("avatar").getAsString());
+        }
+
+        ResourceLocation background = null;
+        if (json.has("background") && json.get("background").isJsonPrimitive()) {
+            background = ResourceLocation.tryParse(json.get("background").getAsString());
+        }
+
+        ResourceLocation optionsBackground = null;
+        if (json.has("options_background") && json.get("options_background").isJsonPrimitive()) {
+            optionsBackground = ResourceLocation.tryParse(json.get("options_background").getAsString());
+        }
+
+        boolean invulnerable = json.has("invulnerable") ? json.get("invulnerable").getAsBoolean() : true;
+
+        return new DialogueTree(id, target, displayName, entry, nodes, revisitConfig, summonConfig, avatar, background, optionsBackground, invulnerable);
+    }
+}

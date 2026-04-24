@@ -1,0 +1,23 @@
+{
+  "key.interactentity.journal": "Open Journal",
+  "key.categories.interactentity": "InteractEntity",
+
+  "gui.interactentity.dialogue": "Dialogue",
+  "gui.interactentity.journal": "Journal",
+  "gui.interactentity.tab.dialogues": "Dialogues",
+  "gui.interactentity.tab.quests": "Quests",
+
+  "gui.interactentity.dialogue.you": "You",
+
+  "gui.interactentity.hint.close": "RMB — close",
+  "gui.interactentity.hint.next": "RMB →",
+  "gui.interactentity.hint.choose": "RMB — reply",
+
+  "gui.interactentity.quests.empty": "No quests yet.",
+  "gui.interactentity.quest.active": "Active",
+  "gui.interactentity.quest.completed": "Completed",
+  "gui.interactentity.quest.failed": "Failed",
+  "gui.interactentity.quest.from": "    From: %s",
+
+  "command.interactentity.reloaded": "[InteractEntity] Dialogues reloaded."
+}
