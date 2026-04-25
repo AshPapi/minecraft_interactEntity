@@ -27,6 +27,8 @@ public class DialogueSavedData extends SavedData {
     private final Map<String, String> variables = new HashMap<>();
     /** Dialogues that have been fully completed (reached an end node). Cannot be replayed. */
     private final Set<String> completedDialogues = new HashSet<>();
+    /** Dialogue IDs that have pending notifications (show ! icon even if already visited). */
+    private final Set<String> npcNotifications = new HashSet<>();
 
     // === Visited nodes (без изменений) ===
     public void visit(String dialogueId, String nodeId) {
@@ -148,6 +150,20 @@ public class DialogueSavedData extends SavedData {
         return Collections.unmodifiableSet(completedDialogues);
     }
 
+    // === NPC Notifications ===
+    public void addNotification(String dialogueId) {
+        if (npcNotifications.add(dialogueId)) setDirty();
+    }
+    public void removeNotification(String dialogueId) {
+        if (npcNotifications.remove(dialogueId)) setDirty();
+    }
+    public boolean hasNotification(String dialogueId) {
+        return npcNotifications.contains(dialogueId);
+    }
+    public Set<String> getNotifications() {
+        return Collections.unmodifiableSet(npcNotifications);
+    }
+
     // === Kills ===
     public void addKill(String entityType) {
         killCounts.merge(entityType, 1, Integer::sum);
@@ -216,6 +232,10 @@ public class DialogueSavedData extends SavedData {
         for (String id : completedDialogues) completedTag.add(StringTag.valueOf(id));
         tag.put("completed", completedTag);
 
+        ListTag notifTag = new ListTag();
+        for (String id : npcNotifications) notifTag.add(StringTag.valueOf(id));
+        tag.put("notifications", notifTag);
+
         return tag;
     }
 
@@ -260,6 +280,9 @@ public class DialogueSavedData extends SavedData {
 
         ListTag completedTag = tag.getList("completed", Tag.TAG_STRING);
         for (int i = 0; i < completedTag.size(); i++) data.completedDialogues.add(completedTag.getString(i));
+
+        ListTag notifTag = tag.getList("notifications", Tag.TAG_STRING);
+        for (int i = 0; i < notifTag.size(); i++) data.npcNotifications.add(notifTag.getString(i));
 
         return data;
     }

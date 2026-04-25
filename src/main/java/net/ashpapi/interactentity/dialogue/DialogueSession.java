@@ -206,10 +206,21 @@ public class DialogueSession {
 
     public static void startSession(ServerPlayer player, LivingEntity entity, DialogueTree tree) {
         if (isEntityBusy(entity)) return; // моб уже занят другим игроком
+        clearNotification(player, tree.getId());
         DialogueSession session = new DialogueSession(player, entity, tree);
         ACTIVE_SESSIONS.put(player.getUUID(), session);
         PlayerProtectionHandler.protect(player);
         session.sendCurrentNode();
+    }
+
+    private static void clearNotification(ServerPlayer player, String dialogueId) {
+        DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
+        if (data.hasNotification(dialogueId)) {
+            data.removeNotification(dialogueId);
+            for (ServerPlayer online : player.getServer().getPlayerList().getPlayers()) {
+                ModNetwork.sendToPlayer(new net.ashpapi.interactentity.network.SyncProgressPacket(data), online);
+            }
+        }
     }
 
     public static void startSessionFromNode(ServerPlayer player, LivingEntity entity,

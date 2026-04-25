@@ -39,18 +39,17 @@ public class MobIconRenderer {
         String entryNodeId = npc.entryNodeId;
 
         boolean visited = entryNodeId != null && ClientProgressData.hasVisited(dialogueId, entryNodeId);
+        boolean completed = ClientProgressData.isCompleted(dialogueId);
+        boolean notified = ClientProgressData.hasNotification(dialogueId);
 
         String icon;
         int color;
-        boolean completed = ClientProgressData.isCompleted(dialogueId);
-        boolean hasActiveQuest = ClientProgressData.getActiveQuests().stream()
-                .anyMatch(q -> "active".equals(q.getStatus()));
 
-        if (hasActiveQuest) {
+        if (notified) {
             icon = "!";
             color = 0xFFFFDD00;
         } else if (!visited && !completed) {
-            icon = "?";
+            icon = "!";
             color = 0xFFFFDD00;
         } else {
             return;

@@ -63,6 +63,11 @@ public class SyncProgressPacket {
             ListTag completedTag = data.getList("completed", Tag.TAG_STRING);
             for (int i = 0; i < completedTag.size(); i++) completed.add(completedTag.getString(i));
             ClientProgressData.setCompletedDialogues(completed);
+
+            Set<String> notifications = new HashSet<>();
+            ListTag notifTag = data.getList("notifications", Tag.TAG_STRING);
+            for (int i = 0; i < notifTag.size(); i++) notifications.add(notifTag.getString(i));
+            ClientProgressData.setNotifications(notifications);
         });
         ctx.get().setPacketHandled(true);
     }

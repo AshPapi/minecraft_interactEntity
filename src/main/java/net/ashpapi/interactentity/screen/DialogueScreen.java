@@ -216,45 +216,55 @@ public class DialogueScreen extends Screen {
     private void renderOptionPanels(GuiGraphics graphics, int mouseX, int mouseY) {
         int optPanelX = 8;
         int optPanelY = 8;
-        int maxTextWidth = 0;
+        int numWidth = this.font.width("5. ");
+        int maxPanelW = Math.min(this.width / 2 - 16, 200);
+        int textAvailW = maxPanelW - OPT_PADDING_H * 2 - numWidth;
+
         List<Component> optionComps = new ArrayList<>();
+        List<List<FormattedCharSequence>> optionLines = new ArrayList<>();
+        int panelW = 0;
         for (String opt : optionTexts) {
             Component c = TextFormatter.format(opt);
             optionComps.add(c);
-            maxTextWidth = Math.max(maxTextWidth, this.font.width(c));
+            List<FormattedCharSequence> lines = this.font.split(c, textAvailW);
+            optionLines.add(lines);
+            int lineW = lines.stream().mapToInt(this.font::width).max().orElse(0);
+            panelW = Math.max(panelW, numWidth + lineW + OPT_PADDING_H * 2);
         }
-        // Number prefix width: "5. "
-        int numWidth = this.font.width("5. ");
-        int panelW = numWidth + maxTextWidth + OPT_PADDING_H * 2;
-        panelW = Math.min(panelW, this.width / 2 - 16);
-        int panelH = LINE_HEIGHT + OPT_PADDING_V * 2;
+        panelW = Math.min(panelW, maxPanelW);
 
+        int curY = optPanelY;
         for (int i = 0; i < optionComps.size(); i++) {
-            int py = optPanelY + i * (panelH + OPT_MARGIN);
+            List<FormattedCharSequence> lines = optionLines.get(i);
+            int panelH = lines.size() * LINE_HEIGHT + OPT_PADDING_V * 2;
             boolean hovered = mouseMoved && (i == hoveredOption);
 
             int bgColor = hovered ? OPT_BG_HOVER : OPT_BG;
             int borderCol = hovered ? OPT_BORDER_HOVER : OPT_BORDER;
 
-            graphics.fill(optPanelX + 2, py + 2, optPanelX + panelW + 2, py + panelH + 2, SHADOW_COLOR);
+            graphics.fill(optPanelX + 2, curY + 2, optPanelX + panelW + 2, curY + panelH + 2, SHADOW_COLOR);
             if (optionsBackground != null) {
                 RenderSystem.enableBlend();
-                graphics.blit(optionsBackground, optPanelX, py, 0, 0, panelW, panelH, panelW, panelH);
+                graphics.blit(optionsBackground, optPanelX, curY, 0, 0, panelW, panelH, panelW, panelH);
             } else {
-                graphics.fill(optPanelX, py, optPanelX + panelW, py + panelH, bgColor);
-                graphics.fill(optPanelX, py, optPanelX + panelW, py + 1, borderCol);
-                graphics.fill(optPanelX, py + panelH - 1, optPanelX + panelW, py + panelH, borderCol);
-                graphics.fill(optPanelX, py, optPanelX + 1, py + panelH, borderCol);
-                graphics.fill(optPanelX + panelW - 1, py, optPanelX + panelW, py + panelH, borderCol);
+                graphics.fill(optPanelX, curY, optPanelX + panelW, curY + panelH, bgColor);
+                graphics.fill(optPanelX, curY, optPanelX + panelW, curY + 1, borderCol);
+                graphics.fill(optPanelX, curY + panelH - 1, optPanelX + panelW, curY + panelH, borderCol);
+                graphics.fill(optPanelX, curY, optPanelX + 1, curY + panelH, borderCol);
+                graphics.fill(optPanelX + panelW - 1, curY, optPanelX + panelW, curY + panelH, borderCol);
             }
 
             int textX = optPanelX + OPT_PADDING_H;
-            int textY = py + OPT_PADDING_V;
+            int textY = curY + OPT_PADDING_V;
             graphics.drawString(this.font, (i + 1) + ". ", textX, textY, OPT_NUM_COLOR, false);
-            graphics.drawString(this.font, optionComps.get(i), textX + numWidth, textY,
-                    hovered ? OPTION_HOVER : OPTION_COLOR, false);
+            for (FormattedCharSequence line : lines) {
+                graphics.drawString(this.font, line, textX + numWidth, textY,
+                        hovered ? OPTION_HOVER : OPTION_COLOR, false);
+                textY += LINE_HEIGHT;
+            }
 
-            optionHitboxes.add(new OptionHitbox(i, optPanelX, py, panelW, panelH));
+            optionHitboxes.add(new OptionHitbox(i, optPanelX, curY, panelW, panelH));
+            curY += panelH + OPT_MARGIN;
         }
     }
 

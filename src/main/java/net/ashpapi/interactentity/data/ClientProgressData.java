@@ -11,6 +11,7 @@ public class ClientProgressData {
     private static final List<DialogueHistoryEntry> history = new ArrayList<>();
     private static final Map<String, QuestState> quests = new HashMap<>();
     private static final Set<String> completedDialogues = new HashSet<>();
+    private static final Set<String> npcNotifications = new HashSet<>();
 
     public static void setCompletedDialogues(Set<String> ids) {
         completedDialogues.clear();
@@ -78,10 +79,22 @@ public class ClientProgressData {
         return quest != null ? quest.getStatus() : "none";
     }
 
+    public static void setNotifications(Set<String> ids) {
+        npcNotifications.clear();
+        npcNotifications.addAll(ids);
+    }
+    public static boolean hasNotification(String dialogueId) {
+        return npcNotifications.contains(dialogueId);
+    }
+    public static void removeNotification(String dialogueId) {
+        npcNotifications.remove(dialogueId);
+    }
+
     public static void clear() {
         visitedNodes.clear();
         history.clear();
         quests.clear();
         completedDialogues.clear();
+        npcNotifications.clear();
     }
 }

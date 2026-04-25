@@ -55,5 +55,6 @@ public class ActionRegistry {
         register("force_dialogue", new ForceDialogueAction());
         register("set_var", new SetVarAction());
         register("summon_npc", new SummonNpcAction());
+        register("notify_npc", new NotifyNpcAction());
     }
 }
