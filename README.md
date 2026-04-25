@@ -1,4 +1,4 @@
-# InteractEntity — Руководство разработчика диалогов
+# InteractEntity — Документация
 
 Мод для Minecraft Forge 1.20.1. Позволяет создавать диалоги с мобами через JSON-файлы без программирования.
 
@@ -16,18 +16,18 @@
 8. [Переменные](#8-переменные)
 9. [Повторный диалог (on_revisit)](#9-повторный-диалог-on_revisit)
 10. [Автоспавн (summon)](#10-автоспавн-summon)
-11. [Внешний вид GUI](#11-внешний-вид-gui)
-12. [Команды](#12-команды)
-13. [Назначение NPC в мире](#13-назначение-npc-в-мире)
-14. [Полный пример диалога](#14-полный-пример-диалога)
+11. [Иконка над NPC](#11-иконка-над-npc)
+12. [Внешний вид GUI](#12-внешний-вид-gui)
+13. [Команды](#13-команды)
+14. [Назначение NPC в мире](#14-назначение-npc-в-мире)
+15. [Прогресс и сервер](#15-прогресс-и-сервер)
+16. [Клавиши](#16-клавиши)
 
 ---
 
 ## 1. Установка и структура файлов
 
-### Папка с диалогами
-
-После первого запуска мода в папке `.minecraft` появится:
+После первого запуска мода появится папка:
 
 ```
 .minecraft/
@@ -43,7 +43,7 @@
 | `dialogues/zombie.json` | `zombie` |
 | `dialogues/story/intro.json` | `story/intro` |
 
-После добавления файлов используйте `/dialogue reload` в игре.
+После добавления или изменения файлов используйте `/dialogue reload`.
 
 ---
 
@@ -71,26 +71,52 @@
 
 ### Корневые поля
 
-| Поле | Тип | Обязательно | Описание |
-|------|-----|-------------|----------|
-| `target` | объект | да | Привязка к мобу |
-| `target.name` | строка | да | Имя моба (бирка, CustomName) |
+| Поле | Тип | Обяз. | Описание |
+|------|-----|-------|----------|
+| `target.name` | строка | да | Имя моба (бирка CustomName) |
 | `target.tag` | строка | да | Scoreboard-тег моба |
-| `display_name` | строка | нет | Имя в GUI (по умолчанию = target.name) |
+| `display_name` | строка | нет | Имя в GUI (по умолч. = target.name) |
 | `entry` | строка | да | ID начального узла |
 | `nodes` | объект | да | Все узлы диалога |
+| `repeatable` | bool | нет | Диалог можно проходить повторно (по умолч. `false`) |
 | `invulnerable` | bool | нет | Защита NPC от урона (по умолч. `true`) |
 | `avatar` | строка | нет | Текстура аватара (`namespace:path`) |
 | `background` | строка | нет | Текстура фона панели диалога |
-| `options_background` | строка | нет | Текстура фона панелей ответов |
+| `options_background` | строка | нет | Текстура фона кнопок ответов |
 | `on_revisit` | объект | нет | Поведение при повторном разговоре |
 | `summon` | объект | нет | Конфигурация автоспавна |
+
+### Повторный диалог (repeatable)
+
+По умолчанию диалог можно пройти один раз. Если нужно разрешить повторное прохождение:
+
+```json
+{
+  "target": { "name": "Торговец", "tag": "trader" },
+  "entry": "start",
+  "repeatable": true,
+  "nodes": {
+    "start": {
+      "text": "&fЧем могу помочь?",
+      "options": [
+        { "text": "&aКупить зелье", "next": "sell" },
+        { "text": "&7Ничего", "next": "bye" }
+      ]
+    },
+    "sell": {
+      "text": "&aПожалуйста!",
+      "actions": [{ "type": "give_item", "item": "minecraft:potion", "count": 1 }]
+    },
+    "bye": { "text": "&7До встречи." }
+  }
+}
+```
 
 ---
 
 ## 3. Узлы (nodes)
 
-Каждый диалог состоит из узлов. Тип узла определяется автоматически.
+Каждый диалог состоит из узлов. Тип определяется автоматически по полям.
 
 ### Линейный узел
 
@@ -105,7 +131,7 @@
 
 ### Узел с выбором
 
-Есть `options`. Показывает кнопки выбора.
+Есть `options`. Показывает кнопки.
 
 ```json
 "question": {
@@ -127,26 +153,71 @@
 }
 ```
 
+### Случайный текст
+
+Вместо `text` используйте `random_text` — при каждом входе выбирается случайная строка.
+
+```json
+"idle": {
+  "random_text": [
+    "&7*Моб смотрит в сторону*",
+    "&7*Моб зевает*",
+    "&fХмм..."
+  ],
+  "next": "talk"
+}
+```
+
+### Автопереход
+
+Узел автоматически переходит к следующему через N тиков (20 тиков = 1 секунда). Работает только с `next`, без `options`.
+
+```json
+"cutscene": {
+  "text": "&5*Вспышка света...*",
+  "next": "aftermath",
+  "auto_next_ticks": 60
+}
+```
+
+### Управление камерой в узле
+
+```json
+"revelation": {
+  "text": "&eСмотри туда!",
+  "camera": "player",
+  "camera_yaw_offset": 90.0,
+  "camera_pitch_offset": -30.0,
+  "next": "next"
+}
+```
+
+| Поле | Описание |
+|------|----------|
+| `camera` | `"npc"` (смотреть на NPC) или `"player"` (смотреть от игрока) |
+| `camera_yaw_offset` | Горизонтальное смещение в градусах |
+| `camera_pitch_offset` | Вертикальное смещение в градусах |
+
 ### Все поля узла
 
 | Поле | Тип | Описание |
 |------|-----|----------|
 | `text` | строка | Текст реплики |
-| `random_text` | массив строк | Случайный текст из списка |
-| `next` | строка | ID следующего узла (линейный) |
-| `auto_next_ticks` | int | Автопереход через N тиков (только с `next`, без `options`) |
+| `random_text` | массив | Случайный текст |
+| `next` | строка | ID следующего узла |
+| `auto_next_ticks` | int | Автопереход через N тиков |
 | `options` | массив | Варианты ответа |
 | `actions` | массив | Действия при входе в узел |
 | `camera` | строка | Режим камеры: `"npc"` или `"player"` |
-| `camera_yaw_offset` | float | Смещение поворота камеры по горизонтали |
-| `camera_pitch_offset` | float | Смещение поворота камеры по вертикали |
+| `camera_yaw_offset` | float | Смещение камеры по горизонтали |
+| `camera_pitch_offset` | float | Смещение камеры по вертикали |
 
-### Поля варианта ответа (option)
+### Поля варианта ответа
 
 | Поле | Тип | Описание |
 |------|-----|----------|
 | `text` | строка | Текст кнопки |
-| `next` | строка | Следующий узел (null = завершить) |
+| `next` | строка | Следующий узел (нет = завершить) |
 | `condition` | объект | Условие показа кнопки |
 | `actions` | массив | Действия при выборе |
 
@@ -154,7 +225,7 @@
 
 ## 4. Форматирование текста
 
-Поддерживаются `&`-коды и HEX-цвета. Работают везде: имя, текст, варианты ответа, квесты.
+Работает везде: имя, текст узла, кнопки, квесты.
 
 ### Цвета
 
@@ -169,14 +240,14 @@
 | `&6` | Золотой | `&e` | Жёлтый |
 | `&7` | Серый | `&f` | Белый |
 
-### Форматирование
+### Стили
 
 | Код | Эффект |
 |-----|--------|
-| `&l` | **Жирный** |
-| `&o` | *Курсив* |
+| `&l` | Жирный |
+| `&o` | Курсив |
 | `&n` | Подчёркнутый |
-| `&m` | ~~Зачёркнутый~~ |
+| `&m` | Зачёркнутый |
 | `&k` | Обфускация |
 | `&r` | Сброс |
 
@@ -193,24 +264,30 @@
 "text": "&6[&eЗомби&6] &fЯ был... &cчеловеком... &7когда-то..."
 "display_name": "&4[&cВраг&4]"
 "text": "&#FF6600Огненное приветствие!"
+"text": "&lВажное сообщение &r— обычный текст"
 ```
 
 ---
 
 ## 5. Действия (actions)
 
-Действия выполняются при входе в узел (поле `actions` узла) или при выборе варианта (поле `actions` варианта).
+Действия выполняются при входе в узел (`actions` на узле) или при выборе варианта (`actions` на варианте).
+
+```json
+"give_stuff": {
+  "text": "&aВозьми!",
+  "actions": [
+    { "type": "give_item", "item": "minecraft:diamond", "count": 3 },
+    { "type": "play_sound", "sound": "minecraft:entity.player.levelup" }
+  ]
+}
+```
 
 ### give_item — выдать предмет
 
 ```json
 { "type": "give_item", "item": "minecraft:diamond", "count": 1 }
 ```
-
-| Поле | Описание |
-|------|----------|
-| `item` | ID предмета |
-| `count` | Количество (по умолч. 1) |
 
 ### remove_item — забрать предмет
 
@@ -221,32 +298,34 @@
 ### run_command — выполнить команду
 
 ```json
-{ "type": "run_command", "command": "say Привет от зомби!" }
+{ "type": "run_command", "command": "say Привет!" }
+{ "type": "run_command", "command": "effect give @s minecraft:speed 60 1" }
 ```
 
-Команда выполняется от сервера с правами 2. `@s` = игрок.
+`@s` — игрок. Команда выполняется от сервера с правами 2.
 
 ### teleport — телепортировать игрока
 
 ```json
 { "type": "teleport", "x": 100, "y": 64, "z": -200 }
-{ "type": "teleport", "x": 0, "y": 10, "z": 0, "mode": "relative" }
+{ "type": "teleport", "x": 0, "y": 5, "z": 0, "mode": "relative" }
+{ "type": "teleport", "x": 0, "y": 64, "z": 0, "yaw": 90, "pitch": 0 }
 ```
 
 | Поле | Описание |
 |------|----------|
-| `x`, `y`, `z` | Координаты (по умолч. текущая позиция) |
-| `yaw`, `pitch` | Поворот (по умолч. текущий) |
-| `mode` | `"absolute"` или `"relative"` |
+| `x`, `y`, `z` | Координаты |
+| `yaw`, `pitch` | Поворот (необязательно) |
+| `mode` | `"absolute"` (по умолч.) или `"relative"` |
 
-### play_sound — воспроизвести звук
+### play_sound — звук
 
 ```json
 {
   "type": "play_sound",
   "sound": "minecraft:entity.zombie.ambient",
   "volume": 1.0,
-  "pitch": 1.0,
+  "pitch": 1.2,
   "target": "player"
 }
 ```
@@ -258,7 +337,7 @@
 | `pitch` | Тон (по умолч. 1.0) |
 | `target` | `"player"` или `"entity"` |
 
-### give_effect — выдать эффект
+### give_effect — эффект
 
 ```json
 {
@@ -266,8 +345,6 @@
   "effect": "minecraft:regeneration",
   "duration": 200,
   "amplifier": 1,
-  "ambient": false,
-  "particles": true,
   "target": "player"
 }
 ```
@@ -288,9 +365,9 @@
 { "type": "remove_effect" }
 ```
 
-Без `effect` — убирает все эффекты. `target`: `"player"` или `"entity"`.
+Без `effect` — убирает все эффекты.
 
-### spawn_particles — спавнить частицы
+### spawn_particles — частицы
 
 ```json
 {
@@ -309,7 +386,7 @@
 | `count` | Количество (по умолч. 20) |
 | `spread` | Разброс (по умолч. 0.5) |
 | `speed` | Скорость (по умолч. 0.0) |
-| `target` | `"player"` или `"entity"` — центр спавна |
+| `target` | `"player"` или `"entity"` |
 
 ### camera_shake — тряска камеры
 
@@ -317,7 +394,7 @@
 { "type": "camera_shake", "intensity": 1.0, "duration": 20 }
 ```
 
-### set_time — установить время
+### set_time — время суток
 
 ```json
 { "type": "set_time", "time": "night" }
@@ -326,28 +403,26 @@
 
 Именованные значения: `"day"` (1000), `"noon"` (6000), `"night"` (13000), `"midnight"` (18000).
 
-### set_weather — установить погоду
+### set_weather — погода
 
 ```json
-{ "type": "set_weather", "weather": "rain", "duration": 6000 }
+{ "type": "set_weather", "weather": "thunder", "duration": 6000 }
 ```
 
 Значения: `"clear"`, `"rain"`, `"thunder"`.
 
-### set_var — установить переменную
+### set_var — переменная
 
 ```json
-{ "type": "set_var", "name": "trust", "value": "1" }
+{ "type": "set_var", "name": "chapter", "value": "2" }
 { "type": "set_var", "name": "kills", "op": "inc", "value": "1" }
 ```
 
-| Поле | Описание |
-|------|----------|
-| `name` | Имя переменной |
-| `value` | Значение (по умолч. `""`) |
-| `op` | `"set"`, `"inc"`, `"dec"` (по умолч. `"set"`) |
+Подробнее в разделе [Переменные](#8-переменные).
 
-### force_dialogue — принудительно запустить диалог
+### force_dialogue — принудительно запустить другой диалог
+
+Немедленно заменяет текущий диалог на другой. Полезно для переходов между сценами.
 
 ```json
 {
@@ -362,9 +437,57 @@
 | Поле | Описание |
 |------|----------|
 | `dialogue_id` | ID диалога для запуска |
-| `start_node` | Начальный узел (по умолч. entry) |
-| `target_tag` | Scoreboard-тег NPC (по умолч. текущий) |
-| `radius` | Радиус поиска (по умолч. 32.0) |
+| `start_node` | Начальный узел (по умолч. = entry) |
+| `target_tag` | Scoreboard-тег NPC (по умолч. = текущий NPC) |
+| `radius` | Радиус поиска NPC (по умолч. 32.0) |
+
+### summon_npc — заспавнить NPC прямо из диалога
+
+Создаёт нового NPC во время разговора. Можно сразу начать диалог с ним.
+
+```json
+{
+  "type": "summon_npc",
+  "entity": "minecraft:zombie",
+  "name": "Таинственный незнакомец",
+  "tags": ["mystery_npc"],
+  "despawn": true,
+  "walk_away": true,
+  "start_dialogue": "mystery_npc"
+}
+```
+
+| Поле | Описание |
+|------|----------|
+| `entity` | Тип моба |
+| `name` | Имя (для target.name) |
+| `tags` | Теги (для target.tag) |
+| `despawn` | Удалить после диалога (по умолч. false) |
+| `walk_away` | Уйти перед исчезновением (по умолч. false) |
+| `start_dialogue` | ID диалога для немедленного запуска (необязательно) |
+
+Если `start_dialogue` не указан — NPC просто появляется, игрок сам инициирует разговор ПКМ.
+
+### notify_npc — зажечь `!` над другим NPC
+
+Помечает NPC как «есть новый контент». Значок `!` появится над головой того NPC, даже если игрок уже говорил с ним раньше. Снимается автоматически когда игрок начинает разговор.
+
+```json
+{ "type": "notify_npc", "dialogue_id": "cursed_historian" }
+```
+
+**Типичный сценарий:** игрок получил квест от NPC A → пошёл к NPC B → при входе в нужный узел NPC B добавляется `notify_npc` на NPC A → игрок видит `!` над NPC A и знает что нужно вернуться.
+
+```json
+"gave_item": {
+  "text": "&aВот ингредиенты.",
+  "actions": [
+    { "type": "remove_item", "item": "minecraft:spider_eye", "count": 3 },
+    { "type": "update_quest", "quest_id": "my_quest", "objectives": ["&a[✓] Готово"] },
+    { "type": "notify_npc", "dialogue_id": "quest_giver" }
+  ]
+}
+```
 
 ### Квестовые действия
 
@@ -373,7 +496,7 @@
 | Тип | Описание |
 |-----|----------|
 | `start_quest` | Начать квест |
-| `update_quest` | Обновить цели квеста |
+| `update_quest` | Обновить цели |
 | `complete_quest` | Завершить квест |
 | `fail_quest` | Провалить квест |
 
@@ -381,7 +504,15 @@
 
 ## 6. Условия (conditions)
 
-Условия используются в `condition` варианта ответа — кнопка скрывается если условие не выполнено. Также используются в `on_revisit.conditions`.
+Условие в `condition` варианта ответа — кнопка скрывается если условие не выполнено. Также используются в `on_revisit.conditions`.
+
+```json
+{
+  "text": "&a[Отдать яблоко]",
+  "next": "give_apple",
+  "condition": { "type": "has_item", "item": "minecraft:golden_apple", "count": 1 }
+}
+```
 
 ### has_item — есть ли предмет
 
@@ -395,7 +526,7 @@
 { "type": "has_effect", "effect": "minecraft:regeneration" }
 ```
 
-### health_below — здоровье ниже
+### health_below — здоровье ниже N
 
 ```json
 { "type": "health_below", "value": 10 }
@@ -404,13 +535,13 @@
 
 `percent: true` — значение в процентах от максимального HP.
 
-### hunger_below — голод ниже
+### hunger_below — голод ниже N
 
 ```json
 { "type": "hunger_below", "value": 6 }
 ```
 
-Голод измеряется от 0 до 20.
+Шкала голода: 0–20.
 
 ### time_of_day — время суток
 
@@ -420,10 +551,10 @@
 
 | Значение | Диапазон тиков |
 |----------|---------------|
-| `"day"` | 0 – 12000 |
-| `"dusk"` | 12000 – 13000 |
-| `"night"` | 13000 – 23000 |
-| `"dawn"` | 23000 – 1000 |
+| `"day"` | 0–12000 |
+| `"dusk"` | 12000–13000 |
+| `"night"` | 13000–23000 |
+| `"dawn"` | 23000–1000 |
 
 ### weather — погода
 
@@ -448,10 +579,10 @@
 ### visited_node — посещал ли узел
 
 ```json
-{ "type": "visited_node", "dialogue": "chapter1_intro", "node": "helped" }
+{ "type": "visited_node", "dialogue": "chapter1_intro", "node": "accepted_quest" }
 ```
 
-Проверяет прогресс (общий для всех игроков на сервере).
+Прогресс общий для всех игроков на сервере.
 
 ### killed_mob — убито мобов
 
@@ -459,13 +590,13 @@
 { "type": "killed_mob", "entity": "minecraft:zombie", "count": 5 }
 ```
 
-Счётчик убийств общий для всего сервера.
+Счётчик общий для всего сервера.
 
 ### if_var — значение переменной
 
 ```json
 { "type": "if_var", "name": "trust", "op": "eq", "value": "1" }
-{ "type": "if_var", "name": "kills", "op": "gte", "value": "10" }
+{ "type": "if_var", "name": "score", "op": "gte", "value": "10" }
 { "type": "if_var", "name": "chapter", "op": "exists" }
 ```
 
@@ -485,7 +616,7 @@
 { "type": "quest_status", "quest_id": "cure_zombie", "status": "active" }
 ```
 
-Статусы: `"active"`, `"completed"`, `"failed"`, `"none"` (квеста не существует).
+Статусы: `"active"`, `"completed"`, `"failed"`, `"none"` (квеста нет).
 
 ---
 
@@ -514,13 +645,11 @@
 
 | Поле | Описание |
 |------|----------|
-| `quest.id` | Уникальный ID квеста |
+| `quest.id` | Уникальный ID |
 | `quest.title` | Заголовок (поддерживает цвета) |
 | `quest.description` | Описание |
 | `quest.objectives` | Список целей |
-| `quest.required_item` | Отслеживаемый предмет (необязательно) |
-
-Если у игрока уже есть нужный предмет при выдаче квеста — первая цель отмечается автоматически.
+| `quest.required_item` | Отслеживаемый предмет (необязательно) — если уже есть, первая цель отмечается автоматически |
 
 ### update_quest — обновить цели
 
@@ -542,17 +671,20 @@
 { "type": "fail_quest", "quest_id": "cure_zombie" }
 ```
 
-### HUD-трекер
+### HUD и журнал
 
-Активные квесты отображаются в правом верхнем углу (максимум 3).  
-Клавиша **K** — скрыть/показать трекер.  
-Клавиша **J** — открыть журнал (вкладки «Диалоги» и «Квесты»).
+Активные квесты показываются в правом верхнем углу экрана (максимум 3).
+
+- **K** — скрыть/показать HUD квестов
+- **J** — открыть журнал (вкладки «Диалоги» и «Квесты»)
+
+В журнале квесты разделены на: Активные / Завершённые / Проваленные.
 
 ---
 
 ## 8. Переменные
 
-Переменные — строки, общие для всего сервера. Используются для хранения состояния сюжета.
+Строковые переменные, общие для всего сервера. Используются для хранения состояния сюжета.
 
 ### Запись
 
@@ -560,11 +692,14 @@
 { "type": "set_var", "name": "chapter", "value": "2" }
 { "type": "set_var", "name": "kills", "op": "inc" }
 { "type": "set_var", "name": "score", "op": "inc", "value": "5" }
+{ "type": "set_var", "name": "score", "op": "dec", "value": "2" }
 ```
 
-- `"set"` — присвоить значение
-- `"inc"` — прибавить (пустое значение = +1)
-- `"dec"` — вычесть (пустое значение = -1)
+| Оператор | Описание |
+|----------|----------|
+| `"set"` | Присвоить значение (по умолч.) |
+| `"inc"` | Прибавить (`value` по умолч. = 1) |
+| `"dec"` | Вычесть (`value` по умолч. = 1) |
 
 ### Проверка
 
@@ -573,7 +708,7 @@
 { "type": "if_var", "name": "chapter", "op": "exists" }
 ```
 
-### Пример сюжетной цепочки
+### Пример: сюжетная цепочка с памятью
 
 ```json
 "first_meeting": {
@@ -594,7 +729,7 @@
 
 ## 9. Повторный диалог (on_revisit)
 
-После прохождения диалога (игрок дошёл до конечного узла), при следующем ПКМ запускается `on_revisit`.
+Когда диалог уже пройден (достигнут конечный узел), следующий ПКМ запускает `on_revisit` вместо основного диалога.
 
 ```json
 "on_revisit": {
@@ -616,10 +751,10 @@
 
 ### Логика
 
-1. Условия проверяются по порядку
+1. Условия проверяются сверху вниз
 2. Первое сработавшее:
    - Если есть `start_node` — открывается полный диалог с этого узла
-   - Если нет `start_node` — показывается короткое сообщение
+   - Если нет `start_node` — показывается короткое сообщение на несколько секунд
 3. Если ни одно не сработало:
    - Если есть `default_start_node` — открывается полный диалог
    - Если есть `default` — показывается короткое сообщение
@@ -627,16 +762,16 @@
 | Поле | Описание |
 |------|----------|
 | `default` | Сообщение по умолчанию |
-| `default_start_node` | Узел для полного диалога по умолчанию |
+| `default_start_node` | Узел для диалога по умолчанию |
 | `conditions[].condition` | Условие |
 | `conditions[].text` | Сообщение если условие выполнено |
-| `conditions[].start_node` | Узел для полного диалога (необязательно) |
+| `conditions[].start_node` | Узел для диалога (необязательно) |
 
 ---
 
 ## 10. Автоспавн (summon)
 
-Блок `summon` позволяет мобу появляться автоматически без команды.
+Блок `summon` позволяет мобу появляться автоматически без команды. Игрок сам инициирует разговор ПКМ.
 
 ```json
 "summon": {
@@ -657,15 +792,15 @@
 
 | Поле | Описание |
 |------|----------|
-| `entity` | Тип моба (`minecraft:zombie`) |
-| `custom_name` | Имя (для совпадения с `target.name`) |
-| `tags` | Теги (для совпадения с `target.tag`) |
+| `entity` | Тип моба |
+| `custom_name` | Имя (должно совпадать с `target.name`) |
+| `tags` | Теги (должны совпадать с `target.tag`) |
+| `spawn_position` | Позиция: `"behind_player"` (за спиной, 3 блока) |
 | `despawn_after_dialogue` | Удалить после диалога |
 | `walk_away_before_despawn` | Моб уходит перед исчезновением |
-| `spawn_position` | Позиция спавна (`"behind_player"`) |
-| `trigger` | Триггер спавна |
+| `trigger` | Условие спавна |
 
-### Типы триггеров
+### Триггеры
 
 #### on_join — при входе в мир
 
@@ -673,7 +808,7 @@
 "trigger": { "type": "on_join", "delay": 100 }
 ```
 
-Спавнится однократно при первом входе игрока (если диалог ещё не пройден).
+Спавнится однократно при первом входе (если диалог ещё не пройден). `delay` — задержка в тиках.
 
 #### after_dialogue — после другого диалога
 
@@ -685,7 +820,7 @@
 }
 ```
 
-Спавнится через `delay` тиков после завершения указанного диалога.
+Спавнится через `delay` тиков после завершения указанного диалога. Используется для сюжетных цепочек.
 
 #### player_near — игрок рядом с точкой
 
@@ -726,36 +861,75 @@
 "trigger": { "type": "on_player_death", "delay": 20 }
 ```
 
-### Логика деспавна
+### Пример сюжетной цепочки через summon
 
-При `despawn_after_dialogue: true` после завершения диалога:
-1. Если `walk_away_before_despawn: true` — моб идёт прочь ~10 блоков
-2. Через 4 секунды появляются частицы портала и моб исчезает
+Историк спавнится при входе, Отшельник — после диалога с Историком:
 
-### Важно
+```json
+// cursed_historian.json
+"summon": {
+  "entity": "minecraft:zombie",
+  "custom_name": "Историк",
+  "tags": ["cursed_historian"],
+  "trigger": { "type": "on_join", "delay": 60 }
+}
 
-Спавн происходит **за спиной игрока** (3 блока). Мод автоматически:
-- Присваивает имя и теги
-- Открывает диалог без ПКМ
-- Предотвращает повторный спавн если диалог уже пройден
+// forest_hermit.json
+"summon": {
+  "entity": "minecraft:zombie",
+  "custom_name": "Отшельник",
+  "tags": ["forest_hermit"],
+  "trigger": {
+    "type": "after_dialogue",
+    "dialogue_id": "cursed_historian",
+    "delay": 120
+  }
+}
+```
 
 ---
 
-## 11. Внешний вид GUI
+## 11. Иконка над NPC
+
+Над NPC автоматически появляется жёлтый `!` в двух случаях:
+
+1. **Диалог ещё не начат** — игрок никогда не разговаривал с этим NPC
+2. **Вызвана команда `notify_npc`** — автор диалога явно указал, что у NPC появился новый контент
+
+Иконка видна в радиусе 16 блоков и исчезает когда игрок начинает разговор.
+
+### Управление через JSON
+
+Чтобы зажечь `!` над другим NPC когда игрок попадает в нужный узел:
+
+```json
+"gave_stone": {
+  "text": "&aОтлично. &fКамень у меня. &7Возвращайся к историку.",
+  "actions": [
+    { "type": "remove_item", "item": "minecraft:stone", "count": 1 },
+    { "type": "notify_npc", "dialogue_id": "cursed_historian" }
+  ]
+}
+```
+
+После этого над Историком загорится `!`, даже если игрок уже говорил с ним раньше.
+
+---
+
+## 12. Внешний вид GUI
 
 ### Аватар
 
-Текстура в окне NPC. Берётся из поля `avatar`:
+Текстура в окне диалога (голова NPC):
 
 ```json
 "avatar": "mypack:textures/entity/my_npc.png"
 ```
 
-Текстура должна находиться в ресурспаке в папке `assets/mypack/textures/entity/`.
+Текстура должна быть в ресурспаке: `assets/mypack/textures/entity/my_npc.png`.  
+Формат: стандартная скин-текстура 64×64 (вырезается область головы 8×8).
 
-Формат: стандартная скин-текстура 64×64 (вырезается область головы 8×8 пикселей).
-
-Для установки через команду без ресурспака:
+Через NBT команду (без ресурспака):
 ```
 /data merge entity @e[name=МойНПС,limit=1] {DialogueAvatar:"minecraft:textures/entity/zombie/zombie.png"}
 ```
@@ -766,28 +940,26 @@
 "background": "mypack:textures/gui/dialogue_bg.png"
 ```
 
-Текстура растягивается на всю панель диалога. Если не указана — рисуется стандартный тёмно-синий фон.
+Без этого поля — стандартный тёмно-синий фон.
 
-### Фон панелей ответов
+### Фон кнопок ответов
 
 ```json
 "options_background": "mypack:textures/gui/option_bg.png"
 ```
 
-Текстура для каждой кнопки ответа отдельно.
-
 ### Размещение текстур
 
-Текстуры указываются как `namespace:path`. Путь в ресурспаке:
+Формат: `namespace:path`. Путь в ресурспаке:
 ```
 assets/<namespace>/textures/<path>.png
 ```
 
-Ресурспак кладётся в `.minecraft/resourcepacks/`.
+Ресурспак: `.minecraft/resourcepacks/`.
 
 ---
 
-## 12. Команды
+## 13. Команды
 
 ### /dialogue reload
 
@@ -799,15 +971,15 @@ assets/<namespace>/textures/<path>.png
 
 ### /dialogue reload `<id>`
 
-Перезагрузить один диалог и **сбросить весь прогресс** (для тестирования).
+Перезагрузить один диалог и сбросить весь прогресс по нему (для тестирования).
 
 ```
-/dialogue reload chapter1_intro
+/dialogue reload cursed_historian
 ```
 
 ### /dialogue test `<id>` [node]
 
-Начать диалог с ближайшим мобом.
+Начать диалог с ближайшим подходящим мобом.
 
 ```
 /dialogue test old_zombie
@@ -816,24 +988,23 @@ assets/<namespace>/textures/<path>.png
 
 ### /dialogue goto `<node>`
 
-Перейти к узлу в активном диалоге.
+Перейти к узлу в текущем активном диалоге.
 
 ```
 /dialogue goto reward
 ```
 
-### /npc spawn `<id>` [entity_type]
+### /npc spawn `<id>`
 
-Заспавнить NPC для диалога у своих ног.
+Заспавнить NPC у своих ног. Тип моба берётся из JSON (`summon.entity`).
 
 ```
 /npc spawn old_zombie
-/npc spawn old_zombie minecraft:skeleton
 ```
 
 ### /npc tag `<id>`
 
-Назначить ближайшему мобу роль NPC для диалога.
+Назначить ближайшему мобу роль NPC (присвоить имя и тег из JSON).
 
 ```
 /npc tag old_zombie
@@ -845,7 +1016,7 @@ assets/<namespace>/textures/<path>.png
 
 ### /npc list [radius]
 
-Список всех NPC в радиусе (по умолч. 32).
+Список всех NPC в радиусе (по умолч. 32 блока).
 
 ```
 /npc list
@@ -854,268 +1025,311 @@ assets/<namespace>/textures/<path>.png
 
 ---
 
-## 13. Назначение NPC в мире
+## 14. Назначение NPC в мире
 
-Чтобы моб реагировал на ПКМ, у него должны совпасть `target.name` и `target.tag` из JSON.
+Мод ищет мобов у которых совпадают **оба** поля: `target.name` (CustomName) и `target.tag` (scoreboard-тег).
 
-### Способ 1 — /npc spawn (рекомендуется для тестирования)
+### Способ 1 — /npc spawn (рекомендуется)
 
 ```
 /npc spawn old_zombie
 ```
 
-Мод сам заспавнит моба с нужным именем и тегом.
+Мод сам заспавнит моба нужного типа с нужным именем и тегом.
 
-### Способ 2 — вручную через команды
-
-Подойдите к мобу и выполните:
+### Способ 2 — вручную
 
 ```
 /tag @e[type=minecraft:zombie,distance=..3,limit=1,sort=nearest] add old_zombie
 /data merge entity @e[type=minecraft:zombie,distance=..3,limit=1,sort=nearest] {CustomName:'"Старый Зомби"',CustomNameVisible:1b}
 ```
 
-### Способ 3 — через автоспавн (summon)
+### Способ 3 — автоспавн (summon)
 
-Мод сам создаст моба при нужном условии. Имя и теги назначаются автоматически.
-
----
-
-## 14. Полный пример диалога
-
-Пример сюжетного диалога с квестом, переменными, условиями и автоспавном следующего персонажа.
-
-```json
-{
-  "target": {
-    "name": "Старый Зомби",
-    "tag": "old_zombie"
-  },
-  "display_name": "&6[&eСтарый Зомби&6]",
-  "entry": "start",
-
-  "on_revisit": {
-    "default": "&7*Зомби молча смотрит на тебя*",
-    "conditions": [
-      {
-        "condition": { "type": "quest_status", "quest_id": "cure_zombie", "status": "active" },
-        "text": "&fТы уже принёс яблоко?",
-        "start_node": "check_apple"
-      },
-      {
-        "condition": { "type": "quest_status", "quest_id": "cure_zombie", "status": "completed" },
-        "text": "&aСпасибо тебе, друг..."
-      }
-    ]
-  },
-
-  "summon": {
-    "entity": "minecraft:zombie",
-    "custom_name": "Старый Зомби",
-    "tags": ["old_zombie"],
-    "despawn_after_dialogue": false,
-    "trigger": {
-      "type": "on_join",
-      "delay": 100
-    }
-  },
-
-  "nodes": {
-    "start": {
-      "random_text": [
-        "&7*Зомби медленно поворачивается...*",
-        "&7*Зомби смотрит на тебя пустым взглядом...*"
-      ],
-      "next": "intro",
-      "actions": [
-        { "type": "play_sound", "sound": "minecraft:entity.zombie.ambient", "volume": 0.8 }
-      ]
-    },
-
-    "intro": {
-      "text": "&fЯ был... &cчеловеком... &7когда-то давно...",
-      "next": "question"
-    },
-
-    "question": {
-      "text": "&fМне очень плохо. Ты... можешь помочь?",
-      "options": [
-        {
-          "text": "&aКонечно, чем могу помочь?",
-          "next": "explain"
-        },
-        {
-          "text": "&6[Я убил немало зомби]",
-          "next": "killer_branch",
-          "condition": { "type": "killed_mob", "entity": "minecraft:zombie", "count": 3 }
-        },
-        {
-          "text": "&d[Ночью говорят по-другому]",
-          "next": "night_branch",
-          "condition": { "type": "time_of_day", "period": "night" }
-        },
-        {
-          "text": "&cНет, мне не до тебя",
-          "next": "refuse"
-        }
-      ]
-    },
-
-    "explain": {
-      "text": "&fМне нужно &eзолотое яблоко&f. Говорят, оно может... &7вернуть меня...",
-      "next": "offer"
-    },
-
-    "killer_branch": {
-      "text": "&cТы убивал нас?! &7...Но... я не могу злиться. Я &fне такой&7, как они...",
-      "next": "offer",
-      "actions": [
-        { "type": "set_var", "name": "trust_zombie", "value": "1" }
-      ]
-    },
-
-    "night_branch": {
-      "text": "&9Ночью... мы чувствуем себя &fсвободнее&9. Но я устал от темноты...",
-      "next": "offer"
-    },
-
-    "offer": {
-      "text": "&fПринесёшь мне золотое яблоко?",
-      "options": [
-        {
-          "text": "&aДа, я найду его!",
-          "next": "quest_start",
-          "actions": [
-            {
-              "type": "start_quest",
-              "quest": {
-                "id": "cure_zombie",
-                "title": "&6Лечение зомби",
-                "description": "&fСтарый зомби просит принести ему золотое яблоко",
-                "objectives": [
-                  "&7[ ] Найти золотое яблоко",
-                  "&7[ ] Вернуться к Старому Зомби"
-                ],
-                "required_item": {
-                  "id": "minecraft:golden_apple",
-                  "count": 1
-                }
-              }
-            }
-          ]
-        },
-        {
-          "text": "&cИзвини, не могу",
-          "next": "refuse"
-        }
-      ]
-    },
-
-    "quest_start": {
-      "text": "&eСпасибо... &fЯ буду ждать тебя здесь...",
-      "actions": [
-        { "type": "play_sound", "sound": "minecraft:block.note_block.harp", "pitch": 1.2 }
-      ]
-    },
-
-    "check_apple": {
-      "text": "&fТы принёс яблоко?",
-      "options": [
-        {
-          "text": "&aДа, вот оно!",
-          "next": "give_apple",
-          "condition": { "type": "has_item", "item": "minecraft:golden_apple", "count": 1 }
-        },
-        {
-          "text": "&cЕщё нет...",
-          "next": "wait"
-        }
-      ]
-    },
-
-    "give_apple": {
-      "text": "&7*Зомби берёт яблоко дрожащими руками*",
-      "actions": [
-        { "type": "remove_item", "item": "minecraft:golden_apple", "count": 1 },
-        { "type": "camera_shake", "intensity": 0.6, "duration": 30 },
-        { "type": "spawn_particles", "particle": "minecraft:heart", "count": 30, "target": "entity" },
-        { "type": "play_sound", "sound": "minecraft:entity.player.levelup", "volume": 0.7 },
-        {
-          "type": "update_quest",
-          "quest_id": "cure_zombie",
-          "objectives": [
-            "&a[✔] Найти золотое яблоко",
-            "&a[✔] Вернуться к Старому Зомби"
-          ]
-        }
-      ],
-      "next": "finish"
-    },
-
-    "finish": {
-      "text": "&eЯ чувствую себя... &aлучше&e... Спасибо тебе...",
-      "options": [
-        {
-          "text": "&aРад помочь!",
-          "next": "reward"
-        },
-        {
-          "text": "&6[Мы теперь союзники]",
-          "next": "trust_reward",
-          "condition": { "type": "if_var", "name": "trust_zombie", "op": "eq", "value": "1" }
-        }
-      ]
-    },
-
-    "reward": {
-      "text": "&fВозьми это... &7в знак благодарности...",
-      "actions": [
-        { "type": "complete_quest", "quest_id": "cure_zombie" },
-        { "type": "give_item", "item": "minecraft:emerald", "count": 5 }
-      ]
-    },
-
-    "trust_reward": {
-      "text": "&6Ты понял меня... &fВозьми кое-что особенное...",
-      "actions": [
-        { "type": "complete_quest", "quest_id": "cure_zombie" },
-        { "type": "give_item", "item": "minecraft:diamond", "count": 2 },
-        { "type": "give_item", "item": "minecraft:emerald", "count": 5 }
-      ]
-    },
-
-    "wait": {
-      "text": "&7...Я подожду..."
-    },
-
-    "refuse": {
-      "text": "&7Понимаю... &fМожет, другой путник поможет мне..."
-    }
-  }
-}
-```
+Мод создаёт моба сам при нужном условии. Имя и теги назначаются автоматически.
 
 ---
 
-## Прогресс и общий сервер
+## 15. Прогресс и сервер
 
 Весь прогресс **общий для всех игроков** на сервере:
-- Условие `visited_node` срабатывает если кто-то один посетил узел
+
+- `visited_node` срабатывает если кто-то один посетил узел
 - `killed_mob` считает убийства всех игроков суммарно
 - Переменные (`set_var`/`if_var`) одинаковы для всех
 - Квесты видны всем в журнале
+- Уведомления `notify_npc` видят все игроки
 
-Это позволяет строить совместные истории, где действия одного влияют на всех.
+Прогресс **сохраняется между измерениями** — используется хранилище Overworld независимо от того в каком измерении находится игрок.
+
+Прогресс **не сбрасывается** при смерти или смене измерения.
+
+Для сброса прогресса конкретного диалога: `/dialogue reload <id>`
 
 ---
 
-## Клавиши
+## 16. Клавиши
 
 | Клавиша | Действие |
 |---------|----------|
 | **J** | Открыть журнал (диалоги + квесты) |
 | **K** | Скрыть/показать HUD квестов |
 | **ПКМ** | Следующий узел / выбрать вариант |
-| **ЛКМ** | Предыдущий узел (в линейных диалогах) |
+| **ЛКМ** | Предыдущий узел (линейные диалоги) |
 | **ESC** | Закрыть диалог |
 | **1–5** | Быстрый выбор варианта ответа |
+
+---
+
+## Полный пример диалога
+
+Квест с несколькими NPC, условиями, переменными и автоспавном.
+
+### Историк (cursed_historian.json)
+
+```json
+{
+  "target": { "name": "Историк", "tag": "cursed_historian" },
+  "display_name": "&e[&6Историк&e]",
+  "entry": "start",
+
+  "summon": {
+    "entity": "minecraft:zombie",
+    "custom_name": "Историк",
+    "tags": ["cursed_historian"],
+    "trigger": { "type": "on_join", "delay": 60 },
+    "spawn_position": "behind_player",
+    "despawn_after_dialogue": false
+  },
+
+  "on_revisit": {
+    "default": "&e[&6Историк&e] &7Иди к отшельнику. Он знает где искать.",
+    "conditions": [
+      {
+        "condition": { "type": "if_var", "name": "stone_cleansed", "value": "true" },
+        "start_node": "return_with_stone"
+      },
+      {
+        "condition": { "type": "quest_status", "quest_id": "cursed_stone", "status": "completed" },
+        "text": "&e[&6Историк&e] &aБлагодарю. Деревня снова в безопасности."
+      }
+    ]
+  },
+
+  "nodes": {
+    "start": {
+      "text": "&fА, чужестранец. Мне нужна помощь.",
+      "next": "explain"
+    },
+    "explain": {
+      "text": "&fИз деревни пропал &cПроклятый камень&f. Он хранился у меня.",
+      "next": "ask"
+    },
+    "ask": {
+      "text": "&fВ лесу живёт отшельник. &7Он знает о проклятиях. &eПоговори с ним.",
+      "options": [
+        {
+          "text": "&aЯ помогу",
+          "next": "accept",
+          "actions": [
+            {
+              "type": "start_quest",
+              "quest": {
+                "id": "cursed_stone",
+                "title": "&cПроклятый камень",
+                "description": "&fНайди способ обезвредить камень.",
+                "objectives": [
+                  "&7[ ] Поговорить с отшельником",
+                  "&8[ ] Найти ведьму",
+                  "&8[ ] Вернуть камень историку"
+                ]
+              }
+            }
+          ]
+        },
+        { "text": "&7Не моё дело", "next": "refuse" }
+      ]
+    },
+    "accept": {
+      "text": "&aСпасибо. Отшельник живёт к северу от деревни."
+    },
+    "refuse": {
+      "text": "&7Понимаю. Если передумаешь — я здесь."
+    },
+    "return_with_stone": {
+      "text": "&fКамень очищён?",
+      "next": "reward"
+    },
+    "reward": {
+      "text": "&eВозьми это. Ты заслужил.",
+      "actions": [
+        { "type": "give_item", "item": "minecraft:diamond", "count": 3 },
+        { "type": "complete_quest", "quest_id": "cursed_stone" }
+      ]
+    }
+  }
+}
+```
+
+### Отшельник (forest_hermit.json)
+
+```json
+{
+  "target": { "name": "Отшельник", "tag": "forest_hermit" },
+  "display_name": "&2[&aОтшельник&2]",
+  "entry": "start",
+
+  "summon": {
+    "entity": "minecraft:zombie",
+    "custom_name": "Отшельник",
+    "tags": ["forest_hermit"],
+    "trigger": {
+      "type": "after_dialogue",
+      "dialogue_id": "cursed_historian",
+      "delay": 120
+    },
+    "spawn_position": "behind_player",
+    "despawn_after_dialogue": false
+  },
+
+  "nodes": {
+    "start": {
+      "text": "&7*Старик смотрит на тебя долгим взглядом* &fИсторик послал?",
+      "options": [
+        {
+          "text": "&fДа, по поводу камня",
+          "next": "knows",
+          "condition": { "type": "quest_status", "quest_id": "cursed_stone", "status": "active" }
+        },
+        { "text": "&7Нет", "next": "go_away" }
+      ]
+    },
+    "knows": {
+      "text": "&fЕго нельзя уничтожить обычными способами. Нужна &dведьма с болот&f.",
+      "next": "requirement"
+    },
+    "requirement": {
+      "text": "&cНо она не поможет просто так. &fПринеси &e3 паучьих глаза &fи &e1 зелье ночного зрения&f.",
+      "actions": [
+        {
+          "type": "update_quest",
+          "quest_id": "cursed_stone",
+          "objectives": [
+            "&a[✓] Поговорить с отшельником",
+            "&7[ ] Найти ведьму на болотах",
+            "&7[ ] Принести: 3x паучий глаз + зелье ночного зрения",
+            "&8[ ] Вернуть камень историку"
+          ]
+        }
+      ],
+      "next": "farewell"
+    },
+    "farewell": {
+      "text": "&7*Отшельник возвращается к костру*"
+    },
+    "go_away": {
+      "text": "&7Уходи. Мне не нужны гости."
+    }
+  }
+}
+```
+
+### Ведьма (swamp_witch.json)
+
+```json
+{
+  "target": { "name": "Ведьма", "tag": "swamp_witch" },
+  "display_name": "&5[&dВедьма&5]",
+  "entry": "start",
+
+  "summon": {
+    "entity": "minecraft:witch",
+    "custom_name": "Ведьма",
+    "tags": ["swamp_witch"],
+    "trigger": {
+      "type": "after_dialogue",
+      "dialogue_id": "forest_hermit",
+      "delay": 160
+    },
+    "spawn_position": "behind_player",
+    "despawn_after_dialogue": false
+  },
+
+  "on_revisit": {
+    "default": "&5[&dВедьма&5] &7Принеси то что просила.",
+    "conditions": [
+      {
+        "condition": { "type": "has_item", "item": "minecraft:spider_eye", "count": 3 },
+        "start_node": "has_items_check"
+      }
+    ]
+  },
+
+  "nodes": {
+    "start": {
+      "text": "&d*Ведьма оборачивается* &fКто тебя послал?",
+      "options": [
+        {
+          "text": "&fОтшельник. Мне нужна твоя помощь с камнем",
+          "next": "knows_hermit",
+          "condition": { "type": "visited_node", "dialogue": "forest_hermit", "node": "requirement" }
+        },
+        { "text": "&7Я сам нашёл тебя", "next": "suspicious" }
+      ]
+    },
+    "knows_hermit": {
+      "text": "&dСтарый отшельник... &fМогу очистить камень.",
+      "next": "demand"
+    },
+    "demand": {
+      "text": "&cСначала плата. &f3 паучьих глаза и зелье ночного зрения.",
+      "next": "wait"
+    },
+    "wait": {
+      "text": "&7*Ведьма ждёт*"
+    },
+    "has_items_check": {
+      "text": "&dА, принёс.",
+      "options": [
+        {
+          "text": "&aВот, возьми",
+          "next": "ritual",
+          "condition": { "type": "has_item", "item": "minecraft:spider_eye", "count": 3 },
+          "actions": [
+            { "type": "remove_item", "item": "minecraft:spider_eye", "count": 3 },
+            { "type": "remove_item", "item": "minecraft:potion", "count": 1 }
+          ]
+        },
+        { "text": "&7Ещё не всё собрал", "next": "not_ready" }
+      ]
+    },
+    "ritual": {
+      "text": "&d*Ведьма начинает бормотать заклинание...*",
+      "next": "done",
+      "auto_next_ticks": 60
+    },
+    "done": {
+      "text": "&aГотово. &fКамень очищен. Возвращайся к историку.",
+      "actions": [
+        { "type": "give_item", "item": "minecraft:enchanted_book", "count": 1 },
+        { "type": "set_var", "name": "stone_cleansed", "value": "true" },
+        { "type": "notify_npc", "dialogue_id": "cursed_historian" },
+        {
+          "type": "update_quest",
+          "quest_id": "cursed_stone",
+          "objectives": [
+            "&a[✓] Поговорить с отшельником",
+            "&a[✓] Найти ведьму на болотах",
+            "&a[✓] Принести: 3x паучий глаз + зелье ночного зрения",
+            "&7[ ] Вернуть камень историку"
+          ]
+        }
+      ]
+    },
+    "not_ready": { "text": "&7Тогда возвращайся когда будет всё." },
+    "suspicious": { "text": "&cБез рекомендации не помогаю. Уходи." }
+  }
+}
+```
+
+После того как ведьма очищает камень — над Историком автоматически появится `!`, указывая что нужно вернуться.
