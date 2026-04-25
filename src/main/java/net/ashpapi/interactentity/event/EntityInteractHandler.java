@@ -48,14 +48,18 @@ public class EntityInteractHandler {
             return;
         }
 
+        if (tree.isRepeatable()) {
+            // Repeatable диалоги всегда запускаются заново (прогресс сбрасывается при завершении)
+            DialogueSession.startSession(player, target, tree);
+            return;
+        }
+
         boolean visited = data.hasVisited(tree.getId(), tree.getEntryNodeId());
         if (visited) {
             handleRevisit(tree, player, target, manager);
             return;
         }
 
-        // Fresh start on a non-visited dialogue: block if it was already completed earlier
-        // (e.g. NPC respawned — visits cleared but completion flag persists).
         if (data.isCompleted(tree.getId())) {
             InteractEntityMod.LOGGER.debug("Dialogue '{}' is fully completed — skipping fresh start", tree.getId());
             return;

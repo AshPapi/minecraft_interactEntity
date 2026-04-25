@@ -10,6 +10,7 @@ import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.ashpapi.interactentity.dialogue.DialogueManager;
 import net.ashpapi.interactentity.dialogue.DialogueSession;
 import net.ashpapi.interactentity.dialogue.DialogueTree;
+import net.ashpapi.interactentity.summon.SummonScheduler;
 import net.ashpapi.interactentity.network.ModNetwork;
 import net.ashpapi.interactentity.network.SyncProgressPacket;
 import net.minecraft.commands.CommandSourceStack;
@@ -73,10 +74,31 @@ public class DialogueCommand {
     }
 
     private static int reloadAll(CommandSourceStack src) {
+        DialogueManager mgr = DialogueManager.get();
+        if (mgr == null) {
+            src.sendFailure(Component.literal("DialogueManager not ready"));
+            return 0;
+        }
+        // Завершаем все активные сессии
         MinecraftServer server = src.getServer();
-        server.reloadResources(server.getPackRepository().getSelectedIds())
-              .thenRun(() -> src.sendSuccess(
-                  () -> Component.translatable("command.interactentity.reloaded"), true));
+        for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+            if (net.ashpapi.interactentity.dialogue.DialogueSession.hasActiveSession(p)) {
+                net.ashpapi.interactentity.dialogue.DialogueSession.endSession(p);
+            }
+        }
+        SummonScheduler.clearAll();
+        mgr.loadAll();
+        // Сбрасываем весь прогресс и синхронизируем клиентов
+        DialogueSavedData data = DialogueSavedData.get(server.overworld());
+        for (String id : mgr.getLoadedIds()) {
+            data.resetDialogue(id);
+        }
+        data.clearAllQuests();
+        for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+            ModNetwork.sendToPlayer(p, new SyncProgressPacket(data));
+        }
+        int count = mgr.getLoadedIds().size();
+        src.sendSuccess(() -> Component.literal("Reloaded " + count + " dialogue(s), progress reset"), true);
         return 1;
     }
 

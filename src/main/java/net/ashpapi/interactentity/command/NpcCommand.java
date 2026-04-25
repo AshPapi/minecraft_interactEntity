@@ -3,7 +3,6 @@ package net.ashpapi.interactentity.command;
 import com.google.gson.JsonObject;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
-import net.minecraft.commands.arguments.ResourceLocationArgument;
 import net.ashpapi.interactentity.InteractEntityMod;
 import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.ashpapi.interactentity.dialogue.DialogueManager;
@@ -78,13 +77,6 @@ public class NpcCommand {
         return builder.buildFuture();
     };
 
-    private static final SuggestionProvider<CommandSourceStack> ENTITY_TYPES = (ctx, builder) -> {
-        for (ResourceLocation rl : ForgeRegistries.ENTITY_TYPES.getKeys()) {
-            builder.suggest(rl.toString());
-        }
-        return builder.buildFuture();
-    };
-
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
         event.getDispatcher().register(
@@ -95,12 +87,6 @@ public class NpcCommand {
                         .suggests(DIALOGUE_IDS)
                         .executes(ctx -> spawn(ctx.getSource(),
                                 StringArgumentType.getString(ctx, "dialogue"), null))
-                        .then(Commands.argument("entity", ResourceLocationArgument.id())
-                            .suggests(ENTITY_TYPES)
-                            .executes(ctx -> spawn(ctx.getSource(),
-                                    StringArgumentType.getString(ctx, "dialogue"),
-                                    ResourceLocationArgument.getId(ctx, "entity").toString()))
-                        )
                     )
                 )
                 .then(Commands.literal("tag")

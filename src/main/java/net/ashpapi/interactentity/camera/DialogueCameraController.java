@@ -1,8 +1,10 @@
 package net.ashpapi.interactentity.camera;
 
 import net.ashpapi.interactentity.InteractEntityMod;
+import net.minecraft.client.CameraType;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.OptionInstance;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.Vec3;
@@ -52,6 +54,7 @@ public class DialogueCameraController {
     private static Vec3  lastCamPos = Vec3.ZERO;
 
     private static float savedPlayerYaw, savedPlayerPitch;
+    private static CameraType savedCameraType = null;
 
     private static boolean pendingLookAt   = false;
     private static int     pendingEntityId = -1;
@@ -69,6 +72,30 @@ public class DialogueCameraController {
             return m;
         } catch (Exception e) {
             InteractEntityMod.LOGGER.error("Camera.setPosition access failed: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    // Options.cameraType OptionInstance для принудительного переключения от F5 к 1-му лицу
+    private static final Field OPTIONS_CAMERA_TYPE = resolveCameraTypeField();
+    @SuppressWarnings("unchecked")
+    private static void forceCameraType(CameraType type) {
+        if (OPTIONS_CAMERA_TYPE == null) return;
+        try {
+            OptionInstance<CameraType> opt =
+                    (OptionInstance<CameraType>) OPTIONS_CAMERA_TYPE.get(Minecraft.getInstance().options);
+            opt.set(type);
+        } catch (Exception e) {
+            InteractEntityMod.LOGGER.error("Failed to set camera type: {}", e.getMessage());
+        }
+    }
+    private static Field resolveCameraTypeField() {
+        try {
+            Field f = net.minecraft.client.Options.class.getDeclaredField("cameraType");
+            f.setAccessible(true);
+            return f;
+        } catch (Exception e) {
+            InteractEntityMod.LOGGER.error("Options.cameraType access failed: {}", e.getMessage());
             return null;
         }
     }
@@ -102,6 +129,12 @@ public class DialogueCameraController {
             lastAppliedYaw   = savedPlayerYaw;
             lastAppliedPitch = savedPlayerPitch;
             active = true;
+            // Если игрок в F5 — принудительно переключаем на первое лицо
+            CameraType current = mc.options.getCameraType();
+            if (current != CameraType.FIRST_PERSON) {
+                savedCameraType = current;
+                forceCameraType(CameraType.FIRST_PERSON);
+            }
         }
 
         if (mode == Mode.SIDE_REWIND) {
@@ -188,6 +221,11 @@ public class DialogueCameraController {
         postRewindHide = false;
         recording.clear();
         targetEntityId = -1;
+        // Восстанавливаем тип камеры если переключали из F5
+        if (savedCameraType != null) {
+            forceCameraType(savedCameraType);
+            savedCameraType = null;
+        }
     }
 
     public static void release() { stop(); }

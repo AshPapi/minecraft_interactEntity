@@ -54,5 +54,6 @@ public class ActionRegistry {
         register("set_weather", new SetWeatherAction());
         register("force_dialogue", new ForceDialogueAction());
         register("set_var", new SetVarAction());
+        register("summon_npc", new SummonNpcAction());
     }
 }

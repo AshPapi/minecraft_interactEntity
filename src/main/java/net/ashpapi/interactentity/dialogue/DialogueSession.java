@@ -147,15 +147,17 @@ public class DialogueSession {
         data.visit(tree.getId(), currentNodeId);
 
         if (firstVisit) {
-            // Сохраняем реплику в историю сразу при первом посещении узла
             historyEntry.addLine(new HistoryLine(tree.getDisplayName(), node.getText()));
             data.addHistory(historyEntry);
 
             if (!node.getActions().isEmpty()) {
                 ActionRegistry.executeActions(node.getActions(), player, entity);
             }
+            // Если action заменил сессию (summon_npc+start_dialogue, force_dialogue) — не продолжаем
+            if (ACTIVE_SESSIONS.get(player.getUUID()) != this) return;
             ModNetwork.sendToPlayer(player, new SyncProgressPacket(data));
         }
+        if (ACTIVE_SESSIONS.get(player.getUUID()) != this) return;
 
         // Сначала фильтруем опции, потом определяем тип узла
         List<String> optionTexts    = new ArrayList<>();
@@ -252,12 +254,13 @@ public class DialogueSession {
         DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
 
         if (!session.completed) {
-            // Сохраняем позицию для возобновления; история уже сохранена инкрементально
             data.setResumeNode(session.tree.getId(), session.currentNodeId);
+        } else if (session.tree.isRepeatable()) {
+            // Сбрасываем прогресс чтобы диалог мог сработать снова
+            data.resetDialogue(session.tree.getId());
         } else {
             data.clearResumeNode(session.tree.getId());
             data.markCompleted(session.tree.getId());
-            // История уже сохранена инкрементально в sendCurrentNode / handleOptionSelected
         }
         ModNetwork.sendToPlayer(player, new SyncProgressPacket(data));
 
@@ -309,8 +312,9 @@ public class DialogueSession {
         if (!selected.getActions().isEmpty()) {
             ActionRegistry.executeActions(selected.getActions(), player, session.entity);
         }
+        // Если action заменил сессию (summon_npc+start_dialogue, force_dialogue) — не продолжаем
+        if (getSession(player) != session) return;
 
-        // Сохраняем ответ игрока сразу
         DialogueSavedData optData = DialogueSavedData.get(player.serverLevel());
         optData.addHistory(session.historyEntry);
         ModNetwork.sendToPlayer(player, new SyncProgressPacket(optData));

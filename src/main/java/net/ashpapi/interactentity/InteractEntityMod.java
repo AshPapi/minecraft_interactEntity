@@ -2,6 +2,7 @@ package net.ashpapi.interactentity;
 
 import com.mojang.logging.LogUtils;
 import net.ashpapi.interactentity.dialogue.DialogueManager;
+import net.ashpapi.interactentity.summon.SummonScheduler;
 import net.ashpapi.interactentity.action.ActionRegistry;
 import net.ashpapi.interactentity.condition.ConditionRegistry;
 import net.ashpapi.interactentity.entity.ModEntities;
@@ -36,6 +37,7 @@ public class InteractEntityMod {
 
     @SubscribeEvent
     public void onServerStarting(ServerStartingEvent event) {
+        SummonScheduler.clearAll();
         DialogueManager manager = new DialogueManager();
         DialogueManager.setInstance(manager);
         manager.loadAll();

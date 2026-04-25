@@ -36,15 +36,14 @@ public class SummonScheduler {
             if (!"after_dialogue".equals(trigger.getType())) continue;
             if (!completedDialogueId.equals(trigger.getDialogueId())) continue;
 
-            // Check if already triggered
             String key = tree.getId() + ":" + player.getUUID();
-            if (TRIGGERED_DIALOGUES.contains(key)) continue;
+            if (!tree.isRepeatable()) {
+                if (TRIGGERED_DIALOGUES.contains(key)) continue;
+                DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
+                if (data.hasVisited(tree.getId(), tree.getEntryNodeId())) continue;
+                TRIGGERED_DIALOGUES.add(key);
+            }
 
-            // Check if dialogue already completed in saved data
-            DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
-            if (data.hasVisited(tree.getId(), tree.getEntryNodeId())) continue;
-
-            TRIGGERED_DIALOGUES.add(key);
             SCHEDULED.add(new ScheduledSummon(tree, config, player, trigger.getDelay()));
             InteractEntityMod.LOGGER.debug("Scheduled summon for dialogue '{}' after '{}', delay={} ticks",
                     tree.getId(), completedDialogueId, trigger.getDelay());
@@ -53,10 +52,12 @@ public class SummonScheduler {
 
     public static void scheduleNow(DialogueTree tree, SummonConfig config, ServerPlayer player) {
         String key = tree.getId() + ":" + player.getUUID();
-        if (TRIGGERED_DIALOGUES.contains(key)) return;
-        DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
-        if (data.hasVisited(tree.getId(), tree.getEntryNodeId())) return;
-        TRIGGERED_DIALOGUES.add(key);
+        if (!tree.isRepeatable()) {
+            if (TRIGGERED_DIALOGUES.contains(key)) return;
+            DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
+            if (data.hasVisited(tree.getId(), tree.getEntryNodeId())) return;
+            TRIGGERED_DIALOGUES.add(key);
+        }
         SCHEDULED.add(new ScheduledSummon(tree, config, player, config.getTrigger().getDelay()));
     }
 
@@ -74,12 +75,13 @@ public class SummonScheduler {
             if (!"on_join".equals(trigger.getType())) continue;
 
             String key = tree.getId() + ":" + player.getUUID();
-            if (TRIGGERED_DIALOGUES.contains(key)) continue;
+            if (!tree.isRepeatable()) {
+                if (TRIGGERED_DIALOGUES.contains(key)) continue;
+                DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
+                if (data.hasVisited(tree.getId(), tree.getEntryNodeId())) continue;
+                TRIGGERED_DIALOGUES.add(key);
+            }
 
-            DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
-            if (data.hasVisited(tree.getId(), tree.getEntryNodeId())) continue;
-
-            TRIGGERED_DIALOGUES.add(key);
             SCHEDULED.add(new ScheduledSummon(tree, config, player, trigger.getDelay()));
             InteractEntityMod.LOGGER.debug("Scheduled summon for dialogue '{}' on join, delay={} ticks",
                     tree.getId(), trigger.getDelay());
@@ -89,26 +91,30 @@ public class SummonScheduler {
     public static void tick() {
         DespawnHandler.tick();
 
+        List<ScheduledSummon> toReschedule = new ArrayList<>();
+
         Iterator<ScheduledSummon> it = SCHEDULED.iterator();
         while (it.hasNext()) {
             ScheduledSummon summon = it.next();
             summon.ticksRemaining--;
 
             if (summon.ticksRemaining <= 0) {
-                executeSummon(summon);
+                executeSummon(summon, toReschedule);
                 it.remove();
             }
         }
+
+        SCHEDULED.addAll(toReschedule);
     }
 
-    private static void executeSummon(ScheduledSummon summon) {
+    private static void executeSummon(ScheduledSummon summon, List<ScheduledSummon> toReschedule) {
         ServerPlayer player = summon.player;
         if (!player.isAlive() || player.hasDisconnected()) return;
 
         // Don't summon if player is already in dialogue
         if (DialogueSession.hasActiveSession(player)) {
             // Re-schedule with short delay
-            SCHEDULED.add(new ScheduledSummon(summon.tree, summon.config, player, 40));
+            toReschedule.add(new ScheduledSummon(summon.tree, summon.config, player, 40));
             return;
         }
 
@@ -175,8 +181,6 @@ public class SummonScheduler {
             }
         }
 
-        // Auto-start dialogue
-        DialogueSession.startSession(player, livingEntity, summon.tree);
     }
 
     public static void clearAll() {

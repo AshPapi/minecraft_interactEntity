@@ -20,12 +20,13 @@ public class DialogueTree {
     @Nullable private final ResourceLocation background;
     @Nullable private final ResourceLocation optionsBackground;
     private final boolean invulnerable;
+    private final boolean repeatable;
 
     public DialogueTree(String id, DialogueTarget target, String displayName, String entryNodeId,
                         Map<String, DialogueNode> nodes, @Nullable RevisitConfig revisitConfig,
                         @Nullable JsonObject summonConfig, @Nullable ResourceLocation avatar,
                         @Nullable ResourceLocation background, @Nullable ResourceLocation optionsBackground,
-                        boolean invulnerable) {
+                        boolean invulnerable, boolean repeatable) {
         this.id = id;
         this.target = target;
         this.displayName = displayName;
@@ -37,6 +38,7 @@ public class DialogueTree {
         this.background = background;
         this.optionsBackground = optionsBackground;
         this.invulnerable = invulnerable;
+        this.repeatable = repeatable;
     }
 
     public String getId() { return id; }
@@ -52,6 +54,7 @@ public class DialogueTree {
     @Nullable public ResourceLocation getBackground() { return background; }
     @Nullable public ResourceLocation getOptionsBackground() { return optionsBackground; }
     public boolean isInvulnerable() { return invulnerable; }
+    public boolean isRepeatable() { return repeatable; }
 
     public static DialogueTree fromJson(String id, JsonObject json) {
         DialogueTarget target = DialogueTarget.fromJson(json.getAsJsonObject("target"));
@@ -86,7 +89,8 @@ public class DialogueTree {
         }
 
         boolean invulnerable = json.has("invulnerable") ? json.get("invulnerable").getAsBoolean() : true;
+        boolean repeatable = json.has("repeatable") && json.get("repeatable").getAsBoolean();
 
-        return new DialogueTree(id, target, displayName, entry, nodes, revisitConfig, summonConfig, avatar, background, optionsBackground, invulnerable);
+        return new DialogueTree(id, target, displayName, entry, nodes, revisitConfig, summonConfig, avatar, background, optionsBackground, invulnerable, repeatable);
     }
 }
