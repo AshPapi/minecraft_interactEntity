@@ -218,7 +218,7 @@ public class DialogueSession {
         if (data.hasNotification(dialogueId)) {
             data.removeNotification(dialogueId);
             for (ServerPlayer online : player.getServer().getPlayerList().getPlayers()) {
-                ModNetwork.sendToPlayer(new net.ashpapi.interactentity.network.SyncProgressPacket(data), online);
+                ModNetwork.sendToPlayer(online, new net.ashpapi.interactentity.network.SyncProgressPacket(data));
             }
         }
     }
