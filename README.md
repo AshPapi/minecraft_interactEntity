@@ -1,4 +1,1450 @@
-# InteractEntity — Полная документация
+# InteractEntity
+
+A mod for Minecraft Forge 1.20.1. Lets you build full-featured dialogues with mobs through JSON files.
+
+**Language / Язык:** [🇬🇧 English](#english) · [🇷🇺 Русский](#русский)
+
+---
+
+<a id="english"></a>
+
+## English
+
+> [🇷🇺 Перейти к русской версии](#русский)
+
+A mod for Minecraft Forge 1.20.1. Lets you create dialogues with any mob using JSON files.
+
+---
+
+### Getting started
+
+A dialogue is a JSON file describing: which exact mob to talk with, what it says, and what happens in response to player actions. When the player right-clicks a matching mob — the mod finds the JSON and opens the dialogue GUI.
+
+#### Where files live
+
+After the first launch the mod creates a folder next to `.minecraft`:
+
+```
+.minecraft/
+  interactentity/
+    dialogues/
+      zombie.json        ← dialogue ID: "zombie"
+      story/
+        intro.json       ← dialogue ID: "story/intro"
+```
+
+Subfolders are supported. The file name (without `.json`) plus its path inside `dialogues/` becomes the **dialogue ID** — used everywhere else: in conditions, triggers, quests, commands.
+
+After adding or editing files run `/dialogue reload` — without it the mod won't see your changes.
+
+---
+
+### 1. Nodes — the building block
+
+Before looking at the file structure you need to understand a **node**. A node is one piece of dialogue. At any moment the player is in a specific node: sees the NPC text and either right-clicks to continue, or picks one of the answer options.
+
+#### Three node types
+
+The type is detected automatically — by which fields are present.
+
+**Linear node** — NPC says something, player right-clicks to advance to the next node. Used for monologues, intros, narration.
+
+```json
+"start": {
+  "text": "&fI've been waiting for you, traveler...",
+  "next": "continue"
+}
+```
+
+`"next": "continue"` is the next node's ID. Right-click jumps to the node named `"continue"`. Has `next`, no `options` — that's a linear node.
+
+**Choice node** — NPC asks a question, player picks an option with mouse or keys 1–5. Used for branching dialogue.
+
+```json
+"question": {
+  "text": "&fWill you help me?",
+  "options": [
+    { "text": "&aOf course!", "next": "accept" },
+    { "text": "&cSorry, no", "next": "refuse" }
+  ]
+}
+```
+
+`options` is the list of answers. Each has `text` (button label) and `next` (where it leads). Has `options` → choice node.
+
+**End node** — dialogue closes. NPC says a final line, player right-clicks, GUI closes. Used as a final point of a branch.
+
+```json
+"end": {
+  "text": "&7*The zombie shuffles into the darkness*"
+}
+```
+
+Has neither `next` nor `options` → end node.
+
+#### How transitions form a dialogue
+
+Nodes are linked through `next`. Imagine a graph: each node is a vertex, each `next` or option is an edge. The dialogue starts at the node specified in `entry` and walks the graph until it hits an end node.
+
+```
+start → intro → question → accept → reward (end)
+                         ↘ refuse → bye (end)
+```
+
+#### All node fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `text` | string | NPC's line |
+| `random_text` | string array | Random text — picks one from the list each time the node is entered |
+| `next` | string | Next node ID (makes the node linear) |
+| `auto_next_ticks` | number | Auto-advance after N ticks without right-click. 20 ticks = 1 second |
+| `options` | array | Answer options (makes the node a choice node) |
+| `actions` | array | Actions performed **on enter** of this node |
+
+#### All option fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `text` | string | Button label |
+| `next` | string | Next node ID. If absent — dialogue ends |
+| `condition` | object | Visibility condition. If false — option isn't shown |
+| `actions` | array | Actions performed **when this option is picked** |
+
+**Difference between node `actions` and option `actions`:**
+- Node `actions` — fire whenever the player enters this node, regardless of how
+- Option `actions` — fire only when the player picks this specific option
+
+---
+
+### 2. File skeleton
+
+```json
+{
+  "target": {
+    "name": "Old Zombie",
+    "tag": "old_zombie"
+  },
+  "display_name": "&6[&eOld Zombie&6]",
+  "entry": "start",
+  "nodes": {
+    "start": {
+      "text": "&fHello, traveler...",
+      "next": "end"
+    },
+    "end": {
+      "text": "&7*The zombie falls silent*"
+    }
+  }
+}
+```
+
+#### How the mod finds the right mob
+
+The `target` field is the mob's "address". On right-click the mod checks **two conditions at once**:
+1. The mob's `CustomName` (nameplate) matches `target.name`
+2. The mob has a scoreboard tag matching `target.tag`
+
+Both match → the dialogue opens. Otherwise nothing happens.
+
+Why two? Because mob names aren't unique, but tags are Minecraft's flexible mechanism for marking specific entities.
+
+#### All root fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `target.name` | string | yes | Mob name (CustomName plate) |
+| `target.tag` | string | yes | Scoreboard tag |
+| `display_name` | string | no | Name in GUI. Falls back to `target.name`. Supports formatting |
+| `entry` | string | yes | Starting node — every fresh dialogue begins here |
+| `nodes` | object | yes | All dialogue nodes |
+| `repeatable` | bool | no | `true` — dialogue can be replayed. Default `false` — after completion the NPC stops responding |
+| `invulnerable` | bool | no | `true` (default) — NPC is invulnerable during dialogue |
+| `avatar` | string | no | Avatar texture in GUI, format `namespace:path` |
+| `background` | string | no | Custom background texture for the dialogue panel |
+| `options_background` | string | no | Custom background texture for option panels |
+| `on_revisit` | object | no | What happens when the player approaches the NPC after completing the dialogue |
+| `summon` | object | no | Automatic NPC spawning |
+
+---
+
+### 3. Text formatting
+
+Supported in any text field: `text`, `display_name`, `random_text`, options, quests.
+
+#### Color codes
+
+Use `&` followed by a letter or digit:
+
+| Code | Color | Code | Color |
+|------|-------|------|-------|
+| `&0` | Black | `&8` | Dark Gray |
+| `&1` | Dark Blue | `&9` | Blue |
+| `&2` | Dark Green | `&a` | Green |
+| `&3` | Dark Aqua | `&b` | Aqua |
+| `&4` | Dark Red | `&c` | Red |
+| `&5` | Dark Purple | `&d` | Pink |
+| `&6` | Gold | `&e` | Yellow |
+| `&7` | Gray | `&f` | White |
+
+#### Style codes
+
+| Code | Effect |
+|------|--------|
+| `&l` | Bold |
+| `&o` | Italic |
+| `&n` | Underline |
+| `&m` | Strikethrough |
+| `&k` | Obfuscated (flickering chars) |
+| `&r` | Reset all styles and colors |
+
+#### HEX color
+
+Arbitrary color via `&#RRGGBB`:
+
+```
+&#FF6600  →  orange
+&#00AAFF  →  light blue
+```
+
+#### Example
+
+```json
+"display_name": "&6[&eOld Zombie&6]"
+"text": "&fI was... &chuman... &7once, long ago..."
+"text": "&#FF6600*Flash of fire*"
+"text": "&lWARNING! &rThis is important."
+```
+
+Color persists until the next code or end of line. `&r` resets everything back to white.
+
+---
+
+### 4. Actions
+
+Actions are what **happens** in dialogue: give an item, run a command, start a quest, play a sound. They fire either on node entry or when picking an option.
+
+```json
+"reward_node": {
+  "text": "&aTake this as a token of gratitude!",
+  "actions": [
+    { "type": "give_item", "item": "minecraft:diamond", "count": 3 },
+    { "type": "play_sound", "sound": "minecraft:entity.player.levelup", "volume": 1.0 }
+  ]
+}
+```
+
+On entering `reward_node` the player gets 3 diamonds and hears a sound.
+
+#### give_item — give an item
+
+```json
+{ "type": "give_item", "item": "minecraft:golden_apple", "count": 1 }
+```
+
+- `item` — item ID in `namespace:name` format
+- `count` — quantity (default 1)
+
+#### remove_item — take away an item
+
+```json
+{ "type": "remove_item", "item": "minecraft:spider_eye", "count": 3 }
+```
+
+Removes items from the inventory. Usually paired with the `has_item` condition — first verify, then take.
+
+```json
+{
+  "text": "&aHere",
+  "next": "ritual",
+  "condition": { "type": "has_item", "item": "minecraft:spider_eye", "count": 3 },
+  "actions": [{ "type": "remove_item", "item": "minecraft:spider_eye", "count": 3 }]
+}
+```
+
+#### run_command — run a server command
+
+```json
+{ "type": "run_command", "command": "effect give @s minecraft:speed 60 2" }
+```
+
+- `command` — command without leading slash
+- `@s` — the player having the dialogue
+- Runs as the server with permission level 2
+
+#### teleport — teleport the player
+
+```json
+{ "type": "teleport", "x": 100, "y": 64, "z": -200 }
+{ "type": "teleport", "x": 0, "y": 5, "z": 0, "mode": "relative" }
+```
+
+- `x`, `y`, `z` — coordinates
+- `yaw`, `pitch` — rotation after teleport (optional)
+- `mode` — `"absolute"` (specific coords, default) or `"relative"` (offset from current position)
+
+#### play_sound — play a sound
+
+```json
+{
+  "type": "play_sound",
+  "sound": "minecraft:entity.zombie.ambient",
+  "volume": 0.8,
+  "pitch": 1.2,
+  "target": "player"
+}
+```
+
+- `sound` — sound ID
+- `volume` — 0.0 to 2.0 (default 1.0)
+- `pitch` — above 1.0 = higher pitch, below = lower (default 1.0)
+- `target` — `"player"` (sound on player) or `"entity"` (sound on NPC)
+
+#### give_effect — apply a potion effect
+
+```json
+{
+  "type": "give_effect",
+  "effect": "minecraft:regeneration",
+  "duration": 200,
+  "amplifier": 1,
+  "target": "player"
+}
+```
+
+- `effect` — effect ID
+- `duration` — duration in ticks (200 ticks = 10 seconds)
+- `amplifier` — level: 0 = level I, 1 = level II, etc.
+- `ambient` — `true` makes particles transparent like a beacon (default `false`)
+- `particles` — `false` hides particles (default `true`)
+- `target` — `"player"` or `"entity"`
+
+#### remove_effect — remove an effect
+
+```json
+{ "type": "remove_effect", "effect": "minecraft:speed" }
+{ "type": "remove_effect" }
+```
+
+Without `effect` removes all effects. `target`: `"player"` or `"entity"`.
+
+#### spawn_particles — particles
+
+```json
+{
+  "type": "spawn_particles",
+  "particle": "minecraft:heart",
+  "count": 20,
+  "spread": 0.5,
+  "speed": 0.0,
+  "target": "entity"
+}
+```
+
+- `particle` — particle ID (basic only: `minecraft:heart`, `minecraft:smoke`, `minecraft:portal`, etc.)
+- `count` — quantity (default 20)
+- `spread` — spread radius in blocks (default 0.5)
+- `speed` — initial speed (default 0.0)
+- `target` — spawn center: `"player"` or `"entity"`
+
+#### camera_shake — shake the camera
+
+```json
+{ "type": "camera_shake", "intensity": 1.0, "duration": 20 }
+```
+
+- `intensity` — shake strength (1.0 = standard)
+- `duration` — duration in ticks
+
+#### set_time — change time of day
+
+```json
+{ "type": "set_time", "time": "night" }
+{ "type": "set_time", "time": 13000 }
+```
+
+Named values: `"day"` (1000), `"noon"` (6000), `"night"` (13000), `"midnight"` (18000).
+
+#### set_weather — change weather
+
+```json
+{ "type": "set_weather", "weather": "thunder", "duration": 6000 }
+```
+
+- `weather` — `"clear"`, `"rain"`, `"thunder"`
+- `duration` — in ticks (optional)
+
+#### force_dialogue — start another dialogue immediately
+
+Closes the current dialogue and immediately opens another. Used to hand off control from one character to another mid-scene.
+
+```json
+{
+  "type": "force_dialogue",
+  "dialogue_id": "guard_captain",
+  "start_node": "confrontation",
+  "target_tag": "guard_captain",
+  "radius": 16.0
+}
+```
+
+- `dialogue_id` — dialogue ID to start
+- `start_node` — node to start at. Default — the target dialogue's `entry`
+- `target_tag` — scoreboard tag of the new NPC. Default — same NPC
+- `radius` — search radius for the tagged NPC (default 32 blocks)
+
+#### summon_npc — create an NPC during dialogue
+
+Spawns a new NPC behind the player while talking. Can immediately start a dialogue with them.
+
+```json
+{
+  "type": "summon_npc",
+  "entity": "minecraft:zombie",
+  "name": "Mysterious Stranger",
+  "tags": ["mystery_npc"],
+  "despawn": true,
+  "walk_away": true,
+  "start_dialogue": "mystery_npc"
+}
+```
+
+- `entity` — mob type
+- `name` — name (must match `target.name` of the desired dialogue)
+- `tags` — tags (must match `target.tag`)
+- `despawn` — `true` = mob disappears after dialogue
+- `walk_away` — `true` = mob walks away first, then despawns
+- `start_dialogue` — dialogue ID to start instantly (optional). If absent — NPC just appears and the player initiates the talk themselves
+
+#### notify_npc — light up `!` over another NPC
+
+Marks another NPC as "has something new". A yellow `!` appears above its head — even if the player has talked to them before. Removed when the player starts a conversation.
+
+```json
+{ "type": "notify_npc", "dialogue_id": "cursed_historian" }
+```
+
+- `dialogue_id` — ID of the dialogue whose NPC should be highlighted
+
+Typical usage: player completes part of a quest at NPC #2 → NPC #2 fires `notify_npc` on NPC #1 → player sees `!` and knows to return.
+
+#### Quest actions
+
+Detailed in [Quest System](#7-quest-system).
+
+| Type | Short description |
+|------|-------------------|
+| `start_quest` | Add quest to journal and HUD |
+| `update_quest` | Update objectives list |
+| `complete_quest` | Mark quest complete |
+| `fail_quest` | Mark quest failed |
+
+---
+
+### 5. Conditions
+
+Conditions control button visibility. If an option's `condition` is false — the button simply isn't shown. Also used inside `on_revisit`.
+
+```json
+"offer": {
+  "text": "&fCan I trust you?",
+  "options": [
+    {
+      "text": "&a[Hand over the golden apple]",
+      "next": "trust_gained",
+      "condition": { "type": "has_item", "item": "minecraft:golden_apple", "count": 1 },
+      "actions": [{ "type": "remove_item", "item": "minecraft:golden_apple", "count": 1 }]
+    },
+    { "text": "&7No, not now", "next": "distrust" }
+  ]
+}
+```
+
+The "Hand over apple" button shows only if it's in the inventory. The second is always visible.
+
+#### has_item — has the item
+
+```json
+{ "type": "has_item", "item": "minecraft:golden_apple", "count": 1 }
+```
+
+- `item` — item ID
+- `count` — minimum quantity (default 1)
+
+#### has_effect — has the effect
+
+```json
+{ "type": "has_effect", "effect": "minecraft:regeneration" }
+```
+
+#### health_below — health below threshold
+
+```json
+{ "type": "health_below", "value": 10 }
+{ "type": "health_below", "value": 50, "percent": true }
+```
+
+- `value` — threshold
+- `percent` — `true` = value as a % of max HP
+
+#### hunger_below — hunger below threshold
+
+```json
+{ "type": "hunger_below", "value": 6 }
+```
+
+Hunger scale 0–20.
+
+#### time_of_day — time of day
+
+```json
+{ "type": "time_of_day", "period": "night" }
+```
+
+| Value | Ticks | Description |
+|-------|-------|-------------|
+| `"day"` | 0–12000 | Daylight |
+| `"dusk"` | 12000–13000 | Sunset |
+| `"night"` | 13000–23000 | Night |
+| `"dawn"` | 23000–1000 | Dawn |
+
+#### weather — weather
+
+```json
+{ "type": "weather", "weather": "rain" }
+```
+
+Values: `"clear"`, `"rain"`, `"thunder"`.
+
+#### dimension — dimension
+
+```json
+{ "type": "dimension", "dimension": "minecraft:the_nether" }
+```
+
+Standard IDs: `minecraft:overworld`, `minecraft:the_nether`, `minecraft:the_end`.
+
+#### biome — biome
+
+```json
+{ "type": "biome", "biome": "minecraft:desert" }
+```
+
+#### visited_node — has the player visited a specific node
+
+```json
+{ "type": "visited_node", "dialogue": "chapter1_intro", "node": "accepted_quest" }
+```
+
+- `dialogue` — dialogue ID (JSON file name without extension)
+- `node` — node name in that dialogue
+
+The main tool for **linking NPCs** — see [NPC linking](#8-linking-npcs).
+
+Progress is shared: if any player visited the node — the condition is true for everyone on the server.
+
+#### killed_mob — kills of a mob type
+
+```json
+{ "type": "killed_mob", "entity": "minecraft:zombie", "count": 5 }
+```
+
+- `entity` — mob type
+- `count` — minimum kills
+
+Counter is shared server-wide.
+
+#### quest_status — quest status
+
+```json
+{ "type": "quest_status", "quest_id": "cure_zombie", "status": "active" }
+```
+
+- `quest_id` — quest ID
+- `status` — `"active"`, `"completed"`, `"failed"`, `"none"` (quest doesn't exist)
+
+#### if_var — variable value
+
+```json
+{ "type": "if_var", "name": "trust_level", "op": "eq", "value": "high" }
+{ "type": "if_var", "name": "kills", "op": "gte", "value": "10" }
+{ "type": "if_var", "name": "met_trader", "op": "exists" }
+```
+
+- `name` — variable name
+- `op` — comparison operator
+- `value` — what to compare with
+
+| Operator | Description |
+|----------|-------------|
+| `"eq"` | Equal (string) |
+| `"neq"` | Not equal |
+| `"gt"` | Greater than (number) |
+| `"lt"` | Less than (number) |
+| `"gte"` | Greater than or equal (number) |
+| `"lte"` | Less than or equal (number) |
+| `"exists"` | Variable is set and not empty |
+
+More on variables in the next section.
+
+---
+
+### 6. Variables
+
+Variables are named strings stored on the server, shared across all players. Used to remember story progress and branch between different dialogues.
+
+#### How to set — set_var action
+
+```json
+{ "type": "set_var", "name": "chapter", "value": "2" }
+```
+
+- `name` — variable name, any string without spaces
+- `value` — value, always a string (default `""`)
+- `op` — operation (default `"set"`)
+
+Numeric ops:
+
+```json
+{ "type": "set_var", "name": "kills", "op": "inc", "value": "1" }
+{ "type": "set_var", "name": "score", "op": "dec", "value": "5" }
+{ "type": "set_var", "name": "counter", "op": "inc" }
+```
+
+- `"set"` — assign value
+- `"inc"` — add a number. If `value` is missing — adds 1
+- `"dec"` — subtract a number. If `value` is missing — subtracts 1
+
+#### How to check — if_var condition
+
+```json
+{ "type": "if_var", "name": "chapter", "op": "eq", "value": "2" }
+{ "type": "if_var", "name": "met_bob", "op": "exists" }
+{ "type": "if_var", "name": "trust", "op": "gte", "value": "3" }
+```
+
+#### Example: NPC remembers the player has met them
+
+```json
+"nodes": {
+  "start": {
+    "text": "&fHi! First time we meet?",
+    "actions": [{ "type": "set_var", "name": "met_bob", "value": "true" }],
+    "next": "chat"
+  }
+}
+```
+
+On the first conversation `met_bob` is set. On revisit (`on_revisit`):
+
+```json
+"on_revisit": {
+  "default": "&7*Bob stays silent*",
+  "conditions": [
+    {
+      "condition": { "type": "if_var", "name": "met_bob", "op": "exists" },
+      "text": "&fOh, you again! How are you?"
+    }
+  ]
+}
+```
+
+#### Example: trust counter
+
+The player picks a kind option several times → `trust_bob` accumulates → unlocks a secret branch:
+
+```json
+"kind_answer": {
+  "text": "&aSure, I'll help",
+  "actions": [{ "type": "set_var", "name": "trust_bob", "op": "inc" }],
+  "next": "continue"
+}
+```
+
+```json
+{
+  "text": "&d[Friends only] Let me tell you a secret...",
+  "next": "secret",
+  "condition": { "type": "if_var", "name": "trust_bob", "op": "gte", "value": "3" }
+}
+```
+
+#### Example: tracking a multi-step task
+
+```json
+"actions": [{ "type": "set_var", "name": "dungeon_phase", "value": "1" }]
+```
+
+```json
+"actions": [{ "type": "set_var", "name": "dungeon_phase", "value": "2" }]
+```
+
+```json
+"condition": { "type": "if_var", "name": "dungeon_phase", "op": "eq", "value": "2" }
+```
+
+---
+
+### 7. Quest system
+
+Quests are tasks with text descriptions, shown in the HUD and journal. The mod doesn't track anything automatically — the author drives everything via actions.
+
+**J** — open journal (Dialogues / Quests tabs)  
+**K** — toggle quests HUD
+
+Journal: Active / Completed / Failed. HUD shows up to 3 active quests.
+
+#### start_quest — give a quest
+
+```json
+{
+  "type": "start_quest",
+  "quest": {
+    "id": "find_herb",
+    "title": "&2Find the healing herb",
+    "description": "&fThe old healer needs a &ahealing herb &ffrom the swamps.",
+    "objectives": [
+      "&7[ ] Find the healing herb in the swamps",
+      "&8[ ] Return to the healer"
+    ]
+  }
+}
+```
+
+- `id` — unique identifier. Used in `update_quest`, `complete_quest`, `fail_quest`, `quest_status`
+- `title` — short name in HUD and journal header
+- `description` — detailed description, visible only in the journal
+- `objectives` — list of strings. Convention: `&8` = locked (gray), `&7[ ]` = current, `&a[✓]` = done
+
+Optional `required_item` — if the player already has the item, the first objective is auto-checked when the quest starts:
+
+```json
+"required_item": { "id": "minecraft:golden_apple", "count": 1 }
+```
+
+#### update_quest — update objectives
+
+```json
+{
+  "type": "update_quest",
+  "quest_id": "find_herb",
+  "objectives": [
+    "&a[✓] Find the healing herb in the swamps",
+    "&7[ ] Return to the healer"
+  ]
+}
+```
+
+Replaces the objectives list entirely. Called when the player completes a step.
+
+#### complete_quest and fail_quest
+
+```json
+{ "type": "complete_quest", "quest_id": "find_herb" }
+{ "type": "fail_quest", "quest_id": "find_herb" }
+```
+
+Quest leaves the HUD and moves into the matching journal section.
+
+---
+
+### 8. Linking NPCs
+
+One of the most important mechanics — when different NPCs know about each other's actions. Three tools enable this: `visited_node`, `quest_status`, and `set_var` / `if_var`.
+
+#### Principle
+
+Progress is stored on the server, shared by all. When a player walks through a node in dialogue A — that's recorded. Dialogue B can ask: "has the player been at node X of dialogue Y?". Yes → show different lines or options.
+
+#### Tool 1: visited_node
+
+NPC B knows the player talked to NPC A — opens the right branch:
+
+```json
+"options": [
+  {
+    "text": "&fThe hermit sent me. I need your help.",
+    "next": "knows_hermit",
+    "condition": {
+      "type": "visited_node",
+      "dialogue": "cursed_historian",
+      "node": "ask"
+    }
+  },
+  { "text": "&7I found you on my own.", "next": "suspicious" }
+]
+```
+
+The "hermit sent me" option appears only after the player has visited node `"ask"` in dialogue `cursed_historian`. Otherwise only the second option shows. This creates a natural quest order.
+
+#### Tool 2: quest_status
+
+NPC reacts differently based on quest state:
+
+```json
+"on_revisit": {
+  "default": "&7*The historian stays quiet*",
+  "conditions": [
+    {
+      "condition": { "type": "quest_status", "quest_id": "cursed_stone", "status": "active" },
+      "text": "&fGo to the hermit. He knows where to look."
+    },
+    {
+      "condition": { "type": "if_var", "name": "stone_cleansed", "op": "exists" },
+      "start_node": "return_with_stone"
+    },
+    {
+      "condition": { "type": "quest_status", "quest_id": "cursed_stone", "status": "completed" },
+      "text": "&aIt is over. Thank you."
+    }
+  ]
+}
+```
+
+#### Tool 3: set_var / if_var
+
+Variables pass arbitrary state between dialogues. The witch sets a variable — the historian reads it:
+
+```json
+"done": {
+  "actions": [
+    { "type": "set_var", "name": "stone_cleansed", "value": "true" },
+    { "type": "notify_npc", "dialogue_id": "cursed_historian" }
+  ]
+}
+```
+
+Historian's `on_revisit.conditions`:
+```json
+{
+  "condition": { "type": "if_var", "name": "stone_cleansed", "op": "exists" },
+  "start_node": "return_with_stone"
+}
+```
+
+#### Tool 4: notify_npc — visual cue
+
+So the player knows where to return — use `notify_npc`. After the witch's ritual a `!` lights up over the historian:
+
+```json
+{ "type": "notify_npc", "dialogue_id": "cursed_historian" }
+```
+
+#### Chains via after_dialogue summon
+
+Make the next NPC appear only after the previous one was spoken to — use the `after_dialogue` trigger:
+
+```json
+"summon": {
+  "entity": "minecraft:zombie",
+  "custom_name": "Hermit",
+  "tags": ["forest_hermit"],
+  "trigger": {
+    "type": "after_dialogue",
+    "dialogue_id": "cursed_historian",
+    "delay": 120
+  }
+}
+```
+
+The hermit appears 6 seconds after the player finishes the dialogue with the historian.
+
+---
+
+### 9. Revisit (on_revisit)
+
+By default, after the player finishes a dialogue (reaches an end node) the mod marks it complete. On the next right-click — instead of the full dialogue, a short message is shown or a dialogue starts at a specific node.
+
+If you want the dialogue to be replayable in full — use `"repeatable": true` at the root. Then `on_revisit` isn't needed.
+
+#### Structure
+
+```json
+"on_revisit": {
+  "default": "&7*The zombie stares at you silently*",
+  "default_start_node": "small_talk",
+  "conditions": [
+    {
+      "condition": { "type": "quest_status", "quest_id": "find_herb", "status": "active" },
+      "text": "&fFound the herb yet?"
+    },
+    {
+      "condition": { "type": "has_item", "item": "minecraft:fern", "count": 3 },
+      "text": "&eI see you have the herb!",
+      "start_node": "return_with_herb"
+    },
+    {
+      "condition": { "type": "quest_status", "quest_id": "find_herb", "status": "completed" },
+      "text": "&aThanks, friend."
+    }
+  ]
+}
+```
+
+#### Logic
+
+1. Conditions are checked **top-down**
+2. The first matching condition applies:
+   - With `start_node` — opens the full dialogue at that node
+   - Without — shows a short message for a few seconds
+3. If **none** match:
+   - With `default_start_node` — opens the dialogue there
+   - With `default` — shows a short message
+
+| Field | Description |
+|-------|-------------|
+| `default` | Default text |
+| `default_start_node` | Default start node |
+| `conditions[].condition` | Any condition from section 5 |
+| `conditions[].text` | Short message if condition matched |
+| `conditions[].start_node` | Node for full dialogue instead of message |
+
+---
+
+### 10. Auto-spawn (summon)
+
+The `summon` block lets NPCs appear in the world automatically. The mod creates the mob, assigns name and tags — then the player walks up and triggers the dialogue with right-click.
+
+```json
+"summon": {
+  "entity": "minecraft:zombie",
+  "custom_name": "Historian",
+  "tags": ["cursed_historian"],
+  "spawn_position": "behind_player",
+  "despawn_after_dialogue": false,
+  "walk_away_before_despawn": false,
+  "trigger": {
+    "type": "on_join",
+    "delay": 60
+  }
+}
+```
+
+#### summon fields
+
+| Field | Description |
+|-------|-------------|
+| `entity` | Mob type: `minecraft:zombie`, `minecraft:villager`, `minecraft:witch`, etc. |
+| `custom_name` | Mob name. Must match `target.name` in the same file |
+| `tags` | Tags. Must match `target.tag` |
+| `spawn_position` | `"behind_player"` — 3 blocks behind the player |
+| `despawn_after_dialogue` | `true` — mob removed after dialogue |
+| `walk_away_before_despawn` | `true` — mob walks ~10 blocks away first |
+| `trigger` | Trigger object — when to spawn |
+
+#### Triggers
+
+##### on_join — when entering the world
+
+```json
+"trigger": { "type": "on_join", "delay": 60 }
+```
+
+Spawns `delay` ticks after the player joins. Fires once — only if the dialogue isn't completed.
+
+##### after_dialogue — after another dialogue completes
+
+```json
+"trigger": {
+  "type": "after_dialogue",
+  "dialogue_id": "cursed_historian",
+  "delay": 120
+}
+```
+
+Spawns `delay` ticks after `cursed_historian` completes. Backbone of story chains.
+
+##### player_near — player approaches a point
+
+```json
+"trigger": {
+  "type": "player_near",
+  "x": 100, "y": 64, "z": -200,
+  "radius": 8.0
+}
+```
+
+##### player_entered_area — first entry into a zone
+
+```json
+"trigger": {
+  "type": "player_entered_area",
+  "x": 0, "y": 64, "z": 0,
+  "radius": 15.0
+}
+```
+
+Fires only on entry, doesn't repeat while the player stays inside.
+
+##### player_looking_for_seconds — player looks at a point for N seconds
+
+```json
+"trigger": {
+  "type": "player_looking_for_seconds",
+  "x": 50, "y": 70, "z": 50,
+  "radius": 64,
+  "seconds": 3
+}
+```
+
+##### on_player_death — after player death
+
+```json
+"trigger": { "type": "on_player_death", "delay": 20 }
+```
+
+---
+
+### 11. NPC icon
+
+The mod automatically draws a yellow `!` over an NPC in two cases:
+
+1. **Dialogue not started** — player has never spoken to this NPC
+2. **Triggered by `notify_npc`** — author explicitly signaled there's something new
+
+Visible within 16 blocks. Disappears once the player starts the conversation.
+
+---
+
+### 12. GUI customization
+
+#### NPC avatar
+
+Defaults to a zombie head. Custom avatar:
+
+```json
+"avatar": "minecraft:textures/entity/villager/villager.png"
+```
+
+Format: `namespace:path_to_texture`. The mod takes an 8×8 area starting at (8, 8) — the first head layer of the skin.
+
+Via NBT without a resource pack:
+```
+/data merge entity @e[name=NPC_NAME,limit=1] {DialogueAvatar:"minecraft:textures/entity/zombie/zombie.png"}
+```
+
+#### Dialogue panel background
+
+Default — dark blue gradient. Replaceable:
+
+```json
+"background": "mypack:textures/gui/dialogue_bg.png"
+```
+
+The texture is stretched across the full width and height of the panel. Must be in a resource pack at `assets/mypack/textures/gui/dialogue_bg.png`.
+
+#### Option panel background
+
+```json
+"options_background": "mypack:textures/gui/option_bg.png"
+```
+
+Applied to each button separately, also stretched to its size.
+
+#### Resource pack layout
+
+```
+resourcepacks/
+  my_dialogue_pack/
+    pack.mcmeta
+    assets/
+      mydialogue/
+        textures/
+          gui/
+            dialogue_bg.png
+            option_bg.png
+```
+
+JSON:
+```json
+"background": "mydialogue:textures/gui/dialogue_bg.png",
+"options_background": "mydialogue:textures/gui/option_bg.png"
+```
+
+The pack goes into `.minecraft/resourcepacks/` and is enabled in the resource packs settings as usual.
+
+---
+
+### 13. Dialogue controls
+
+| Key | Action |
+|-----|--------|
+| **RMB** | Next node (linear) / Open options (choice) / Close (end) |
+| **Left click** | Pick an option |
+| **1–5** | Quick-pick by number |
+| **↑ ↓** | Navigate options |
+| **Enter** | Pick the highlighted option |
+| **ESC** | Close dialogue |
+| **J** | Journal (Dialogues / Quests tabs) |
+| **K** | Toggle quests HUD |
+
+---
+
+### 14. Commands
+
+#### /dialogue reload
+
+Reloads all dialogues from the folder. Use after any JSON change.
+
+#### /dialogue reload `<id>`
+
+Reloads one dialogue and resets all progress for it. For testing.
+
+```
+/dialogue reload cursed_historian
+```
+
+#### /dialogue test `<id>` [node]
+
+Starts the dialogue with the nearest matching mob without progress checks. If `node` is specified — starts there.
+
+```
+/dialogue test old_zombie check_apple
+```
+
+#### /dialogue goto `<node>`
+
+In an active dialogue — jumps to the specified node immediately.
+
+#### /npc spawn `<id>`
+
+Spawns the NPC at your feet. Mob type is taken from `summon.entity` in the JSON. Name and tags — from `target`.
+
+```
+/npc spawn cursed_historian
+```
+
+#### /npc tag `<id>`
+
+Assigns the name and tag from the specified dialogue to the nearest mob.
+
+#### /npc remove
+
+Removes the nearest NPC.
+
+#### /npc list [radius]
+
+Lists all NPCs within radius (default 32 blocks).
+
+---
+
+### 15. How to put NPCs in the world
+
+#### Way 1 — /npc spawn (simplest)
+
+```
+/npc spawn my_dialogue
+```
+
+The mod creates the right mob type with the right name and tag at your feet.
+
+#### Way 2 — /npc tag (for an existing mob)
+
+Walk up to the mob and run `/npc tag my_dialogue` — the mod assigns the right name and tag.
+
+#### Way 3 — manually
+
+```
+/tag @e[type=minecraft:zombie,distance=..3,limit=1,sort=nearest] add my_tag
+/data merge entity @e[type=minecraft:zombie,distance=..3,limit=1,sort=nearest] {CustomName:'"My Name"',CustomNameVisible:1b}
+```
+
+#### Way 4 — auto-spawn (summon)
+
+The mod creates the mob itself when a condition triggers — see section 10.
+
+---
+
+### 16. Progress and multiplayer
+
+All progress is **shared by all players** on the server:
+
+- `visited_node` is true if any player visited the node
+- `killed_mob` — total kills by all players
+- Variables (`set_var`) — same for everyone
+- Quests visible to all in the journal
+- `notify_npc` lights the icon for everyone
+
+Progress is preserved across dimensions — storage is bound to the Overworld.
+
+Reset progress for a specific dialogue: `/dialogue reload <id>`
+
+---
+
+### Full example — three linked NPCs
+
+**Historian** appears on world join. Gives the quest.  
+**Hermit** appears after talking to the Historian, explains what the witch needs.  
+**Witch** appears after the Hermit, takes payment, fires `notify_npc` on the Historian.  
+The player returns to the Historian and gets the reward.
+
+#### cursed_historian.json
+
+```json
+{
+  "target": { "name": "Historian", "tag": "cursed_historian" },
+  "display_name": "&e[&6Historian&e]",
+  "entry": "start",
+
+  "summon": {
+    "entity": "minecraft:zombie",
+    "custom_name": "Historian",
+    "tags": ["cursed_historian"],
+    "spawn_position": "behind_player",
+    "despawn_after_dialogue": false,
+    "trigger": { "type": "on_join", "delay": 60 }
+  },
+
+  "on_revisit": {
+    "default": "&e[&6Historian&e] &7Go to the hermit in the forest.",
+    "conditions": [
+      {
+        "condition": { "type": "quest_status", "quest_id": "cursed_stone", "status": "none" },
+        "start_node": "start"
+      },
+      {
+        "condition": { "type": "if_var", "name": "stone_cleansed", "op": "exists" },
+        "start_node": "return_with_stone"
+      },
+      {
+        "condition": { "type": "quest_status", "quest_id": "cursed_stone", "status": "completed" },
+        "text": "&e[&6Historian&e] &aThank you. The village is safe again."
+      }
+    ]
+  },
+
+  "nodes": {
+    "start": {
+      "text": "&fAh, a stranger. I need help.",
+      "next": "explain"
+    },
+    "explain": {
+      "text": "&fThe &cCursed Stone&f has gone missing from my cellar.",
+      "next": "danger"
+    },
+    "danger": {
+      "text": "&cIf it falls into the wrong hands — &fall life around will rot.",
+      "next": "ask"
+    },
+    "ask": {
+      "text": "&fA hermit lives in the forest. He knows about curses. &eGo speak with him.",
+      "options": [
+        {
+          "text": "&aI'll help",
+          "next": "accept",
+          "actions": [{
+            "type": "start_quest",
+            "quest": {
+              "id": "cursed_stone",
+              "title": "&cThe Cursed Stone",
+              "description": "&fFind a way to neutralize the cursed stone.",
+              "objectives": [
+                "&7[ ] Speak with the hermit in the forest",
+                "&8[ ] Find the witch",
+                "&8[ ] Return the stone to the historian"
+              ]
+            }
+          }]
+        },
+        { "text": "&7Not my problem", "next": "refuse" }
+      ]
+    },
+    "accept": { "text": "&aThank you. The hermit lives north of the village." },
+    "refuse": { "text": "&7I understand. If you change your mind — I'm here." },
+    "return_with_stone": {
+      "text": "&f*The historian looks up hopeful* &eIs the stone cleansed?",
+      "next": "reward"
+    },
+    "reward": {
+      "text": "&eTake this. You earned it.",
+      "actions": [
+        { "type": "give_item", "item": "minecraft:diamond", "count": 3 },
+        { "type": "give_item", "item": "minecraft:golden_apple", "count": 2 },
+        { "type": "complete_quest", "quest_id": "cursed_stone" }
+      ]
+    }
+  }
+}
+```
+
+#### forest_hermit.json
+
+```json
+{
+  "target": { "name": "Hermit", "tag": "forest_hermit" },
+  "display_name": "&2[&aHermit&2]",
+  "entry": "start",
+
+  "summon": {
+    "entity": "minecraft:zombie",
+    "custom_name": "Hermit",
+    "tags": ["forest_hermit"],
+    "spawn_position": "behind_player",
+    "despawn_after_dialogue": false,
+    "trigger": {
+      "type": "after_dialogue",
+      "dialogue_id": "cursed_historian",
+      "delay": 120
+    }
+  },
+
+  "on_revisit": {
+    "default": "&2[&aHermit&2] &7Go to the witch. Only she can help."
+  },
+
+  "nodes": {
+    "start": {
+      "text": "&7*The old man stares at you for a long time* &fDid the historian send you?",
+      "options": [
+        {
+          "text": "&fYes, he said you know about curses",
+          "next": "knows",
+          "condition": { "type": "visited_node", "dialogue": "cursed_historian", "node": "ask" }
+        },
+        { "text": "&7No, I'm on my own", "next": "go_away" }
+      ]
+    },
+    "knows": {
+      "text": "&fThe Cursed Stone... yes, I've heard.",
+      "next": "explain"
+    },
+    "explain": {
+      "text": "&fIt cannot be destroyed by ordinary means. You need a &dswamp witch&f.",
+      "next": "requirement"
+    },
+    "requirement": {
+      "text": "&cBut she won't help for free. &fBring her &e3 spider eyes &fand &e1 night vision potion&f.",
+      "next": "farewell",
+      "actions": [{
+        "type": "update_quest",
+        "quest_id": "cursed_stone",
+        "objectives": [
+          "&a[✓] Speak with the hermit in the forest",
+          "&7[ ] Find the witch in the swamps",
+          "&7[ ] Bring: 3x spider eye + night vision potion",
+          "&8[ ] Return the stone to the historian"
+        ]
+      }]
+    },
+    "farewell": { "text": "&7*The hermit returns to his fire*" },
+    "go_away": { "text": "&7Leave. I don't need guests." }
+  }
+}
+```
+
+#### swamp_witch.json
+
+```json
+{
+  "target": { "name": "Witch", "tag": "swamp_witch" },
+  "display_name": "&5[&dWitch&5]",
+  "entry": "start",
+
+  "summon": {
+    "entity": "minecraft:witch",
+    "custom_name": "Witch",
+    "tags": ["swamp_witch"],
+    "spawn_position": "behind_player",
+    "despawn_after_dialogue": false,
+    "trigger": {
+      "type": "after_dialogue",
+      "dialogue_id": "forest_hermit",
+      "delay": 160
+    }
+  },
+
+  "on_revisit": {
+    "default": "&5[&dWitch&5] &7Bring what I asked.",
+    "conditions": [
+      {
+        "condition": { "type": "has_item", "item": "minecraft:spider_eye", "count": 3 },
+        "start_node": "has_items_check"
+      }
+    ]
+  },
+
+  "nodes": {
+    "start": {
+      "text": "&d*The witch turns slowly* &fWho sent you?",
+      "options": [
+        {
+          "text": "&fThe forest hermit. I need help with a stone.",
+          "next": "knows_hermit",
+          "condition": { "type": "visited_node", "dialogue": "forest_hermit", "node": "requirement" }
+        },
+        { "text": "&7I found you on my own", "next": "suspicious" }
+      ]
+    },
+    "knows_hermit": {
+      "text": "&dThe old hermit... &fI can cleanse the stone.",
+      "next": "demand"
+    },
+    "demand": {
+      "text": "&cBut payment first. &f3 spider eyes and a night vision potion.",
+      "next": "wait"
+    },
+    "wait": { "text": "&7*The witch crosses her arms and waits*" },
+    "has_items_check": {
+      "text": "&dAh, you brought it at last.",
+      "options": [
+        {
+          "text": "&aHere, take it",
+          "next": "ritual",
+          "condition": { "type": "has_item", "item": "minecraft:spider_eye", "count": 3 },
+          "actions": [
+            { "type": "remove_item", "item": "minecraft:spider_eye", "count": 3 },
+            { "type": "remove_item", "item": "minecraft:potion", "count": 1 }
+          ]
+        },
+        { "text": "&7Still gathering", "next": "not_ready" }
+      ]
+    },
+    "ritual": {
+      "text": "&d*The witch mutters an incantation...*",
+      "next": "ritual2",
+      "auto_next_ticks": 60
+    },
+    "ritual2": {
+      "text": "&5*A flash of purple light. The air smells of sulfur.*",
+      "next": "done",
+      "auto_next_ticks": 40
+    },
+    "done": {
+      "text": "&aDone. &fThe stone is cleansed. Return to the historian.",
+      "actions": [
+        { "type": "give_item", "item": "minecraft:enchanted_book", "count": 1 },
+        { "type": "give_effect", "effect": "minecraft:night_vision", "duration": 600, "amplifier": 0 },
+        { "type": "set_var", "name": "stone_cleansed", "value": "true" },
+        { "type": "notify_npc", "dialogue_id": "cursed_historian" },
+        {
+          "type": "update_quest",
+          "quest_id": "cursed_stone",
+          "objectives": [
+            "&a[✓] Speak with the hermit in the forest",
+            "&a[✓] Find the witch in the swamps",
+            "&a[✓] Bring: 3x spider eye + night vision potion",
+            "&7[ ] Return the stone to the historian"
+          ]
+        }
+      ]
+    },
+    "not_ready": { "text": "&7Then come back when you have everything." },
+    "suspicious": { "text": "&cWithout a recommendation I don't help strangers. Leave." }
+  }
+}
+```
+
+After the witch's `done` node: the quest is updated, `stone_cleansed` is set, a `!` lights up over the Historian. The player returns — `on_revisit` sees `if_var(stone_cleansed)` → opens `return_with_stone` → gives the reward → `complete_quest`.
+
+[⬆ Back to top](#interactentity)
+
+---
+
+<a id="русский"></a>
+
+## Русский
+
+> [🇬🇧 Switch to English](#english)
 
 Мод для Minecraft Forge 1.20.1. Позволяет создавать диалоги с мобами через JSON-файлы.
 
@@ -1447,3 +2893,5 @@ JSON:
 ```
 
 После узла `done` у ведьмы: квест обновился, переменная `stone_cleansed` установлена, над Историком загорится `!`. Игрок возвращается — `on_revisit` видит `if_var(stone_cleansed)` → открывает `return_with_stone` → выдаёт награду → `complete_quest`.
+
+[⬆ Наверх](#interactentity) · [🇬🇧 Switch to English](#english)
