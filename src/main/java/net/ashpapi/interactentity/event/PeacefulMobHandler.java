@@ -58,7 +58,9 @@ public class PeacefulMobHandler {
 
         // Fast path: NBT-флаг уже выставлен → не итерируем диалоги каждый тик
         if (entity.getPersistentData().getBoolean("InteractEntity_NPC")) {
-            applyNPCProtections(entity);
+            boolean invulnerable = !entity.getPersistentData().contains("InteractEntity_Invulnerable")
+                    || entity.getPersistentData().getBoolean("InteractEntity_Invulnerable");
+            applyNPCProtections(entity, invulnerable);
             trackNearestPlayer(entity);
             reactToWeather(entity);
             returnHome(entity);
@@ -76,6 +78,7 @@ public class PeacefulMobHandler {
 
         // Пометить на будущее (NBT сохраняется с сущностью)
         entity.getPersistentData().putBoolean("InteractEntity_NPC", true);
+        entity.getPersistentData().putBoolean("InteractEntity_Invulnerable", tree.isInvulnerable());
 
         // Выставить тег для иконки над головой
         String tag = NPC_TAG_PREFIX + tree.getId() + ":" + tree.getEntryNodeId();
@@ -86,7 +89,7 @@ public class PeacefulMobHandler {
             mob.setPersistenceRequired();
         }
 
-        applyNPCProtections(entity);
+        applyNPCProtections(entity, tree.isInvulnerable());
 
         // Broadcast NPC info to tracking clients for icon rendering
         ModNetwork.sendToTracking(entity, new NpcSyncPacket(entity.getId(), tree.getId(), tree.getEntryNodeId()));
@@ -104,7 +107,9 @@ public class PeacefulMobHandler {
         ModNetwork.sendToPlayer(player, new NpcSyncPacket(entity.getId(), tree.getId(), tree.getEntryNodeId()));
     }
 
-    private static void applyNPCProtections(LivingEntity entity) {
+    private static void applyNPCProtections(LivingEntity entity, boolean invulnerable) {
+        if (!invulnerable) return;
+
         if (entity.isOnFire()) {
             entity.clearFire();
         }

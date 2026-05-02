@@ -4,7 +4,6 @@ import net.ashpapi.interactentity.InteractEntityMod;
 import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.ashpapi.interactentity.network.ModNetwork;
 import net.ashpapi.interactentity.network.QuestUpdatePacket;
-import net.ashpapi.interactentity.network.SyncProgressPacket;
 import net.ashpapi.interactentity.quest.QuestState;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
@@ -49,16 +48,6 @@ public class QuestEventHandler {
                     ModNetwork.sendToAll(new QuestUpdatePacket(quest));
                 }
             }
-        }
-    }
-
-    // === НОВОЕ: полный синхрон при входе игрока ===
-    @SubscribeEvent
-    public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
-        if (event.getEntity() instanceof ServerPlayer player) {
-            DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
-            ModNetwork.sendToPlayer(player, new SyncProgressPacket(data));
-            InteractEntityMod.LOGGER.debug("Sent full quest progress to player {}", player.getName().getString());
         }
     }
 

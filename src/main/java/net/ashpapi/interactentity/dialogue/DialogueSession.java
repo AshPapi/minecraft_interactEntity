@@ -37,7 +37,6 @@ public class DialogueSession {
     private final boolean entityWasNoAI;
 
     private boolean completed = false;
-    private int nodeEnterTick = 0;
     private long nodeEnterGameTime = 0;
 
     public DialogueSession(ServerPlayer player, LivingEntity entity, DialogueTree tree) {
@@ -137,9 +136,13 @@ public class DialogueSession {
     public void sendCurrentNode() {
         DialogueNode node = tree.getNode(currentNodeId);
         if (node == null) {
+            InteractEntityMod.LOGGER.warn("Dialogue '{}' points to missing node '{}'", tree.getId(), currentNodeId);
+            completed = true;
+            ModNetwork.sendToPlayer(player, new CloseDialogueS2CPacket());
             endSession(player);
             return;
         }
+        String nodeText = node.getText();
 
         nodeEnterGameTime = player.serverLevel().getGameTime();
 
@@ -148,7 +151,7 @@ public class DialogueSession {
         data.visit(tree.getId(), currentNodeId);
 
         if (firstVisit) {
-            historyEntry.addLine(new HistoryLine(tree.getDisplayName(), node.getText()));
+            historyEntry.addLine(new HistoryLine(tree.getDisplayName(), nodeText));
             data.addHistory(historyEntry);
 
             if (!node.getActions().isEmpty() && markActionPoint(data, "node:" + currentNodeId)) {
@@ -207,7 +210,7 @@ public class DialogueSession {
         ModNetwork.sendToPlayer(player, new OpenDialoguePacket(
                 entity.getId(),
                 tree.getDisplayName(),
-                node.getText(),
+                nodeText,
                 nodeType,
                 optionTexts,
                 optionIndices,
@@ -245,7 +248,13 @@ public class DialogueSession {
                                             DialogueTree tree, String startNodeId) {
         if (isEntityBusy(entity)) return;
         DialogueSession session = new DialogueSession(player, entity, tree);
-        session.currentNodeId = startNodeId;
+        if (tree.getNode(startNodeId) != null) {
+            session.currentNodeId = startNodeId;
+        } else {
+            InteractEntityMod.LOGGER.warn("Dialogue '{}' requested missing start node '{}', falling back to entry '{}'",
+                    tree.getId(), startNodeId, tree.getEntryNodeId());
+            session.currentNodeId = tree.getEntryNodeId();
+        }
         ACTIVE_SESSIONS.put(player.getUUID(), session);
         PlayerProtectionHandler.protect(player);
         session.sendCurrentNode();
@@ -311,13 +320,17 @@ public class DialogueSession {
     public static void jumpToNode(ServerPlayer player, String nodeId) {
         DialogueSession session = getSession(player);
         if (session == null) return;
+        if (session.tree.getNode(nodeId) == null) {
+            InteractEntityMod.LOGGER.warn("Dialogue '{}' cannot jump to missing node '{}'", session.tree.getId(), nodeId);
+            return;
+        }
         session.nodeHistory.add(session.currentNodeId);
         session.currentNodeId = nodeId;
         session.sendCurrentNode();
     }
 
     public static void tickAll() {
-        for (DialogueSession session : ACTIVE_SESSIONS.values()) {
+        for (DialogueSession session : new ArrayList<>(ACTIVE_SESSIONS.values())) {
             session.tick();
         }
     }
@@ -358,6 +371,12 @@ public class DialogueSession {
             session.completed = true; // выбор финальной опции = диалог завершён
             ModNetwork.sendToPlayer(player, new CloseDialogueS2CPacket());
             endSession(player);
+        } else if (session.tree.getNode(nextId) == null) {
+            InteractEntityMod.LOGGER.warn("Dialogue '{}' option from node '{}' points to missing node '{}'",
+                    session.tree.getId(), session.currentNodeId, nextId);
+            session.completed = true;
+            ModNetwork.sendToPlayer(player, new CloseDialogueS2CPacket());
+            endSession(player);
         } else {
             session.nodeHistory.add(session.currentNodeId);
             session.currentNodeId = nextId;
@@ -374,8 +393,17 @@ public class DialogueSession {
 
         if (forward) {
             if (currentNode.isLinear()) {
+                String nextId = currentNode.getNextNodeId();
+                if (nextId == null || session.tree.getNode(nextId) == null) {
+                    InteractEntityMod.LOGGER.warn("Dialogue '{}' linear node '{}' points to missing node '{}'",
+                            session.tree.getId(), session.currentNodeId, nextId);
+                    session.completed = true;
+                    ModNetwork.sendToPlayer(player, new CloseDialogueS2CPacket());
+                    endSession(player);
+                    return;
+                }
                 session.nodeHistory.add(session.currentNodeId);
-                session.currentNodeId = currentNode.getNextNodeId();
+                session.currentNodeId = nextId;
                 session.sendCurrentNode();
             } else if (currentNode.isEnd()) {
                 ModNetwork.sendToPlayer(player, new CloseDialogueS2CPacket());

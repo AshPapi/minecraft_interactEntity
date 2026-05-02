@@ -27,7 +27,7 @@ public class ConditionRegistry {
         }
 
         InteractEntityMod.LOGGER.warn("Unknown condition type: {}", type);
-        return true;
+        return false;
     }
 
     public static void init() {

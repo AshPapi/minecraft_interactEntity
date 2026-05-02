@@ -8,20 +8,45 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
 import javax.annotation.Nullable;
+import java.util.Locale;
 
 public class SpawnPositionHelper {
 
     @Nullable
+    public static Vec3 findForConfig(ServerPlayer player, ServerLevel level, String spawnPosition) {
+        String normalized = spawnPosition == null ? "behind_player" : spawnPosition.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "front_player", "in_front_of_player" -> findInFrontOfPlayer(player, level);
+            case "at_player", "player" -> findAtPlayer(player, level);
+            default -> findBehindPlayer(player, level);
+        };
+    }
+
+    @Nullable
     public static Vec3 findBehindPlayer(ServerPlayer player, ServerLevel level) {
-        float yaw = player.getYRot();
-        // Behind player = opposite of look direction
-        float behindYaw = yaw + 180.0f;
-        float radians = behindYaw * Mth.DEG_TO_RAD;
+        return findRelativeToPlayer(player, level, player.getYRot() + 180.0f);
+    }
 
-        double baseX = player.getX() - Mth.sin(radians) * 3.0;
-        double baseZ = player.getZ() + Mth.cos(radians) * 3.0;
+    @Nullable
+    public static Vec3 findInFrontOfPlayer(ServerPlayer player, ServerLevel level) {
+        return findRelativeToPlayer(player, level, player.getYRot());
+    }
 
-        // Try distances 3, 2, 4 blocks behind
+    @Nullable
+    public static Vec3 findAtPlayer(ServerPlayer player, ServerLevel level) {
+        BlockPos groundPos = findSafeGround(level, player.getX(), player.getY(), player.getZ());
+        if (groundPos != null) {
+            return new Vec3(player.getX(), groundPos.getY() + 1.0, player.getZ());
+        }
+        return player.position();
+    }
+
+    @Nullable
+    private static Vec3 findRelativeToPlayer(ServerPlayer player, ServerLevel level, float yaw) {
+        float radians = yaw * Mth.DEG_TO_RAD;
+        double fallbackX = player.getX() - Mth.sin(radians) * 3.0;
+        double fallbackZ = player.getZ() + Mth.cos(radians) * 3.0;
+
         for (double dist : new double[]{3.0, 2.0, 4.0}) {
             double x = player.getX() - Mth.sin(radians) * dist;
             double z = player.getZ() + Mth.cos(radians) * dist;
@@ -31,8 +56,7 @@ public class SpawnPositionHelper {
             }
         }
 
-        // Fallback: just use 3 blocks behind at player Y
-        return new Vec3(baseX, player.getY(), baseZ);
+        return new Vec3(fallbackX, player.getY(), fallbackZ);
     }
 
     @Nullable

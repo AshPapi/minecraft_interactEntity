@@ -20,7 +20,14 @@ public class NPCJoinHandler {
         // Уже помечен как NPC в NBT (сохранилось с прошлой сессии)
         if (entity.getPersistentData().getBoolean("InteractEntity_NPC")) {
             if (entity instanceof Mob mob) mob.setPersistenceRequired();
-            entity.setInvulnerable(true);
+            DialogueManager manager = DialogueManager.get();
+            DialogueTree tree = manager != null ? manager.findDialogueForEntity(entity) : null;
+            boolean invulnerable = tree != null
+                    ? tree.isInvulnerable()
+                    : !entity.getPersistentData().contains("InteractEntity_Invulnerable")
+                    || entity.getPersistentData().getBoolean("InteractEntity_Invulnerable");
+            entity.getPersistentData().putBoolean("InteractEntity_Invulnerable", invulnerable);
+            entity.setInvulnerable(invulnerable);
             InteractEntityMod.LOGGER.debug("NPC re-joined (NBT flag): {}", entity.getName().getString());
             return;
         }
@@ -39,10 +46,9 @@ public class NPCJoinHandler {
     /** Общий метод настройки NPC, вызывается при join и при спавне через SummonScheduler. */
     public static void setupNPC(LivingEntity entity, DialogueTree tree) {
         entity.getPersistentData().putBoolean("InteractEntity_NPC", true);
+        entity.getPersistentData().putBoolean("InteractEntity_Invulnerable", tree.isInvulnerable());
 
-        if (tree.isInvulnerable()) {
-            entity.setInvulnerable(true);
-        }
+        entity.setInvulnerable(tree.isInvulnerable());
 
         if (entity instanceof Mob mob) {
             mob.setPersistenceRequired();

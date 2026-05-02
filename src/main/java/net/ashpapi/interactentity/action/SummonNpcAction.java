@@ -31,6 +31,7 @@ public class SummonNpcAction implements DialogueAction {
         boolean despawn = json.has("despawn") && json.get("despawn").getAsBoolean();
         boolean walkAway = json.has("walk_away") && json.get("walk_away").getAsBoolean();
         String dialogueId = json.has("start_dialogue") ? json.get("start_dialogue").getAsString() : null;
+        String spawnPosition = json.has("spawn_position") ? json.get("spawn_position").getAsString() : "behind_player";
 
         List<String> tags = new ArrayList<>();
         if (json.has("tags") && json.get("tags").isJsonArray()) {
@@ -45,7 +46,7 @@ public class SummonNpcAction implements DialogueAction {
         }
 
         ServerLevel level = player.serverLevel();
-        Vec3 spawnPos = SpawnPositionHelper.findBehindPlayer(player, level);
+        Vec3 spawnPos = SpawnPositionHelper.findForConfig(player, level, spawnPosition);
         if (spawnPos == null) {
             InteractEntityMod.LOGGER.warn("summon_npc: no safe spawn position found");
             return;

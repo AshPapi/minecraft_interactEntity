@@ -129,7 +129,7 @@ public class SummonScheduler {
         }
 
         // Find spawn position
-        Vec3 spawnPos = SpawnPositionHelper.findBehindPlayer(player, level);
+        Vec3 spawnPos = SpawnPositionHelper.findForConfig(player, level, config.getSpawnPosition());
         if (spawnPos == null) {
             InteractEntityMod.LOGGER.warn("Could not find safe spawn position for summon");
             return;

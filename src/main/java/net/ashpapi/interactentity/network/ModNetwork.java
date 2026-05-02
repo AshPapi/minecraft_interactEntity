@@ -71,13 +71,6 @@ public class ModNetwork {
                 .consumerMainThread(QuestUpdatePacket::handle)
                 .add();
 
-        // S2C: on_revisit short message
-        CHANNEL.messageBuilder(RevisitMessagePacket.class, packetId++, NetworkDirection.PLAY_TO_CLIENT)
-                .encoder(RevisitMessagePacket::encode)
-                .decoder(RevisitMessagePacket::new)
-                .consumerMainThread(RevisitMessagePacket::handle)
-                .add();
-
         // S2C: camera shake
         CHANNEL.messageBuilder(CameraShakePacket.class, packetId++, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(CameraShakePacket::encode)
