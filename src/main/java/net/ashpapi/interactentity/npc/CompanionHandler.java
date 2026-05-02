@@ -11,7 +11,6 @@ import java.util.UUID;
 
 public class CompanionHandler {
 
-    private static final double FOLLOW_RANGE = 10.0;
     private static final double TELEPORT_RANGE = 30.0;
     private static final String OWNER_KEY = "InteractEntity_CompanionOwner";
 

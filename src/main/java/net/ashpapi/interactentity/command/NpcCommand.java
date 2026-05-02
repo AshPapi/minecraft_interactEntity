@@ -115,6 +115,7 @@ public class NpcCommand {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private static int spawnInternal(CommandSourceStack src, String dialogueId, String entityOverride) {
         DialogueManager mgr = DialogueManager.get();
         if (mgr == null) { src.sendFailure(Component.literal("Dialogues not loaded")); return 0; }

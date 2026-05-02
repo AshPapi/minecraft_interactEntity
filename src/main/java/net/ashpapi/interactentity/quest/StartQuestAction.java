@@ -111,7 +111,6 @@ public class StartQuestAction implements DialogueAction {
     }
 
     // Вспомогательный метод (дубликат из QuestEventHandler, чтобы не плодить зависимости)
-    // TODO: в будущем можно вынести в QuestUtils
     private static int countItemInInventory(ServerPlayer player, String itemId) {
         int count = 0;
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {

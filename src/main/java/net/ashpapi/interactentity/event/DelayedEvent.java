@@ -1,7 +1,5 @@
 package net.ashpapi.interactentity.event;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import net.minecraft.nbt.CompoundTag;

@@ -1,6 +1,5 @@
 package net.ashpapi.interactentity.event;
 
-import com.google.gson.JsonObject;
 import net.ashpapi.interactentity.InteractEntityMod;
 import net.ashpapi.interactentity.action.ActionRegistry;
 import net.ashpapi.interactentity.data.DialogueSavedData;

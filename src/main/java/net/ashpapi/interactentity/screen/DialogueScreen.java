@@ -1,7 +1,6 @@
 package net.ashpapi.interactentity.screen;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import net.ashpapi.interactentity.InteractEntityMod;
 import net.ashpapi.interactentity.camera.DialogueCameraController;
 import net.ashpapi.interactentity.entity.CustomNpcEntity;
 import net.ashpapi.interactentity.formatting.TextFormatter;
@@ -38,7 +37,6 @@ public class DialogueScreen extends Screen {
     private static final int OPTION_COLOR = 0xFFFFFFFF;
     private static final int OPTION_HOVER = 0xFF55FF55;
     private static final int HINT_COLOR = 0xFF8888AA;
-    private static final int ARROW_COLOR = 0xFF4488FF;
 
     private final int entityId;
     private String displayName;
@@ -313,7 +311,7 @@ public class DialogueScreen extends Screen {
                 }
             }
 
-            optionHitboxes.add(new OptionHitbox(i, optPanelX, curY, panelW, panelH));
+            optionHitboxes.add(new OptionHitbox(optPanelX, curY, panelW, panelH));
             curY += panelH + OPT_MARGIN;
         }
     }
@@ -600,11 +598,9 @@ public class DialogueScreen extends Screen {
     }
 
     private static class OptionHitbox {
-        final int index;
         final int x, y, width, height;
 
-        OptionHitbox(int index, int x, int y, int width, int height) {
-            this.index = index;
+        OptionHitbox(int x, int y, int width, int height) {
             this.x = x;
             this.y = y;
             this.width = width;
