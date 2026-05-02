@@ -3,6 +3,7 @@ package net.ashpapi.interactentity.screen;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.ashpapi.interactentity.InteractEntityMod;
 import net.ashpapi.interactentity.camera.DialogueCameraController;
+import net.ashpapi.interactentity.entity.CustomNpcEntity;
 import net.ashpapi.interactentity.formatting.TextFormatter;
 import net.ashpapi.interactentity.network.CloseDialogueC2SPacket;
 import net.ashpapi.interactentity.network.ModNetwork;
@@ -45,6 +46,8 @@ public class DialogueScreen extends Screen {
     private String nodeType;
     private List<String> optionTexts;
     private List<Integer> optionIndices;
+    private List<Boolean> optionLocked;
+    private List<String> optionLockReasons;
     @Nullable private ResourceLocation avatarTexture;
     @Nullable private ResourceLocation background;
     @Nullable private ResourceLocation optionsBackground;
@@ -59,6 +62,10 @@ public class DialogueScreen extends Screen {
     private String playerResponseText = "";
     private int pendingOptionRawIndex = -1;
     private static final float ANIMATION_SPEED = 0.15f;
+    private static final int TYPEWRITER_TICKS_PER_CHAR = 1;
+    private int visibleDialogueChars = 0;
+    private int totalDialogueChars = 0;
+    private int typewriterTickCounter = 0;
 
     private static final int YOU_COLOR = 0xFF88DDFF;
 
@@ -70,12 +77,17 @@ public class DialogueScreen extends Screen {
     private static final int OPT_BORDER = 0x88AAAACC;
     private static final int OPT_BORDER_HOVER = 0xFFFFCC44;
     private static final int OPT_NUM_COLOR = 0xFF888888;
+    private static final int OPT_LOCKED_TEXT = 0xFF666666;
+    private static final int OPT_LOCKED_REASON = 0xFF995555;
+    private static final int OPT_LOCKED_BG = 0xCC111118;
+    private static final int OPT_LOCKED_BORDER = 0x66666666;
 
     private int panelX, panelY, panelW, panelH;
     private final List<OptionHitbox> optionHitboxes = new ArrayList<>();
 
     public DialogueScreen(int entityId, String displayName, String text, String nodeType,
                           List<String> optionTexts, List<Integer> optionIndices,
+                          List<Boolean> optionLocked, List<String> optionLockReasons,
                           @Nullable ResourceLocation avatarTexture,
                           @Nullable ResourceLocation background, @Nullable ResourceLocation optionsBackground) {
         super(Component.translatable("gui.interactentity.dialogue"));
@@ -85,9 +97,12 @@ public class DialogueScreen extends Screen {
         this.nodeType = nodeType;
         this.optionTexts = new ArrayList<>(optionTexts);
         this.optionIndices = new ArrayList<>(optionIndices);
+        this.optionLocked = new ArrayList<>(optionLocked);
+        this.optionLockReasons = new ArrayList<>(optionLockReasons);
         this.avatarTexture = avatarTexture;
         this.background = background;
         this.optionsBackground = optionsBackground;
+        resetTypewriter();
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null) mc.player.stopUsingItem();
@@ -106,6 +121,18 @@ public class DialogueScreen extends Screen {
         } else if (!firstOpen) {
             animationTime = 1.0f;   // мгновенно для последующих нод
         }
+
+        if (!showingPlayerResponse && !showingOptions && !isDialogueFullyVisible()) {
+            typewriterTickCounter++;
+            if (typewriterTickCounter >= TYPEWRITER_TICKS_PER_CHAR) {
+                visibleDialogueChars = Math.min(totalDialogueChars, visibleDialogueChars + 1);
+                typewriterTickCounter = 0;
+            }
+        } else {
+            typewriterTickCounter = 0;
+        }
+
+        syncClientTalkingState();
     }
 
     @Override
@@ -120,12 +147,14 @@ public class DialogueScreen extends Screen {
         panelX = (this.width - panelW) / 2;
 
         Component nameComp = TextFormatter.format(displayName);
-        Component textComp = TextFormatter.format(dialogueText);
+        Component fullTextComp = TextFormatter.format(dialogueText);
+        Component visibleTextComp = TextFormatter.format(getVisibleDialogueText());
 
         int textStartX = panelX + PADDING + HEAD_SIZE + 12;
         int textAreaWidth = panelW - PADDING * 2 - HEAD_SIZE - 12;
 
-        List<FormattedCharSequence> textLines = this.font.split(textComp, textAreaWidth);
+        List<FormattedCharSequence> textLines = this.font.split(visibleTextComp, textAreaWidth);
+        List<FormattedCharSequence> fullTextLines = this.font.split(fullTextComp, textAreaWidth);
 
         optionHitboxes.clear();
 
@@ -133,7 +162,7 @@ public class DialogueScreen extends Screen {
         boolean renderingInlineOptions = "choice".equals(nodeType) && showingOptions;
         boolean showHint = !renderingInlineOptions;
 
-        int contentH = textLines.size() * LINE_HEIGHT;
+        int contentH = fullTextLines.size() * LINE_HEIGHT;
         int hintH = showHint ? LINE_HEIGHT + 4 : 0;
 
         int minHeightByHead = HEAD_SIZE + PADDING * 2;
@@ -193,7 +222,9 @@ public class DialogueScreen extends Screen {
 
             if (showHint) {
                 String hintKey;
-                if ("end".equals(nodeType)) {
+                if (!isDialogueFullyVisible()) {
+                    hintKey = "gui.interactentity.hint.reveal";
+                } else if ("end".equals(nodeType)) {
                     hintKey = "gui.interactentity.hint.close";
                 } else if ("choice".equals(nodeType) && !showingOptions) {
                     hintKey = "gui.interactentity.hint.choose";
@@ -239,11 +270,20 @@ public class DialogueScreen extends Screen {
             int panelH = lines.size() * LINE_HEIGHT + OPT_PADDING_V * 2;
             boolean hovered = mouseMoved && (i == hoveredOption);
 
-            int bgColor = hovered ? OPT_BG_HOVER : OPT_BG;
-            int borderCol = hovered ? OPT_BORDER_HOVER : OPT_BORDER;
+            boolean isLocked = i < optionLocked.size() && optionLocked.get(i);
+            String lockReason = (i < optionLockReasons.size()) ? optionLockReasons.get(i) : "";
+
+            int bgColor = isLocked ? OPT_LOCKED_BG : (hovered ? OPT_BG_HOVER : OPT_BG);
+            int borderCol = isLocked ? OPT_LOCKED_BORDER : (hovered ? OPT_BORDER_HOVER : OPT_BORDER);
+
+            int extraH = (isLocked && !lockReason.isEmpty()) ? LINE_HEIGHT : 0;
+            panelH += extraH;
+
+            int textX = optPanelX + OPT_PADDING_H;
+            int textY = curY + OPT_PADDING_V;
 
             graphics.fill(optPanelX + 2, curY + 2, optPanelX + panelW + 2, curY + panelH + 2, SHADOW_COLOR);
-            if (optionsBackground != null) {
+            if (optionsBackground != null && !isLocked) {
                 RenderSystem.enableBlend();
                 graphics.blit(optionsBackground, optPanelX, curY, 0, 0, panelW, panelH, panelW, panelH);
             } else {
@@ -254,13 +294,23 @@ public class DialogueScreen extends Screen {
                 graphics.fill(optPanelX + panelW - 1, curY, optPanelX + panelW, curY + panelH, borderCol);
             }
 
-            int textX = optPanelX + OPT_PADDING_H;
-            int textY = curY + OPT_PADDING_V;
-            graphics.drawString(this.font, (i + 1) + ". ", textX, textY, OPT_NUM_COLOR, false);
-            for (FormattedCharSequence line : lines) {
-                graphics.drawString(this.font, line, textX + numWidth, textY,
-                        hovered ? OPTION_HOVER : OPTION_COLOR, false);
-                textY += LINE_HEIGHT;
+            if (isLocked) {
+                graphics.drawString(this.font, "[X] ", textX, textY, OPT_LOCKED_TEXT, false);
+                int lockIconW = this.font.width("[X] ");
+                for (FormattedCharSequence line : lines) {
+                    graphics.drawString(this.font, line, textX + lockIconW, textY, OPT_LOCKED_TEXT, false);
+                    textY += LINE_HEIGHT;
+                }
+                if (!lockReason.isEmpty()) {
+                    graphics.drawString(this.font, lockReason, textX + lockIconW, textY, OPT_LOCKED_REASON, false);
+                }
+            } else {
+                graphics.drawString(this.font, (i + 1) + ". ", textX, textY, OPT_NUM_COLOR, false);
+                for (FormattedCharSequence line : lines) {
+                    graphics.drawString(this.font, line, textX + numWidth, textY,
+                            hovered ? OPTION_HOVER : OPTION_COLOR, false);
+                    textY += LINE_HEIGHT;
+                }
             }
 
             optionHitboxes.add(new OptionHitbox(i, optPanelX, curY, panelW, panelH));
@@ -281,7 +331,7 @@ public class DialogueScreen extends Screen {
             OptionHitbox hb = optionHitboxes.get(i);
             if (mouseX >= hb.x && mouseX <= hb.x + hb.width &&
                     mouseY >= hb.y && mouseY <= hb.y + hb.height) {
-                hoveredOption = i;
+                if (!isOptionLocked(i)) hoveredOption = i;
                 break;
             }
         }
@@ -301,6 +351,11 @@ public class DialogueScreen extends Screen {
         if (showingPlayerResponse && button == 1) {
             ModNetwork.sendToServer(new SelectOptionPacket(pendingOptionRawIndex));
             showingPlayerResponse = false;
+            return true;
+        }
+
+        if (button == 1 && !showingPlayerResponse && !isDialogueFullyVisible()) {
+            revealDialogueText();
             return true;
         }
 
@@ -325,7 +380,7 @@ public class DialogueScreen extends Screen {
                     OptionHitbox hb = optionHitboxes.get(i);
                     if (mouseX >= hb.x && mouseX <= hb.x + hb.width &&
                             mouseY >= hb.y && mouseY <= hb.y + hb.height) {
-                        selectOption(i);
+                        if (!isOptionLocked(i)) selectOption(i);
                         return true;
                     }
                 }
@@ -339,6 +394,7 @@ public class DialogueScreen extends Screen {
         pendingOptionRawIndex = optionIndices.get(filteredIndex);
         showingOptions = false;
         showingPlayerResponse = true;
+        syncClientTalkingState();
         DialogueCameraController.stopSide();
     }
 
@@ -349,10 +405,14 @@ public class DialogueScreen extends Screen {
             showingPlayerResponse = false;
             return true;
         }
+        if (!showingPlayerResponse && (keyCode == 257 || keyCode == 335 || keyCode == 32) && !isDialogueFullyVisible()) {
+            revealDialogueText();
+            return true;
+        }
         if ("choice".equals(nodeType) && showingOptions && !optionTexts.isEmpty()) {
             if (keyCode >= 49 && keyCode <= 53) {
                 int idx = keyCode - 49;
-                if (idx < optionTexts.size()) {
+                if (idx < optionTexts.size() && !isOptionLocked(idx)) {
                     selectOption(idx);
                     return true;
                 }
@@ -368,7 +428,7 @@ public class DialogueScreen extends Screen {
                 return true;
             }
             if (keyCode == 257 || keyCode == 335) {
-                if (hoveredOption >= 0 && hoveredOption < optionTexts.size()) {
+                if (hoveredOption >= 0 && hoveredOption < optionTexts.size() && !isOptionLocked(hoveredOption)) {
                     selectOption(hoveredOption);
                     return true;
                 }
@@ -383,12 +443,14 @@ public class DialogueScreen extends Screen {
 
     @Override
     public void onClose() {
+        clearClientTalkingOverride();
         DialogueCameraController.stop();
         super.onClose();
     }
 
     @Override
     public void removed() {
+        clearClientTalkingOverride();
         ModNetwork.sendToServer(new CloseDialogueC2SPacket());
         DialogueCameraController.stop();
         super.removed();
@@ -401,6 +463,7 @@ public class DialogueScreen extends Screen {
 
     public void updateDialogue(String displayName, String text, String nodeType,
                                List<String> optionTexts, List<Integer> optionIndices,
+                               List<Boolean> optionLocked, List<String> optionLockReasons,
                                @Nullable ResourceLocation avatarTexture,
                                @Nullable ResourceLocation background, @Nullable ResourceLocation optionsBackground) {
         this.displayName = displayName;
@@ -408,6 +471,8 @@ public class DialogueScreen extends Screen {
         this.nodeType = nodeType;
         this.optionTexts = new ArrayList<>(optionTexts);
         this.optionIndices = new ArrayList<>(optionIndices);
+        this.optionLocked = new ArrayList<>(optionLocked);
+        this.optionLockReasons = new ArrayList<>(optionLockReasons);
         this.avatarTexture = avatarTexture;
         this.background = background;
         this.optionsBackground = optionsBackground;
@@ -418,9 +483,120 @@ public class DialogueScreen extends Screen {
         this.showingOptions = false;
         this.showingPlayerResponse = false;
         this.pendingOptionRawIndex = -1;
+        resetTypewriter();
+        syncClientTalkingState();
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null) mc.player.stopUsingItem();
+    }
+
+    private boolean isOptionLocked(int index) {
+        return index >= 0 && index < optionLocked.size() && optionLocked.get(index);
+    }
+
+    private void resetTypewriter() {
+        this.totalDialogueChars = countVisibleChars(this.dialogueText);
+        this.visibleDialogueChars = 0;
+        this.typewriterTickCounter = 0;
+    }
+
+    private void syncClientTalkingState() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return;
+
+        if (mc.level.getEntity(this.entityId) instanceof CustomNpcEntity customNpc) {
+            boolean shouldTalk = !showingPlayerResponse && !showingOptions && totalDialogueChars > 0 && !isDialogueFullyVisible();
+            customNpc.setClientTalkingOverride(shouldTalk);
+        }
+    }
+
+    private void clearClientTalkingOverride() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return;
+
+        if (mc.level.getEntity(this.entityId) instanceof CustomNpcEntity customNpc) {
+            customNpc.setClientTalkingOverride(null);
+        }
+    }
+
+    private boolean isDialogueFullyVisible() {
+        return visibleDialogueChars >= totalDialogueChars;
+    }
+
+    private void revealDialogueText() {
+        this.visibleDialogueChars = this.totalDialogueChars;
+        this.typewriterTickCounter = 0;
+        syncClientTalkingState();
+    }
+
+    private String getVisibleDialogueText() {
+        return sliceVisibleText(this.dialogueText, this.visibleDialogueChars);
+    }
+
+    private static int countVisibleChars(String raw) {
+        if (raw == null || raw.isEmpty()) return 0;
+
+        int visible = 0;
+        for (int i = 0; i < raw.length();) {
+            if (raw.charAt(i) == '&' && i + 1 < raw.length()) {
+                char next = raw.charAt(i + 1);
+                if (next == '#' && i + 8 <= raw.length() && isValidHex(raw.substring(i + 2, i + 8))) {
+                    i += 8;
+                    continue;
+                }
+                if (isFormatCode(next)) {
+                    i += 2;
+                    continue;
+                }
+            }
+            visible++;
+            i++;
+        }
+        return visible;
+    }
+
+    private static String sliceVisibleText(String raw, int visibleLimit) {
+        if (raw == null || raw.isEmpty() || visibleLimit <= 0) return "";
+
+        StringBuilder builder = new StringBuilder();
+        int visible = 0;
+        for (int i = 0; i < raw.length() && visible < visibleLimit;) {
+            if (raw.charAt(i) == '&' && i + 1 < raw.length()) {
+                char next = raw.charAt(i + 1);
+                if (next == '#' && i + 8 <= raw.length() && isValidHex(raw.substring(i + 2, i + 8))) {
+                    builder.append(raw, i, i + 8);
+                    i += 8;
+                    continue;
+                }
+                if (isFormatCode(next)) {
+                    builder.append(raw, i, i + 2);
+                    i += 2;
+                    continue;
+                }
+            }
+
+            builder.append(raw.charAt(i));
+            visible++;
+            i++;
+        }
+        return builder.toString();
+    }
+
+    private static boolean isFormatCode(char code) {
+        return switch (Character.toLowerCase(code)) {
+            case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'l', 'o', 'n', 'm', 'k', 'r' -> true;
+            default -> false;
+        };
+    }
+
+    private static boolean isValidHex(String hex) {
+        if (hex.length() != 6) return false;
+        for (char c : hex.toCharArray()) {
+            if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F'))) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static class OptionHitbox {

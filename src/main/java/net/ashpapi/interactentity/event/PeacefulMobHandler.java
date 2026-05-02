@@ -4,6 +4,8 @@ import net.ashpapi.interactentity.InteractEntityMod;
 import net.ashpapi.interactentity.dialogue.DialogueManager;
 import net.ashpapi.interactentity.dialogue.DialogueSession;
 import net.ashpapi.interactentity.dialogue.DialogueTree;
+import net.ashpapi.interactentity.npc.CompanionHandler;
+import net.ashpapi.interactentity.npc.NpcRoutineHandler;
 import net.ashpapi.interactentity.network.ModNetwork;
 import net.ashpapi.interactentity.network.NpcSyncPacket;
 import net.minecraft.server.level.ServerPlayer;
@@ -57,6 +59,11 @@ public class PeacefulMobHandler {
         // Fast path: NBT-флаг уже выставлен → не итерируем диалоги каждый тик
         if (entity.getPersistentData().getBoolean("InteractEntity_NPC")) {
             applyNPCProtections(entity);
+            trackNearestPlayer(entity);
+            reactToWeather(entity);
+            returnHome(entity);
+            NpcRoutineHandler.tick(entity);
+            CompanionHandler.tick(entity);
             return;
         }
 
@@ -108,6 +115,80 @@ public class PeacefulMobHandler {
             mob.setTarget(null);
             mob.setLastHurtByMob(null);
         }
+    }
+
+    private static void trackNearestPlayer(LivingEntity entity) {
+        if (!(entity instanceof Mob mob)) return;
+        if (mob.isNoAi()) return;
+        if (DialogueSession.isEntityBusy(entity)) return;
+
+        net.minecraft.world.entity.player.Player nearest = entity.level().getNearestPlayer(entity, 12.0);
+        if (nearest != null) {
+            mob.getLookControl().setLookAt(nearest, 30.0f, 30.0f);
+        }
+    }
+
+    private static void reactToWeather(LivingEntity entity) {
+        if (!(entity instanceof Mob mob)) return;
+        if (mob.isNoAi()) return;
+        if (DialogueSession.isEntityBusy(entity)) return;
+        if (!entity.level().isRaining()) return;
+
+        // Проверяем раз в 2 секунды
+        if (entity.tickCount % 40 != 0) return;
+
+        net.minecraft.core.BlockPos pos = entity.blockPosition();
+        boolean exposed = entity.level().canSeeSky(pos);
+        if (!exposed) return;
+
+        // Ищем ближайший блок с крышей в радиусе 10
+        net.minecraft.core.BlockPos shelter = findShelter(entity, 10);
+        if (shelter != null) {
+            mob.getNavigation().moveTo(shelter.getX() + 0.5, shelter.getY(), shelter.getZ() + 0.5, 1.0);
+        }
+    }
+
+    private static void returnHome(LivingEntity entity) {
+        if (!(entity instanceof Mob mob)) return;
+        if (mob.isNoAi()) return;
+        if (DialogueSession.isEntityBusy(entity)) return;
+
+        // Проверяем раз в 3 секунды
+        if (entity.tickCount % 60 != 0) return;
+
+        var nbt = entity.getPersistentData();
+        if (!nbt.contains("InteractEntity_HomeX")) return;
+
+        int hx = nbt.getInt("InteractEntity_HomeX");
+        int hy = nbt.getInt("InteractEntity_HomeY");
+        int hz = nbt.getInt("InteractEntity_HomeZ");
+        int radius = nbt.getInt("InteractEntity_HomeRadius");
+
+        double distSq = entity.blockPosition().distSqr(new net.minecraft.core.BlockPos(hx, hy, hz));
+        if (distSq > (double) radius * radius) {
+            mob.getNavigation().moveTo(hx + 0.5, hy, hz + 0.5, 1.0);
+        }
+    }
+
+    @javax.annotation.Nullable
+    private static net.minecraft.core.BlockPos findShelter(LivingEntity entity, int radius) {
+        net.minecraft.core.BlockPos origin = entity.blockPosition();
+        net.minecraft.core.BlockPos best = null;
+        double bestDist = Double.MAX_VALUE;
+
+        for (int dx = -radius; dx <= radius; dx++) {
+            for (int dz = -radius; dz <= radius; dz++) {
+                net.minecraft.core.BlockPos check = origin.offset(dx, 0, dz);
+                if (!entity.level().canSeeSky(check) && entity.level().getBlockState(check).isAir()) {
+                    double dist = origin.distSqr(check);
+                    if (dist < bestDist) {
+                        bestDist = dist;
+                        best = check;
+                    }
+                }
+            }
+        }
+        return best;
     }
 
     @SubscribeEvent

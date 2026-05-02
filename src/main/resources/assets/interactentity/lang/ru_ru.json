@@ -12,6 +12,7 @@
   "gui.interactentity.hint.close": "ПКМ — закрыть",
   "gui.interactentity.hint.next": "ПКМ →",
   "gui.interactentity.hint.choose": "ПКМ — ответить",
+  "gui.interactentity.hint.reveal": "ПКМ — показать текст",
 
   "gui.interactentity.quests.empty": "Квестов пока нет.",
   "gui.interactentity.quest.active": "Активные",

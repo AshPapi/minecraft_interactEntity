@@ -12,6 +12,7 @@
   "gui.interactentity.hint.close": "RMB — close",
   "gui.interactentity.hint.next": "RMB →",
   "gui.interactentity.hint.choose": "RMB — reply",
+  "gui.interactentity.hint.reveal": "RMB — reveal text",
 
   "gui.interactentity.quests.empty": "No quests yet.",
   "gui.interactentity.quest.active": "Active",

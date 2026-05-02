@@ -5,6 +5,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.ashpapi.interactentity.InteractEntityMod;
+import net.ashpapi.interactentity.entity.CustomNpcEntity;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraftforge.fml.loading.FMLPaths;
@@ -126,6 +127,10 @@ public class DialogueManager {
         DialogueTree tree = findDialogueForEntity(entity);
         if (tree != null && tree.getAvatar() != null) {
             return tree.getAvatar();
+        }
+
+        if (entity instanceof CustomNpcEntity customNpc) {
+            return customNpc.getTextureLocation();
         }
 
         return null;

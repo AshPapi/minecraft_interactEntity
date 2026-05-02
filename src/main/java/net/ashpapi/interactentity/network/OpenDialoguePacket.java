@@ -18,6 +18,8 @@ public class OpenDialoguePacket {
     private final String nodeType;
     private final List<String> optionTexts;
     private final List<Integer> optionIndices;
+    private final List<Boolean> optionLocked;
+    private final List<String> optionLockReasons;
     private final ResourceLocation avatarTexture;
     private final ResourceLocation background;
     private final ResourceLocation optionsBackground;
@@ -27,6 +29,7 @@ public class OpenDialoguePacket {
 
     public OpenDialoguePacket(int entityId, String displayName, String text, String nodeType,
                               List<String> optionTexts, List<Integer> optionIndices,
+                              List<Boolean> optionLocked, List<String> optionLockReasons,
                               ResourceLocation avatarTexture,
                               ResourceLocation background, ResourceLocation optionsBackground,
                               String cameraMode, float cameraYawOffset, float cameraPitchOffset) {
@@ -36,6 +39,8 @@ public class OpenDialoguePacket {
         this.nodeType = nodeType;
         this.optionTexts = optionTexts;
         this.optionIndices = optionIndices;
+        this.optionLocked = optionLocked;
+        this.optionLockReasons = optionLockReasons;
         this.avatarTexture = avatarTexture;
         this.background = background;
         this.optionsBackground = optionsBackground;
@@ -57,9 +62,13 @@ public class OpenDialoguePacket {
         int count = buf.readInt();
         this.optionTexts = new ArrayList<>(count);
         this.optionIndices = new ArrayList<>(count);
+        this.optionLocked = new ArrayList<>(count);
+        this.optionLockReasons = new ArrayList<>(count);
         for (int i = 0; i < count; i++) {
             this.optionTexts.add(buf.readUtf());
             this.optionIndices.add(buf.readInt());
+            this.optionLocked.add(buf.readBoolean());
+            this.optionLockReasons.add(buf.readUtf());
         }
 
         this.cameraMode = buf.readUtf();
@@ -84,6 +93,8 @@ public class OpenDialoguePacket {
         for (int i = 0; i < optionTexts.size(); i++) {
             buf.writeUtf(optionTexts.get(i));
             buf.writeInt(optionIndices.get(i));
+            buf.writeBoolean(optionLocked.get(i));
+            buf.writeUtf(optionLockReasons.get(i));
         }
 
         buf.writeUtf(cameraMode);
@@ -95,10 +106,10 @@ public class OpenDialoguePacket {
         ctx.get().enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.screen instanceof DialogueScreen screen) {
-                screen.updateDialogue(displayName, text, nodeType, optionTexts, optionIndices, avatarTexture, background, optionsBackground);
+                screen.updateDialogue(displayName, text, nodeType, optionTexts, optionIndices, optionLocked, optionLockReasons, avatarTexture, background, optionsBackground);
             } else {
                 mc.setScreen(new DialogueScreen(entityId, displayName, text, nodeType,
-                        optionTexts, optionIndices, avatarTexture, background, optionsBackground));
+                        optionTexts, optionIndices, optionLocked, optionLockReasons, avatarTexture, background, optionsBackground));
             }
             applyCameraMode(entityId);
         });

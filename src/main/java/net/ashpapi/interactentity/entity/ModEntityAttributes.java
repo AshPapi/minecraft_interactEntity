@@ -48,5 +48,6 @@ public class ModEntityAttributes {
         event.put(ModEntities.NPC_ENDERMITE.get(),        Endermite.createAttributes().build());
         event.put(ModEntities.NPC_VEX.get(),              Vex.createAttributes().build());
         event.put(ModEntities.NPC_SHULKER.get(),          Shulker.createAttributes().build());
+        event.put(ModEntities.CUSTOM_NPC.get(),             CustomNpcEntity.createAttributes().build());
     }
 }

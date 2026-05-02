@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
 import net.minecraftforge.client.gui.overlay.VanillaGuiOverlay;
@@ -59,7 +60,11 @@ public class QuestHudOverlay {
         for (int i = 0; i < count; i++) {
             QuestState quest = activeQuests.get(i);
             Component title = TextFormatter.format(quest.getTitle());
-            maxWidth = Math.max(maxWidth, font.width(title));
+            int titleWidth = font.width(title);
+            if (quest.hasDeadline()) {
+                titleWidth += 6 + font.width("\u23F1 99:99");
+            }
+            maxWidth = Math.max(maxWidth, titleWidth);
             for (String obj : quest.getObjectives()) {
                 Component objComp = TextFormatter.format("  " + obj);
                 maxWidth = Math.max(maxWidth, font.width(objComp));
@@ -89,6 +94,18 @@ public class QuestHudOverlay {
             QuestState quest = activeQuests.get(i);
             Component title = TextFormatter.format(quest.getTitle());
             graphics.drawString(font, title, textX, y, 0xFFCC00, false);
+
+            // Отображение дедлайна рядом с заголовком
+            if (quest.hasDeadline() && mc.level != null) {
+                long remaining = quest.getDeadlineTick() - mc.level.getGameTime();
+                if (remaining > 0) {
+                    String timerStr = formatDeadline(remaining, quest.getDeadlineType());
+                    int timerColor = (remaining < 1200) ? getFlashingRed(mc.level.getGameTime()) : 0xAAAAAA;
+                    int timerX = textX + font.width(title) + 6;
+                    graphics.drawString(font, timerStr, timerX, y, timerColor, false);
+                }
+            }
+
             y += 10;
             for (String obj : quest.getObjectives()) {
                 Component objComp = TextFormatter.format("  " + obj);
@@ -97,5 +114,26 @@ public class QuestHudOverlay {
             }
             y += 2;
         }
+    }
+
+    private static String formatDeadline(long remainingTicks, String type) {
+        if ("sunset".equals(type)) {
+            long minutes = remainingTicks / 1200;
+            if (minutes > 0) return "\u2638 " + minutes + "m";
+            return "\u2638 <1m";
+        }
+        if ("sunrise".equals(type)) {
+            long minutes = remainingTicks / 1200;
+            if (minutes > 0) return "\u263C " + minutes + "m";
+            return "\u263C <1m";
+        }
+        long totalSeconds = remainingTicks / 20;
+        long minutes = totalSeconds / 60;
+        long seconds = totalSeconds % 60;
+        return String.format("\u23F1 %d:%02d", minutes, seconds);
+    }
+
+    private static int getFlashingRed(long gameTime) {
+        return (gameTime % 20 < 10) ? 0xFF5555 : 0xAA0000;
     }
 }

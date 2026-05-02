@@ -56,5 +56,11 @@ public class ActionRegistry {
         register("set_var", new SetVarAction());
         register("summon_npc", new SummonNpcAction());
         register("notify_npc", new NotifyNpcAction());
+        register("add_reputation", new AddReputationAction());
+        register("schedule_event", new ScheduleEventAction());
+        register("set_relationship", new SetRelationshipAction());
+        register("set_home", new SetHomeAction());
+        register("set_companion", new SetCompanionAction());
+        register("play_emote", new PlayEmoteAction());
     }
 }

@@ -1,11 +1,15 @@
 package net.ashpapi.interactentity.dialogue;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import net.ashpapi.interactentity.npc.NpcRoutine;
 import net.minecraft.resources.ResourceLocation;
 
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class DialogueTree {
@@ -21,12 +25,13 @@ public class DialogueTree {
     @Nullable private final ResourceLocation optionsBackground;
     private final boolean invulnerable;
     private final boolean repeatable;
+    @Nullable private final List<NpcRoutine> routines;
 
     public DialogueTree(String id, DialogueTarget target, String displayName, String entryNodeId,
                         Map<String, DialogueNode> nodes, @Nullable RevisitConfig revisitConfig,
                         @Nullable JsonObject summonConfig, @Nullable ResourceLocation avatar,
                         @Nullable ResourceLocation background, @Nullable ResourceLocation optionsBackground,
-                        boolean invulnerable, boolean repeatable) {
+                        boolean invulnerable, boolean repeatable, @Nullable List<NpcRoutine> routines) {
         this.id = id;
         this.target = target;
         this.displayName = displayName;
@@ -39,6 +44,7 @@ public class DialogueTree {
         this.optionsBackground = optionsBackground;
         this.invulnerable = invulnerable;
         this.repeatable = repeatable;
+        this.routines = routines;
     }
 
     public String getId() { return id; }
@@ -55,6 +61,7 @@ public class DialogueTree {
     @Nullable public ResourceLocation getOptionsBackground() { return optionsBackground; }
     public boolean isInvulnerable() { return invulnerable; }
     public boolean isRepeatable() { return repeatable; }
+    @Nullable public List<NpcRoutine> getRoutines() { return routines; }
 
     public static DialogueTree fromJson(String id, JsonObject json) {
         DialogueTarget target = DialogueTarget.fromJson(json.getAsJsonObject("target"));
@@ -91,6 +98,15 @@ public class DialogueTree {
         boolean invulnerable = json.has("invulnerable") ? json.get("invulnerable").getAsBoolean() : true;
         boolean repeatable = json.has("repeatable") && json.get("repeatable").getAsBoolean();
 
-        return new DialogueTree(id, target, displayName, entry, nodes, revisitConfig, summonConfig, avatar, background, optionsBackground, invulnerable, repeatable);
+        List<NpcRoutine> routines = null;
+        if (json.has("routines")) {
+            routines = new ArrayList<>();
+            JsonArray routinesArr = json.getAsJsonArray("routines");
+            for (int i = 0; i < routinesArr.size(); i++) {
+                routines.add(NpcRoutine.fromJson(routinesArr.get(i).getAsJsonObject()));
+            }
+        }
+
+        return new DialogueTree(id, target, displayName, entry, nodes, revisitConfig, summonConfig, avatar, background, optionsBackground, invulnerable, repeatable, routines);
     }
 }

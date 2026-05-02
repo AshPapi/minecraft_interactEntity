@@ -68,6 +68,11 @@ public class SyncProgressPacket {
             ListTag notifTag = data.getList("notifications", Tag.TAG_STRING);
             for (int i = 0; i < notifTag.size(); i++) notifications.add(notifTag.getString(i));
             ClientProgressData.setNotifications(notifications);
+
+            Map<String, Integer> reputation = new HashMap<>();
+            CompoundTag repTag = data.getCompound("reputation");
+            for (String k : repTag.getAllKeys()) reputation.put(k, repTag.getInt(k));
+            ClientProgressData.setReputation(reputation);
         });
         ctx.get().setPacketHandled(true);
     }

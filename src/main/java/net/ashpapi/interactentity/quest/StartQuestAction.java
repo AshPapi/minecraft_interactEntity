@@ -56,6 +56,34 @@ public class StartQuestAction implements DialogueAction {
             quest.setRequiredItem(itemId, count);
         }
 
+        // Добавление deadline (если есть в JSON)
+        if (questJson.has("deadline")) {
+            JsonObject deadlineJson = questJson.getAsJsonObject("deadline");
+            String deadlineType = deadlineJson.get("type").getAsString();
+            long currentGameTime = player.serverLevel().getGameTime();
+            long deadlineTick = 0;
+
+            switch (deadlineType) {
+                case "ticks" -> deadlineTick = currentGameTime + deadlineJson.get("value").getAsLong();
+                case "game_days" -> deadlineTick = currentGameTime + deadlineJson.get("value").getAsLong() * 24000L;
+                case "sunset" -> {
+                    long dayTime = player.serverLevel().getDayTime() % 24000L;
+                    long ticksUntilSunset = (dayTime <= 12000) ? (12000 - dayTime) : (24000 - dayTime + 12000);
+                    deadlineTick = currentGameTime + ticksUntilSunset;
+                }
+                case "sunrise" -> {
+                    long dayTime = player.serverLevel().getDayTime() % 24000L;
+                    long ticksUntilSunrise = (dayTime == 0) ? 24000 : (24000 - dayTime);
+                    deadlineTick = currentGameTime + ticksUntilSunrise;
+                }
+            }
+
+            if (deadlineTick > 0) {
+                quest.setDeadlineTick(deadlineTick);
+                quest.setDeadlineType(deadlineType);
+            }
+        }
+
         data.setQuest(quest);
 
         // === НОВОЕ: проверка, есть ли уже нужное количество предметов ===

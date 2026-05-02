@@ -171,4 +171,9 @@ public class ModEntities {
         ENTITIES.register("npc_shulker", () -> EntityType.Builder
             .<NPCShulker>of(NPCShulker::new, MobCategory.MONSTER)
             .sized(1.0F, 1.0F).clientTrackingRange(10).build("interactentity:npc_shulker"));
+
+    public static final RegistryObject<EntityType<CustomNpcEntity>> CUSTOM_NPC =
+        ENTITIES.register("custom_npc", () -> EntityType.Builder
+            .<CustomNpcEntity>of(CustomNpcEntity::new, MobCategory.CREATURE)
+            .sized(0.6F, 1.95F).clientTrackingRange(10).build("interactentity:custom_npc"));
 }

@@ -52,5 +52,18 @@ public class NPCJoinHandler {
         String iconTag = PeacefulMobHandler.NPC_TAG_PREFIX + tree.getId() + ":" + tree.getEntryNodeId();
         entity.getTags().removeIf(t -> t.startsWith(PeacefulMobHandler.NPC_TAG_PREFIX));
         entity.addTag(iconTag);
+
+        // Устанавливаем домашнюю позицию при первом спавне
+        if (!entity.getPersistentData().contains("InteractEntity_HomeX")) {
+            setHome(entity, entity.blockPosition(), 16);
+        }
+    }
+
+    /** Задать домашнюю позицию и радиус для NPC. */
+    public static void setHome(LivingEntity entity, net.minecraft.core.BlockPos pos, int radius) {
+        entity.getPersistentData().putInt("InteractEntity_HomeX", pos.getX());
+        entity.getPersistentData().putInt("InteractEntity_HomeY", pos.getY());
+        entity.getPersistentData().putInt("InteractEntity_HomeZ", pos.getZ());
+        entity.getPersistentData().putInt("InteractEntity_HomeRadius", radius);
     }
 }

@@ -43,5 +43,7 @@ public class ConditionRegistry {
         register("biome", new BiomeCondition());
         register("killed_mob", new KilledMobCondition());
         register("if_var", new IfVarCondition());
+        register("reputation", new ReputationCondition());
+        register("npc_relationship", new NpcRelationshipCondition());
     }
 }

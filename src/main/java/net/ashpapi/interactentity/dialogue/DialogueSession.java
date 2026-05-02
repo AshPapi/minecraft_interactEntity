@@ -4,6 +4,7 @@ import net.ashpapi.interactentity.InteractEntityMod;
 import net.ashpapi.interactentity.action.ActionRegistry;
 import net.ashpapi.interactentity.condition.ConditionRegistry;
 import net.ashpapi.interactentity.data.DialogueSavedData;
+import net.ashpapi.interactentity.entity.CustomNpcEntity;
 import net.ashpapi.interactentity.event.PlayerProtectionHandler;
 import net.ashpapi.interactentity.history.DialogueHistoryEntry;
 import net.ashpapi.interactentity.history.HistoryLine;
@@ -150,7 +151,7 @@ public class DialogueSession {
             historyEntry.addLine(new HistoryLine(tree.getDisplayName(), node.getText()));
             data.addHistory(historyEntry);
 
-            if (!node.getActions().isEmpty()) {
+            if (!node.getActions().isEmpty() && markActionPoint(data, "node:" + currentNodeId)) {
                 ActionRegistry.executeActions(node.getActions(), player, entity);
             }
             // Если action заменил сессию (summon_npc+start_dialogue, force_dialogue) — не продолжаем
@@ -162,11 +163,21 @@ public class DialogueSession {
         // Сначала фильтруем опции, потом определяем тип узла
         List<String> optionTexts    = new ArrayList<>();
         List<Integer> optionIndices = new ArrayList<>();
+        List<Boolean> optionLocked  = new ArrayList<>();
+        List<String> optionLockReasons = new ArrayList<>();
         for (int i = 0; i < node.getOptions().size(); i++) {
             DialogueOption option = node.getOptions().get(i);
-            if (ConditionRegistry.check(option.getCondition(), player, entity)) {
+            boolean conditionMet = ConditionRegistry.check(option.getCondition(), player, entity);
+            if (conditionMet) {
                 optionTexts.add(option.getText());
                 optionIndices.add(i);
+                optionLocked.add(false);
+                optionLockReasons.add("");
+            } else if (option.isLocked()) {
+                optionTexts.add(option.getText());
+                optionIndices.add(i);
+                optionLocked.add(true);
+                optionLockReasons.add(option.getLockReason() != null ? option.getLockReason() : "");
             }
         }
 
@@ -188,6 +199,11 @@ public class DialogueSession {
         DialogueManager manager = DialogueManager.get();
         if (manager != null) avatar = manager.getDialogueAvatar(entity);
 
+        // Лип-синк: включаем анимацию рта если это CustomNpcEntity
+        if (entity instanceof CustomNpcEntity customNpc) {
+            customNpc.setTalking(true);
+        }
+
         ModNetwork.sendToPlayer(player, new OpenDialoguePacket(
                 entity.getId(),
                 tree.getDisplayName(),
@@ -195,6 +211,8 @@ public class DialogueSession {
                 nodeType,
                 optionTexts,
                 optionIndices,
+                optionLocked,
+                optionLockReasons,
                 avatar,
                 tree.getBackground(),
                 tree.getOptionsBackground(),
@@ -262,6 +280,11 @@ public class DialogueSession {
         PlayerProtectionHandler.unprotect(player);
         session.unfreezeEntity();
 
+        // Лип-синк: выключаем анимацию рта
+        if (session.entity instanceof CustomNpcEntity customNpc) {
+            customNpc.setTalking(false);
+        }
+
         DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
 
         if (!session.completed) {
@@ -320,13 +343,13 @@ public class DialogueSession {
         DialogueOption selected = options.get(optionIndex);
         session.historyEntry.addLine(new HistoryLine("player", selected.getText()));
 
-        if (!selected.getActions().isEmpty()) {
+        DialogueSavedData optData = DialogueSavedData.get(player.serverLevel());
+        if (!selected.getActions().isEmpty() && session.markActionPoint(optData, "option:" + session.currentNodeId + ":" + optionIndex)) {
             ActionRegistry.executeActions(selected.getActions(), player, session.entity);
         }
         // Если action заменил сессию (summon_npc+start_dialogue, force_dialogue) — не продолжаем
         if (getSession(player) != session) return;
 
-        DialogueSavedData optData = DialogueSavedData.get(player.serverLevel());
         optData.addHistory(session.historyEntry);
         ModNetwork.sendToPlayer(player, new SyncProgressPacket(optData));
 
@@ -364,5 +387,13 @@ public class DialogueSession {
                 session.sendCurrentNode();
             }
         }
+    }
+
+    private boolean markActionPoint(DialogueSavedData data, String actionKey) {
+        if (data.hasExecutedAction(tree.getId(), actionKey)) {
+            return false;
+        }
+        data.markActionExecuted(tree.getId(), actionKey);
+        return true;
     }
 }

@@ -45,5 +45,6 @@ public class ClientEntityEvents {
         event.registerEntityRenderer(ModEntities.NPC_ENDERMITE.get(), EndermiteRenderer::new);
         event.registerEntityRenderer(ModEntities.NPC_VEX.get(), VexRenderer::new);
         event.registerEntityRenderer(ModEntities.NPC_SHULKER.get(), ShulkerRenderer::new);
+        event.registerEntityRenderer(ModEntities.CUSTOM_NPC.get(), CustomNpcRenderer::new);
     }
 }

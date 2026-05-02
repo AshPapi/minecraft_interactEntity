@@ -24,6 +24,11 @@ public class QuestState {
     private int requiredCount;
     private boolean itemCollected; // флаг, что предмет уже подобран (чтобы не обновлять objectives повторно)
 
+    // Поля для дедлайна квеста
+    private long deadlineTick;    // game time, когда квест фейлится (0 = нет дедлайна)
+    @Nullable
+    private String deadlineType;  // "ticks", "sunset", "sunrise", "game_days"
+
     public QuestState(String id, String title, String description, List<String> objectives, String status, String giverName) {
         this.id = id;
         this.title = title;
@@ -34,6 +39,8 @@ public class QuestState {
         this.requiredItemId = null;
         this.requiredCount = 0;
         this.itemCollected = false;
+        this.deadlineTick = 0;
+        this.deadlineType = null;
     }
 
     public String getId() { return id; }
@@ -61,6 +68,13 @@ public class QuestState {
         this.itemCollected = true;
     }
 
+    public long getDeadlineTick() { return deadlineTick; }
+    public void setDeadlineTick(long deadlineTick) { this.deadlineTick = deadlineTick; }
+    @Nullable
+    public String getDeadlineType() { return deadlineType; }
+    public void setDeadlineType(@Nullable String deadlineType) { this.deadlineType = deadlineType; }
+    public boolean hasDeadline() { return deadlineTick > 0; }
+
     public CompoundTag save() {
         CompoundTag tag = new CompoundTag();
         tag.putString("id", id);
@@ -73,6 +87,11 @@ public class QuestState {
             tag.putString("requiredItemId", requiredItemId);
             tag.putInt("requiredCount", requiredCount);
             tag.putBoolean("itemCollected", itemCollected);
+        }
+
+        if (deadlineTick > 0) {
+            tag.putLong("deadlineTick", deadlineTick);
+            if (deadlineType != null) tag.putString("deadlineType", deadlineType);
         }
 
         ListTag objTag = new ListTag();
@@ -102,6 +121,11 @@ public class QuestState {
             quest.requiredItemId = tag.getString("requiredItemId");
             quest.requiredCount = tag.getInt("requiredCount");
             quest.itemCollected = tag.getBoolean("itemCollected");
+        }
+
+        if (tag.contains("deadlineTick")) {
+            quest.deadlineTick = tag.getLong("deadlineTick");
+            quest.deadlineType = tag.contains("deadlineType") ? tag.getString("deadlineType") : null;
         }
 
         return quest;

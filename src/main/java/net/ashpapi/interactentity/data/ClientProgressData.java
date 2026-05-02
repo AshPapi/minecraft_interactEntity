@@ -12,6 +12,7 @@ public class ClientProgressData {
     private static final Map<String, QuestState> quests = new HashMap<>();
     private static final Set<String> completedDialogues = new HashSet<>();
     private static final Set<String> npcNotifications = new HashSet<>();
+    private static final Map<String, Integer> reputation = new HashMap<>();
 
     public static void setCompletedDialogues(Set<String> ids) {
         completedDialogues.clear();
@@ -90,11 +91,27 @@ public class ClientProgressData {
         npcNotifications.remove(dialogueId);
     }
 
+    // ==================== Reputation ====================
+
+    public static void setReputation(Map<String, Integer> rep) {
+        reputation.clear();
+        reputation.putAll(rep);
+    }
+
+    public static int getReputation(String id) {
+        return reputation.getOrDefault(id, 0);
+    }
+
+    public static Map<String, Integer> getAllReputation() {
+        return Collections.unmodifiableMap(reputation);
+    }
+
     public static void clear() {
         visitedNodes.clear();
         history.clear();
         quests.clear();
         completedDialogues.clear();
         npcNotifications.clear();
+        reputation.clear();
     }
 }

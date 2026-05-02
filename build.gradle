@@ -16,6 +16,7 @@ base {
 java.toolchain.languageVersion = JavaLanguageVersion.of(17)
 
 println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
+def mixinRemapFile = file("${buildDir}/createSrgToMcp/output.srg")
 minecraft {
     mappings channel: mapping_channel, version: mapping_version
     accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
@@ -26,6 +27,10 @@ minecraft {
             workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingEnv', 'searge'
+            property 'mixin.env.refMapRemappingFile', mixinRemapFile.absolutePath
+            property 'net.minecraftforge.gradle.GradleStart.srg.srg-mcp', mixinRemapFile.absolutePath
 
             mods {
                 "${mod_id}" {
@@ -58,10 +63,12 @@ sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 repositories {
     mavenCentral()
+    maven { url 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/' }
 }
 
 dependencies {
     minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    implementation fg.deobf('software.bernie.geckolib:geckolib-forge-1.20.1:4.4.7')
 }
 
 tasks.named('processResources', ProcessResources).configure {
