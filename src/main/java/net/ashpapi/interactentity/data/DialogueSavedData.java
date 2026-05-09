@@ -16,6 +16,7 @@ import java.util.*;
 public class DialogueSavedData extends SavedData {
     private static final String DATA_NAME = InteractEntityMod.MOD_ID + "_progress";
     private static final int MAX_HISTORY = 50;
+    private static final int MAX_TRACKED_QUESTS = 3;
 
     private final Map<String, Set<String>> visitedNodes = new HashMap<>();
     private final Map<String, DialogueHistoryEntry> history = new HashMap<>();
@@ -34,10 +35,12 @@ public class DialogueSavedData extends SavedData {
     private final Set<String> npcNotifications = new HashSet<>();
     /** Reputation: faction/npc id → integer value (-100..100) */
     private final Map<String, Integer> reputation = new HashMap<>();
+    private final Map<String, Long> giftCooldowns = new HashMap<>();
     /** Delayed events: fire actions at a future game tick */
     private final List<DelayedEvent> delayedEvents = new ArrayList<>();
     /** NPC relationships: "npcA:npcB" → relationship type (friend, rival, neutral, lover...) */
     private final Map<String, String> npcRelationships = new HashMap<>();
+    private final LinkedHashSet<String> trackedQuests = new LinkedHashSet<>();
 
     // === Visited nodes (без изменений) ===
     public void visit(String dialogueId, String nodeId) {
@@ -118,8 +121,9 @@ public class DialogueSavedData extends SavedData {
 
     /** Очистить все квесты (для тестирования). */
     public void clearAllQuests() {
-        if (!quests.isEmpty()) {
+        if (!quests.isEmpty() || !trackedQuests.isEmpty()) {
             quests.clear();
+            trackedQuests.clear();
             setDirty();
         }
     }
@@ -127,6 +131,7 @@ public class DialogueSavedData extends SavedData {
     // === Quests (без изменений) ===
     public void setQuest(QuestState quest) {
         quests.put(quest.getId(), quest);
+        updateTrackedQuestForState(quest);
         setDirty();
     }
 
@@ -147,6 +152,67 @@ public class DialogueSavedData extends SavedData {
 
     public Map<String, QuestState> getAllQuests() {
         return Collections.unmodifiableMap(quests);
+    }
+
+    public Set<String> getTrackedQuestIds() {
+        pruneTrackedQuests();
+        return Collections.unmodifiableSet(trackedQuests);
+    }
+
+    public boolean toggleTrackedQuest(String questId) {
+        if (trackedQuests.remove(questId)) {
+            setDirty();
+            return true;
+        }
+
+        QuestState quest = quests.get(questId);
+        if (quest == null || !"active".equals(quest.getStatus()) || getTrackedActiveQuestCount() >= MAX_TRACKED_QUESTS) {
+            return false;
+        }
+
+        trackedQuests.add(questId);
+        setDirty();
+        return true;
+    }
+
+    public void untrackQuest(String questId) {
+        if (trackedQuests.remove(questId)) {
+            setDirty();
+        }
+    }
+
+    private void updateTrackedQuestForState(QuestState quest) {
+        if (!"active".equals(quest.getStatus())) {
+            trackedQuests.remove(quest.getId());
+            return;
+        }
+        if (!trackedQuests.contains(quest.getId()) && getTrackedActiveQuestCount() < MAX_TRACKED_QUESTS) {
+            trackedQuests.add(quest.getId());
+        }
+    }
+
+    private int getTrackedActiveQuestCount() {
+        int count = 0;
+        for (String questId : trackedQuests) {
+            QuestState quest = quests.get(questId);
+            if (quest != null && "active".equals(quest.getStatus())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private void pruneTrackedQuests() {
+        trackedQuests.removeIf(questId -> {
+            QuestState quest = quests.get(questId);
+            return quest == null || !"active".equals(quest.getStatus());
+        });
+        while (trackedQuests.size() > MAX_TRACKED_QUESTS) {
+            Iterator<String> it = trackedQuests.iterator();
+            if (!it.hasNext()) break;
+            it.next();
+            it.remove();
+        }
     }
 
     // === Completed dialogues ===
@@ -222,6 +288,24 @@ public class DialogueSavedData extends SavedData {
         return Collections.unmodifiableMap(reputation);
     }
 
+    // === Gifts & Cooldowns ===
+    public boolean canGiveGift(String characterId) {
+        long lastGift = giftCooldowns.getOrDefault(characterId, 0L);
+        long now = System.currentTimeMillis();
+        return (now - lastGift) >= 3600000L; // 1 hour in ms
+    }
+
+    public long getGiftCooldownRemaining(String characterId) {
+        long lastGift = giftCooldowns.getOrDefault(characterId, 0L);
+        long now = System.currentTimeMillis();
+        return Math.max(0, 3600000L - (now - lastGift));
+    }
+
+    public void recordGift(String characterId) {
+        giftCooldowns.put(characterId, System.currentTimeMillis());
+        setDirty();
+    }
+
     // === Delayed Events ===
     public void addDelayedEvent(DelayedEvent event) {
         delayedEvents.add(event);
@@ -278,6 +362,12 @@ public class DialogueSavedData extends SavedData {
         }
         tag.put("quests", questsTag);
 
+        ListTag trackedQuestTag = new ListTag();
+        for (String questId : getTrackedQuestIds()) {
+            trackedQuestTag.add(StringTag.valueOf(questId));
+        }
+        tag.put("tracked_quests", trackedQuestTag);
+
         // Resume nodes
         CompoundTag resumeTag = new CompoundTag();
         for (Map.Entry<String, String> entry : resumeNodes.entrySet()) {
@@ -323,6 +413,10 @@ public class DialogueSavedData extends SavedData {
         for (Map.Entry<String, String> e : npcRelationships.entrySet()) relTag.putString(e.getKey(), e.getValue());
         tag.put("npc_relationships", relTag);
 
+        CompoundTag giftsTag = new CompoundTag();
+        for (Map.Entry<String, Long> e : giftCooldowns.entrySet()) giftsTag.putLong(e.getKey(), e.getValue());
+        tag.put("gift_cooldowns", giftsTag);
+
         return tag;
     }
 
@@ -351,6 +445,24 @@ public class DialogueSavedData extends SavedData {
         CompoundTag questsTag = tag.getCompound("quests");
         for (String questId : questsTag.getAllKeys()) {
             data.quests.put(questId, QuestState.load(questsTag.getCompound(questId)));
+        }
+
+        if (tag.contains("tracked_quests")) {
+            ListTag trackedQuestTag = tag.getList("tracked_quests", Tag.TAG_STRING);
+            for (int i = 0; i < trackedQuestTag.size() && data.trackedQuests.size() < MAX_TRACKED_QUESTS; i++) {
+                String questId = trackedQuestTag.getString(i);
+                QuestState quest = data.quests.get(questId);
+                if (quest != null && "active".equals(quest.getStatus())) {
+                    data.trackedQuests.add(questId);
+                }
+            }
+        } else {
+            for (QuestState quest : data.quests.values()) {
+                if (data.trackedQuests.size() >= MAX_TRACKED_QUESTS) break;
+                if ("active".equals(quest.getStatus())) {
+                    data.trackedQuests.add(quest.getId());
+                }
+            }
         }
 
         // Resume nodes
@@ -389,6 +501,9 @@ public class DialogueSavedData extends SavedData {
 
         CompoundTag relTag = tag.getCompound("npc_relationships");
         for (String k : relTag.getAllKeys()) data.npcRelationships.put(k, relTag.getString(k));
+
+        CompoundTag giftsTag = tag.getCompound("gift_cooldowns");
+        for (String k : giftsTag.getAllKeys()) data.giftCooldowns.put(k, giftsTag.getLong(k));
 
         return data;
     }

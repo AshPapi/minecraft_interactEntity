@@ -11,12 +11,16 @@ import java.util.Collections;
 import java.util.List;
 
 public class QuestState {
+    private static final String COMPLETE_MARKER = "&a[\u2714]";
+
     private final String id;
     private String title;
     private String description;
     private List<String> objectives;
     private String status; // "active", "completed", "failed"
     private String giverName;
+    @Nullable
+    private String dialogueId;
 
     // Поля для автоматического отслеживания предметов
     @Nullable
@@ -33,9 +37,10 @@ public class QuestState {
         this.id = id;
         this.title = title;
         this.description = description;
-        this.objectives = new ArrayList<>(objectives);
+        this.objectives = normalizeObjectives(objectives);
         this.status = status;
         this.giverName = giverName;
+        this.dialogueId = null;
         this.requiredItemId = null;
         this.requiredCount = 0;
         this.itemCollected = false;
@@ -49,9 +54,12 @@ public class QuestState {
     public List<String> getObjectives() { return Collections.unmodifiableList(objectives); }
     public String getStatus() { return status; }
     public String getGiverName() { return giverName; }
+    @Nullable
+    public String getDialogueId() { return dialogueId; }
 
     public void setStatus(String status) { this.status = status; }
-    public void setObjectives(List<String> objectives) { this.objectives = new ArrayList<>(objectives); }
+    public void setObjectives(List<String> objectives) { this.objectives = normalizeObjectives(objectives); }
+    public void setDialogueId(@Nullable String dialogueId) { this.dialogueId = dialogueId; }
 
     @Nullable
     public String getRequiredItemId() { return requiredItemId; }
@@ -82,6 +90,9 @@ public class QuestState {
         tag.putString("description", description);
         tag.putString("status", status);
         tag.putString("giverName", giverName);
+        if (dialogueId != null && !dialogueId.isEmpty()) {
+            tag.putString("dialogueId", dialogueId);
+        }
 
         if (requiredItemId != null) {
             tag.putString("requiredItemId", requiredItemId);
@@ -116,6 +127,7 @@ public class QuestState {
         }
 
         QuestState quest = new QuestState(id, title, description, objectives, status, giverName);
+        quest.dialogueId = tag.contains("dialogueId") ? tag.getString("dialogueId") : null;
 
         if (tag.contains("requiredItemId")) {
             quest.requiredItemId = tag.getString("requiredItemId");
@@ -129,5 +141,58 @@ public class QuestState {
         }
 
         return quest;
+    }
+
+    public static String objectiveText(String objective) {
+        if (objective == null || objective.isEmpty()) return "";
+        return objective.replace(COMPLETE_MARKER, "")
+                .replace("[\u2714]", "")
+                .replace("[ ]", "")
+                .trim();
+    }
+
+    public static boolean isObjectiveCompleted(String objective) {
+        return objective != null && (objective.contains(COMPLETE_MARKER) || objective.contains("[\u2714]"));
+    }
+
+    public static String completedObjective(String objective) {
+        String text = objectiveText(objective);
+        return text.isEmpty() ? COMPLETE_MARKER : COMPLETE_MARKER + " " + text;
+    }
+
+    public boolean completeObjective(int index) {
+        if (index < 0 || index >= objectives.size()) return false;
+        objectives.set(index, completedObjective(objectives.get(index)));
+        return true;
+    }
+
+    public boolean completeObjective(String text) {
+        String normalizedText = objectiveText(text);
+        if (normalizedText.isEmpty()) return false;
+
+        for (int i = 0; i < objectives.size(); i++) {
+            if (objectiveText(objectives.get(i)).equalsIgnoreCase(normalizedText)) {
+                return completeObjective(i);
+            }
+        }
+        return false;
+    }
+
+    public void completeAllObjectives() {
+        for (int i = 0; i < objectives.size(); i++) {
+            completeObjective(i);
+        }
+    }
+
+    private static List<String> normalizeObjectives(List<String> objectives) {
+        List<String> normalized = new ArrayList<>();
+        for (String objective : objectives) {
+            if (isObjectiveCompleted(objective)) {
+                normalized.add(completedObjective(objective));
+            } else {
+                normalized.add(objectiveText(objective));
+            }
+        }
+        return normalized;
     }
 }

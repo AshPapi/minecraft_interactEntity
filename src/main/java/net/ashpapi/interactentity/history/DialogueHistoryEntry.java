@@ -11,18 +11,30 @@ import java.util.List;
 public class DialogueHistoryEntry {
     private final String dialogueId;
     private final String displayName;
+    private final String reputationId;
+    private final String factionLabel;
+    private final String entityType;
+    private final String characterInfo;
     private final List<HistoryLine> lines;
     private long timestamp;
 
-    public DialogueHistoryEntry(String dialogueId, String displayName, List<HistoryLine> lines, long timestamp) {
+    public DialogueHistoryEntry(String dialogueId, String displayName, String reputationId, String factionLabel, String entityType, String characterInfo, List<HistoryLine> lines, long timestamp) {
         this.dialogueId = dialogueId;
         this.displayName = displayName;
+        this.reputationId = reputationId;
+        this.factionLabel = factionLabel;
+        this.entityType = entityType;
+        this.characterInfo = characterInfo;
         this.lines = new ArrayList<>(lines);
         this.timestamp = timestamp;
     }
 
     public String getDialogueId() { return dialogueId; }
     public String getDisplayName() { return displayName; }
+    public String getReputationId() { return reputationId; }
+    public String getFactionLabel() { return factionLabel; }
+    public String getEntityType() { return entityType; }
+    public String getCharacterInfo() { return characterInfo; }
     public List<HistoryLine> getLines() { return Collections.unmodifiableList(lines); }
     public long getTimestamp() { return timestamp; }
 
@@ -64,6 +76,10 @@ public class DialogueHistoryEntry {
         CompoundTag tag = new CompoundTag();
         tag.putString("dialogueId", dialogueId);
         tag.putString("displayName", displayName);
+        if (reputationId != null) tag.putString("reputationId", reputationId);
+        if (factionLabel != null) tag.putString("factionLabel", factionLabel);
+        if (entityType != null) tag.putString("entityType", entityType);
+        if (characterInfo != null) tag.putString("characterInfo", characterInfo);
         tag.putLong("timestamp", timestamp);
 
         ListTag linesTag = new ListTag();
@@ -84,6 +100,19 @@ public class DialogueHistoryEntry {
     public static DialogueHistoryEntry load(CompoundTag tag) {
         String dialogueId = tag.getString("dialogueId");
         String displayName = tag.getString("displayName");
+        String reputationId = tag.contains("reputationId") ? tag.getString("reputationId") : null;
+        String factionLabel = tag.contains("factionLabel") ? tag.getString("factionLabel") : null;
+        String entityType = tag.contains("entityType") ? tag.getString("entityType") : null;
+        String characterInfo = tag.contains("characterInfo") ? tag.getString("characterInfo") : null;
+        
+        // Backwards compatibility for old saves
+        if (reputationId == null && tag.contains("factionId")) {
+            reputationId = tag.getString("factionId");
+        }
+        if (factionLabel == null && reputationId != null) {
+            factionLabel = reputationId;
+        }
+
         long timestamp = tag.getLong("timestamp");
 
         List<HistoryLine> lines = new ArrayList<>();
@@ -92,6 +121,6 @@ public class DialogueHistoryEntry {
             lines.add(HistoryLine.load(linesTag.getCompound(i)));
         }
 
-        return new DialogueHistoryEntry(dialogueId, displayName, lines, timestamp);
+        return new DialogueHistoryEntry(dialogueId, displayName, reputationId, factionLabel, entityType, characterInfo, lines, timestamp);
     }
 }

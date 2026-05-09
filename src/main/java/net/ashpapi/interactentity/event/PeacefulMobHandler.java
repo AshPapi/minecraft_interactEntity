@@ -55,12 +55,16 @@ public class PeacefulMobHandler {
         if (entity.level().isClientSide()) return;
         if (entity instanceof Player) return;
 
+        // Игнорируем обычных мобов, чтобы избежать утечки производительности (O(N*M) каждый тик)
+        if (entity.getPersistentData().getBoolean("InteractEntity_NotNPC")) {
+            return;
+        }
+
         // Fast path: NBT-флаг уже выставлен → не итерируем диалоги каждый тик
         if (entity.getPersistentData().getBoolean("InteractEntity_NPC")) {
             boolean invulnerable = !entity.getPersistentData().contains("InteractEntity_Invulnerable")
                     || entity.getPersistentData().getBoolean("InteractEntity_Invulnerable");
             applyNPCProtections(entity, invulnerable);
-            trackNearestPlayer(entity);
             reactToWeather(entity);
             returnHome(entity);
             NpcRoutineHandler.tick(entity);
@@ -73,7 +77,10 @@ public class PeacefulMobHandler {
         if (manager == null) return;
 
         DialogueTree tree = manager.findDialogueForEntity(entity);
-        if (tree == null) return;
+        if (tree == null) {
+            entity.getPersistentData().putBoolean("InteractEntity_NotNPC", true);
+            return;
+        }
 
         // Пометить на будущее (NBT сохраняется с сущностью)
         entity.getPersistentData().putBoolean("InteractEntity_NPC", true);
@@ -99,6 +106,10 @@ public class PeacefulMobHandler {
         if (!(event.getEntity().level() instanceof net.minecraft.server.level.ServerLevel)) return;
         if (!(event.getTarget() instanceof LivingEntity entity)) return;
         if (!(event.getEntity() instanceof ServerPlayer player)) return;
+        
+        // Быстрая проверка
+        if (!entity.getPersistentData().getBoolean("InteractEntity_NPC")) return;
+
         DialogueManager manager = DialogueManager.get();
         if (manager == null) return;
         DialogueTree tree = manager.findDialogueForEntity(entity);
@@ -121,17 +132,6 @@ public class PeacefulMobHandler {
         }
     }
 
-    private static void trackNearestPlayer(LivingEntity entity) {
-        if (!(entity instanceof Mob mob)) return;
-        if (mob.isNoAi()) return;
-        if (DialogueSession.isEntityBusy(entity)) return;
-
-        net.minecraft.world.entity.player.Player nearest = entity.level().getNearestPlayer(entity, 12.0);
-        if (nearest != null) {
-            mob.getLookControl().setLookAt(nearest, 30.0f, 30.0f);
-        }
-    }
-
     private static void reactToWeather(LivingEntity entity) {
         if (!(entity instanceof Mob mob)) return;
         if (mob.isNoAi()) return;
@@ -148,7 +148,7 @@ public class PeacefulMobHandler {
         // Ищем ближайший блок с крышей в радиусе 10
         net.minecraft.core.BlockPos shelter = findShelter(entity, 10);
         if (shelter != null) {
-            mob.getNavigation().moveTo(shelter.getX() + 0.5, shelter.getY(), shelter.getZ() + 0.5, 1.0);
+            mob.getNavigation().moveTo(shelter.getX() + 0.5, shelter.getY(), shelter.getZ() + 0.5, 0.7);
         }
     }
 
@@ -170,7 +170,7 @@ public class PeacefulMobHandler {
 
         double distSq = entity.blockPosition().distSqr(new net.minecraft.core.BlockPos(hx, hy, hz));
         if (distSq > (double) radius * radius) {
-            mob.getNavigation().moveTo(hx + 0.5, hy, hz + 0.5, 1.0);
+            mob.getNavigation().moveTo(hx + 0.5, hy, hz + 0.5, 0.7);
         }
     }
 

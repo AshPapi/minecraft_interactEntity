@@ -11,6 +11,11 @@ public class NPCZombie extends Zombie {
     }
 
     @Override
+    public boolean shouldDespawnInPeaceful() {
+        return !getPersistentData().getBoolean("InteractEntity_NPC");
+    }
+
+    @Override
     public void checkDespawn() {
         if (getPersistentData().getBoolean("InteractEntity_NPC")) {
             return;

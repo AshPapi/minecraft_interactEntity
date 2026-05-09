@@ -24,7 +24,7 @@ public class ScheduleEventAction implements DialogueAction {
         }
 
         long fireTick = player.serverLevel().getGameTime() + delay;
-        DelayedEvent event = new DelayedEvent(id, fireTick, actions);
+        DelayedEvent event = new DelayedEvent(id, fireTick, actions, player.getUUID());
 
         DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
         data.addDelayedEvent(event);

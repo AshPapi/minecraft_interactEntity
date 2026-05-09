@@ -23,6 +23,8 @@ public class OpenDialoguePacket {
     private final ResourceLocation avatarTexture;
     private final ResourceLocation background;
     private final ResourceLocation optionsBackground;
+    private final String factionId;
+    private final int reputation;
     private final String cameraMode;
     private final float cameraYawOffset;
     private final float cameraPitchOffset;
@@ -32,6 +34,7 @@ public class OpenDialoguePacket {
                               List<Boolean> optionLocked, List<String> optionLockReasons,
                               ResourceLocation avatarTexture,
                               ResourceLocation background, ResourceLocation optionsBackground,
+                              String factionId, int reputation,
                               String cameraMode, float cameraYawOffset, float cameraPitchOffset) {
         this.entityId = entityId;
         this.displayName = displayName;
@@ -44,6 +47,8 @@ public class OpenDialoguePacket {
         this.avatarTexture = avatarTexture;
         this.background = background;
         this.optionsBackground = optionsBackground;
+        this.factionId = factionId;
+        this.reputation = reputation;
         this.cameraMode = cameraMode;
         this.cameraYawOffset = cameraYawOffset;
         this.cameraPitchOffset = cameraPitchOffset;
@@ -58,6 +63,8 @@ public class OpenDialoguePacket {
         this.avatarTexture = buf.readBoolean() ? buf.readResourceLocation() : null;
         this.background = buf.readBoolean() ? buf.readResourceLocation() : null;
         this.optionsBackground = buf.readBoolean() ? buf.readResourceLocation() : null;
+        this.factionId = buf.readBoolean() ? buf.readUtf() : null;
+        this.reputation = buf.readInt();
 
         int count = buf.readInt();
         this.optionTexts = new ArrayList<>(count);
@@ -88,6 +95,9 @@ public class OpenDialoguePacket {
         if (background != null) buf.writeResourceLocation(background);
         buf.writeBoolean(optionsBackground != null);
         if (optionsBackground != null) buf.writeResourceLocation(optionsBackground);
+        buf.writeBoolean(factionId != null);
+        if (factionId != null) buf.writeUtf(factionId);
+        buf.writeInt(reputation);
 
         buf.writeInt(optionTexts.size());
         for (int i = 0; i < optionTexts.size(); i++) {
@@ -107,9 +117,12 @@ public class OpenDialoguePacket {
             Minecraft mc = Minecraft.getInstance();
             if (mc.screen instanceof DialogueScreen screen) {
                 screen.updateDialogue(displayName, text, nodeType, optionTexts, optionIndices, optionLocked, optionLockReasons, avatarTexture, background, optionsBackground);
+                screen.setFactionInfo(factionId, reputation);
             } else {
-                mc.setScreen(new DialogueScreen(entityId, displayName, text, nodeType,
-                        optionTexts, optionIndices, optionLocked, optionLockReasons, avatarTexture, background, optionsBackground));
+                DialogueScreen screen = new DialogueScreen(entityId, displayName, text, nodeType,
+                        optionTexts, optionIndices, optionLocked, optionLockReasons, avatarTexture, background, optionsBackground);
+                screen.setFactionInfo(factionId, reputation);
+                mc.setScreen(screen);
             }
             applyCameraMode(entityId);
         });

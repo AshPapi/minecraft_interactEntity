@@ -4,7 +4,6 @@ import net.ashpapi.interactentity.InteractEntityMod;
 import net.ashpapi.interactentity.action.ActionRegistry;
 import net.ashpapi.interactentity.condition.ConditionRegistry;
 import net.ashpapi.interactentity.data.DialogueSavedData;
-import net.ashpapi.interactentity.entity.CustomNpcEntity;
 import net.ashpapi.interactentity.event.PlayerProtectionHandler;
 import net.ashpapi.interactentity.history.DialogueHistoryEntry;
 import net.ashpapi.interactentity.history.HistoryLine;
@@ -16,6 +15,7 @@ import net.ashpapi.interactentity.summon.DespawnHandler;
 import net.ashpapi.interactentity.summon.SummonScheduler;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.monster.Monster;
@@ -39,11 +39,20 @@ public class DialogueSession {
     private boolean completed = false;
     private long nodeEnterGameTime = 0;
 
+    private String reputationId;
+    private String factionLabel;
+
+    public String getReputationId() { return reputationId; }
+    public String getFactionLabel() { return factionLabel; }
+
     public DialogueSession(ServerPlayer player, LivingEntity entity, DialogueTree tree) {
         this.player = player;
         this.entity = entity;
         this.tree = tree;
         this.currentNodeId = tree.getEntryNodeId();
+
+        this.reputationId = tree.getReputationId();
+        this.factionLabel = tree.getFaction();
 
         this.entityWasInvulnerable = entity.isInvulnerable();
         this.entityWasNoAI = (entity instanceof Mob mob) && mob.isNoAi();
@@ -53,38 +62,46 @@ public class DialogueSession {
         // Продолжаем существующую историю если диалог был прерван ранее
         DialogueSavedData existingData = DialogueSavedData.get(player.serverLevel());
         DialogueHistoryEntry existing = existingData.getHistoryEntry(tree.getId());
+        String entityType = tree.getTarget().getEntityType();
+        String characterInfo = tree.getCharacterInfo();
+
         if (existing != null) {
             this.historyEntry = new DialogueHistoryEntry(
                     existing.getDialogueId(), existing.getDisplayName(),
+                    this.reputationId, this.factionLabel,
+                    entityType, characterInfo,
                     existing.getLines(), existing.getTimestamp()
             );
         } else {
+            String resolvedName = net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(tree.getDisplayName(), player, entity);
             this.historyEntry = new DialogueHistoryEntry(
-                    tree.getId(), tree.getDisplayName(),
+                    tree.getId(), resolvedName,
+                    this.reputationId, this.factionLabel,
+                    entityType, characterInfo,
                     new ArrayList<>(), player.serverLevel().getGameTime()
             );
         }
     }
 
     public void tick() {
-        entity.setDeltaMovement(0, 0, 0);
-        entity.setInvulnerable(true);
-        entity.clearFire();
-        entity.setRemainingFireTicks(-1);
-
-        if (entity instanceof Mob mob) {
-            mob.setNoAi(true);
-            mob.getNavigation().stop();
-            mob.setTarget(null);
-            mob.setLastHurtByMob(null);
-
-            // Каждый тик поворачиваем моба к игроку без проверки движения
-            facePlayer(mob);
+        if (player == null || entity == null || !entity.isAlive()) {
+            DialogueSession.endSession(player);
+            return;
         }
 
-        entity.getPersistentData().putBoolean("InteractEntity_NPC", true);
-        entity.getPersistentData().putBoolean("NoAI", true);
-        entity.getPersistentData().putBoolean("Invulnerable", true);
+        // Оставляем движение по оси Y, чтобы работала гравитация
+        entity.setDeltaMovement(0, entity.getDeltaMovement().y, 0);
+        entity.setInvulnerable(true);
+
+        if (entity instanceof Mob mob) {
+            // КРИТИЧЕСКИЙ ФИКС: НЕ отключаем AI (setNoAi), чтобы тело могло вращаться.
+            // Вместо этого просто останавливаем навигацию.
+            mob.getNavigation().stop();
+            mob.setTarget(null);
+
+            // Каждый тик плавно поворачиваем моба к игроку
+            facePlayer(mob);
+        }
 
         // Auto-advance for timed linear nodes
         DialogueNode node = tree.getNode(currentNodeId);
@@ -96,15 +113,12 @@ public class DialogueSession {
 
     private void freezeEntity() {
         entity.setInvulnerable(true);
-        entity.setDeltaMovement(0, 0, 0);
-        entity.clearFire();
-        entity.setRemainingFireTicks(-1);
+        entity.setDeltaMovement(0, entity.getDeltaMovement().y, 0);
 
         if (entity instanceof Mob mob) {
-            mob.setNoAi(true);
             mob.getNavigation().stop();
             mob.setTarget(null);
-            if (mob instanceof Monster) {
+            if (mob instanceof net.minecraft.world.entity.monster.Monster) {
                 mob.setLastHurtByMob(null);
             }
             // Сразу повернуть к игроку при начале диалога
@@ -113,23 +127,17 @@ public class DialogueSession {
     }
 
     private void facePlayer(Mob mob) {
-        double dx = player.getX() - entity.getX();
-        double dz = player.getZ() - entity.getZ();
-        float yaw = (float)(Math.atan2(dz, dx) * (180.0 / Math.PI)) - 90.0f;
-        mob.setYRot(yaw);
-        mob.yRotO = yaw;
-        mob.setYHeadRot(yaw);
-        mob.yHeadRotO = yaw;
-        mob.setYBodyRot(yaw);
-        mob.yBodyRotO = yaw;
+        // ОПТИМИЗАЦИЯ: используем встроенную систему LookControl для плавности
+        // Это убирает "дерганье" головы, так как Майнкрафт сам интерполирует поворот
+        mob.getLookControl().setLookAt(player, 60.0f, 60.0f);
+        
+        // Дополнительно синхронизируем тело, если разница углов слишком велика
+        // Но делаем это мягко, не перебивая LookControl
+        mob.yBodyRot = mob.yHeadRot;
     }
 
     private void unfreezeEntity() {
         entity.setInvulnerable(entityWasInvulnerable);
-        if (entity instanceof Mob mob) {
-            mob.setNoAi(entityWasNoAI);
-        }
-        entity.getPersistentData().remove("NoAI");
         entity.getPersistentData().remove("Invulnerable");
     }
 
@@ -151,7 +159,9 @@ public class DialogueSession {
         data.visit(tree.getId(), currentNodeId);
 
         if (firstVisit) {
-            historyEntry.addLine(new HistoryLine(tree.getDisplayName(), nodeText));
+            String resolvedDisplayName = net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(tree.getDisplayName(), player, entity);
+            String resolvedNodeText = net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(nodeText, player, entity);
+            historyEntry.addLine(new HistoryLine(resolvedDisplayName, resolvedNodeText));
             data.addHistory(historyEntry);
 
             if (!node.getActions().isEmpty() && markActionPoint(data, "node:" + currentNodeId)) {
@@ -172,15 +182,15 @@ public class DialogueSession {
             DialogueOption option = node.getOptions().get(i);
             boolean conditionMet = ConditionRegistry.check(option.getCondition(), player, entity);
             if (conditionMet) {
-                optionTexts.add(option.getText());
+                optionTexts.add(net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(option.getText(), player, entity));
                 optionIndices.add(i);
                 optionLocked.add(false);
                 optionLockReasons.add("");
             } else if (option.isLocked()) {
-                optionTexts.add(option.getText());
+                optionTexts.add(net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(option.getText(), player, entity));
                 optionIndices.add(i);
                 optionLocked.add(true);
-                optionLockReasons.add(option.getLockReason() != null ? option.getLockReason() : "");
+                optionLockReasons.add(option.getLockReason() != null ? net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(option.getLockReason(), player, entity) : "");
             }
         }
 
@@ -202,15 +212,17 @@ public class DialogueSession {
         DialogueManager manager = DialogueManager.get();
         if (manager != null) avatar = manager.getDialogueAvatar(entity);
 
-        // Лип-синк: включаем анимацию рта если это CustomNpcEntity
-        if (entity instanceof CustomNpcEntity customNpc) {
-            customNpc.setTalking(true);
+        String repId = tree.getReputationId();
+        String repLabel = tree.getFaction() != null ? tree.getFaction() : repId;
+        int reputation = 0;
+        if (repId != null) {
+            reputation = DialogueSavedData.get(player.serverLevel()).getReputation(repId);
         }
 
         ModNetwork.sendToPlayer(player, new OpenDialoguePacket(
                 entity.getId(),
-                tree.getDisplayName(),
-                nodeText,
+                net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(tree.getDisplayName(), player, entity),
+                net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(nodeText, player, entity),
                 nodeType,
                 optionTexts,
                 optionIndices,
@@ -219,6 +231,8 @@ public class DialogueSession {
                 avatar,
                 tree.getBackground(),
                 tree.getOptionsBackground(),
+                repLabel,
+                reputation,
                 node.getCameraMode(),
                 node.getCameraYawOffset(),
                 node.getCameraPitchOffset()
@@ -289,11 +303,6 @@ public class DialogueSession {
         PlayerProtectionHandler.unprotect(player);
         session.unfreezeEntity();
 
-        // Лип-синк: выключаем анимацию рта
-        if (session.entity instanceof CustomNpcEntity customNpc) {
-            customNpc.setTalking(false);
-        }
-
         DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
 
         if (!session.completed) {
@@ -339,6 +348,14 @@ public class DialogueSession {
         return ACTIVE_SESSIONS.get(player.getUUID());
     }
 
+    public String getDialogueId() {
+        return tree.getId();
+    }
+
+    public String getDisplayName() {
+        return tree.getDisplayName();
+    }
+
     public static boolean hasActiveSession(ServerPlayer player) {
         return ACTIVE_SESSIONS.containsKey(player.getUUID());
     }
@@ -354,7 +371,8 @@ public class DialogueSession {
         if (optionIndex < 0 || optionIndex >= options.size()) return;
 
         DialogueOption selected = options.get(optionIndex);
-        session.historyEntry.addLine(new HistoryLine("player", selected.getText()));
+        String resolvedText = net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(selected.getText(), player, session.entity);
+        session.historyEntry.addLine(new HistoryLine("player", resolvedText));
 
         DialogueSavedData optData = DialogueSavedData.get(player.serverLevel());
         if (!selected.getActions().isEmpty() && session.markActionPoint(optData, "option:" + session.currentNodeId + ":" + optionIndex)) {

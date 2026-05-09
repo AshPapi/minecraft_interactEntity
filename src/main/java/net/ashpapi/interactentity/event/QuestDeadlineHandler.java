@@ -4,6 +4,7 @@ import net.ashpapi.interactentity.InteractEntityMod;
 import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.ashpapi.interactentity.network.ModNetwork;
 import net.ashpapi.interactentity.network.QuestUpdatePacket;
+import net.ashpapi.interactentity.network.TrackedQuestsPacket;
 import net.ashpapi.interactentity.quest.QuestState;
 import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.event.TickEvent;
@@ -27,6 +28,7 @@ public class QuestDeadlineHandler {
             if (!quest.hasDeadline()) continue;
             if (gameTime >= quest.getDeadlineTick()) {
                 quest.setStatus("failed");
+                data.untrackQuest(quest.getId());
                 changed = true;
                 ModNetwork.sendToAll(new QuestUpdatePacket(quest));
                 InteractEntityMod.LOGGER.debug("Quest '{}' failed by deadline", quest.getId());
@@ -35,6 +37,7 @@ public class QuestDeadlineHandler {
 
         if (changed) {
             data.setDirty();
+            ModNetwork.sendToAll(new TrackedQuestsPacket(data.getTrackedQuestIds()));
         }
     }
 }

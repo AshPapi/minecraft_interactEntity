@@ -20,6 +20,10 @@ public class DialogueTree {
     private final Map<String, DialogueNode> nodes;
     @Nullable private final RevisitConfig revisitConfig;
     @Nullable private final JsonObject summonConfig;
+    @Nullable private final JsonObject startTrigger;
+    @Nullable private final String faction;
+    @Nullable private final String reputationId;
+    @Nullable private final String characterInfo;
     @Nullable private final ResourceLocation avatar;
     @Nullable private final ResourceLocation background;
     @Nullable private final ResourceLocation optionsBackground;
@@ -29,7 +33,9 @@ public class DialogueTree {
 
     public DialogueTree(String id, DialogueTarget target, String displayName, String entryNodeId,
                         Map<String, DialogueNode> nodes, @Nullable RevisitConfig revisitConfig,
-                        @Nullable JsonObject summonConfig, @Nullable ResourceLocation avatar,
+                        @Nullable JsonObject summonConfig, @Nullable JsonObject startTrigger,
+                        @Nullable String faction, @Nullable String reputationId, @Nullable String characterInfo,
+                        @Nullable ResourceLocation avatar,
                         @Nullable ResourceLocation background, @Nullable ResourceLocation optionsBackground,
                         boolean invulnerable, boolean repeatable, @Nullable List<NpcRoutine> routines) {
         this.id = id;
@@ -39,6 +45,10 @@ public class DialogueTree {
         this.nodes = nodes;
         this.revisitConfig = revisitConfig;
         this.summonConfig = summonConfig;
+        this.startTrigger = startTrigger;
+        this.faction = faction;
+        this.reputationId = reputationId;
+        this.characterInfo = characterInfo;
         this.avatar = avatar;
         this.background = background;
         this.optionsBackground = optionsBackground;
@@ -56,6 +66,10 @@ public class DialogueTree {
     public Map<String, DialogueNode> getNodes() { return nodes; }
     @Nullable public RevisitConfig getRevisitConfig() { return revisitConfig; }
     @Nullable public JsonObject getSummonConfig() { return summonConfig; }
+    @Nullable public JsonObject getStartTrigger() { return startTrigger; }
+    @Nullable public String getFaction() { return faction; }
+    @Nullable public String getReputationId() { return reputationId; }
+    @Nullable public String getCharacterInfo() { return characterInfo; }
     @Nullable public ResourceLocation getAvatar() { return avatar; }
     @Nullable public ResourceLocation getBackground() { return background; }
     @Nullable public ResourceLocation getOptionsBackground() { return optionsBackground; }
@@ -79,6 +93,10 @@ public class DialogueTree {
                 : null;
 
         JsonObject summonConfig = json.has("summon") ? json.getAsJsonObject("summon") : null;
+        JsonObject startTrigger = json.has("start_trigger") ? json.getAsJsonObject("start_trigger") : null;
+        String faction = json.has("faction") ? json.get("faction").getAsString() : null;
+        String reputationId = json.has("reputation_id") ? json.get("reputation_id").getAsString() : faction;
+        String characterInfo = json.has("character_info") ? json.get("character_info").getAsString() : null;
 
         ResourceLocation avatar = null;
         if (json.has("avatar") && json.get("avatar").isJsonPrimitive()) {
@@ -107,6 +125,6 @@ public class DialogueTree {
             }
         }
 
-        return new DialogueTree(id, target, displayName, entry, nodes, revisitConfig, summonConfig, avatar, background, optionsBackground, invulnerable, repeatable, routines);
+        return new DialogueTree(id, target, displayName, entry, nodes, revisitConfig, summonConfig, startTrigger, faction, reputationId, characterInfo, avatar, background, optionsBackground, invulnerable, repeatable, routines);
     }
 }

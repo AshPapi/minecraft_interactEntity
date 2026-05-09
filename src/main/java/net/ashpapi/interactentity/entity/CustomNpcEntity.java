@@ -8,34 +8,37 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.FloatGoal;
+import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
+import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.level.Level;
-import javax.annotation.Nullable;
 import software.bernie.geckolib.animatable.GeoEntity;
 import software.bernie.geckolib.core.animatable.instance.AnimatableInstanceCache;
 import software.bernie.geckolib.core.animation.AnimatableManager;
 import software.bernie.geckolib.core.animation.AnimationController;
 import software.bernie.geckolib.core.animation.RawAnimation;
+import software.bernie.geckolib.core.object.PlayState;
 import software.bernie.geckolib.util.GeckoLibUtil;
 
 public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
 
-    private static final EntityDataAccessor<Boolean> TALKING =
-            SynchedEntityData.defineId(CustomNpcEntity.class, EntityDataSerializers.BOOLEAN);
     private static final EntityDataAccessor<String> EMOTE =
             SynchedEntityData.defineId(CustomNpcEntity.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<Long> EMOTE_UNTIL =
             SynchedEntityData.defineId(CustomNpcEntity.class, EntityDataSerializers.LONG);
+    private static final EntityDataAccessor<String> MODEL_ID =
+            SynchedEntityData.defineId(CustomNpcEntity.class, EntityDataSerializers.STRING);
+    private static final EntityDataAccessor<String> TEXTURE_ID =
+            SynchedEntityData.defineId(CustomNpcEntity.class, EntityDataSerializers.STRING);
     private static final String NO_EMOTE = "";
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
-    @Nullable
-    private Boolean clientTalkingOverride;
-    private static final int MAIN_TRANSITION_TICKS = 10;
-    private static final int TALK_TRANSITION_TICKS = 6;
+    private long lastEmoteUntil = -1L;
+
     private static final RawAnimation IDLE_ANIM = RawAnimation.begin().thenLoop("animation.custom_npc.idle");
     private static final RawAnimation WALK_ANIM = RawAnimation.begin().thenLoop("animation.custom_npc.walk");
-    private static final RawAnimation TALK_ANIM = RawAnimation.begin().thenLoop("animation.custom_npc.talk");
-    private static final RawAnimation IDLE_MOUTH_ANIM = RawAnimation.begin().thenLoop("animation.custom_npc.idle_mouth");
     private static final RawAnimation WAVE_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.wave");
     private static final RawAnimation HANDSHAKE_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.handshake");
     private static final RawAnimation NOD_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.nod");
@@ -47,6 +50,7 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
     private static final RawAnimation SALUTE_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.salute");
     private static final RawAnimation POINT_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.point");
     private static final RawAnimation CROSSED_ARMS_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.crossed_arms");
+    private static final RawAnimation PLEASE_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.please");
     private static final RawAnimation CELEBRATE_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.celebrate");
     private static final RawAnimation THINK_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.think");
     private static final RawAnimation FACEPALM_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.facepalm");
@@ -60,6 +64,8 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
     private static final RawAnimation SCARED_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.scared");
     private static final RawAnimation CONFUSED_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.confused");
 
+    private static final RawAnimation BLINK_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.blink");
+
     // Кастомная модель и текстура задаются через NBT
     private static final String MODEL_KEY = "InteractEntity_Model";
     private static final String TEXTURE_KEY = "InteractEntity_Texture";
@@ -68,36 +74,33 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
         super(type, level);
     }
 
+    @Override
+    protected void registerGoals() {
+        // Базовые инстинкты: не тонуть
+        this.goalSelector.addGoal(0, new FloatGoal(this));
+        
+        // Свободное блуждание: скорость 0.7D для стабильного и спокойного темпа
+        this.goalSelector.addGoal(5, new WaterAvoidingRandomStrollGoal(this, 0.7D) {
+            @Override
+            public boolean canUse() {
+                return super.canUse() && !net.ashpapi.interactentity.dialogue.DialogueSession.isEntityBusy(CustomNpcEntity.this);
+            }
+        });
+    }
+
     public static AttributeSupplier.Builder createAttributes() {
         return PathfinderMob.createMobAttributes()
                 .add(Attributes.MAX_HEALTH, 20.0)
-                .add(Attributes.MOVEMENT_SPEED, 0.25);
+                .add(Attributes.MOVEMENT_SPEED, 0.3); // Увеличили базовую скорость (было 0.25)
     }
 
     @Override
     protected void defineSynchedData() {
         super.defineSynchedData();
-        this.entityData.define(TALKING, false);
         this.entityData.define(EMOTE, NO_EMOTE);
         this.entityData.define(EMOTE_UNTIL, 0L);
-    }
-
-    // === Talking state (для лип-синка) ===
-    public boolean isTalking() {
-        if (this.level().isClientSide && clientTalkingOverride != null) {
-            return clientTalkingOverride;
-        }
-        return this.entityData.get(TALKING);
-    }
-
-    public void setTalking(boolean talking) {
-        this.entityData.set(TALKING, talking);
-    }
-
-    public void setClientTalkingOverride(@Nullable Boolean talking) {
-        if (this.level().isClientSide) {
-            this.clientTalkingOverride = talking;
-        }
+        this.entityData.define(MODEL_ID, "");
+        this.entityData.define(TEXTURE_ID, "");
     }
 
     public String getEmote() {
@@ -133,19 +136,33 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
 
     // === Кастомные модель и текстура ===
     public void setModelId(String modelId) {
-        this.getPersistentData().putString(MODEL_KEY, modelId);
+        this.entityData.set(MODEL_ID, modelId == null ? "" : modelId);
     }
 
     public String getModelId() {
-        return this.getPersistentData().getString(MODEL_KEY);
+        return this.entityData.get(MODEL_ID);
     }
 
     public void setTextureId(String textureId) {
-        this.getPersistentData().putString(TEXTURE_KEY, textureId);
+        this.entityData.set(TEXTURE_ID, textureId == null ? "" : textureId);
     }
 
     public String getTextureId() {
-        return this.getPersistentData().getString(TEXTURE_KEY);
+        return this.entityData.get(TEXTURE_ID);
+    }
+
+    @Override
+    public void addAdditionalSaveData(net.minecraft.nbt.CompoundTag compound) {
+        super.addAdditionalSaveData(compound);
+        compound.putString(MODEL_KEY, getModelId());
+        compound.putString(TEXTURE_KEY, getTextureId());
+    }
+
+    @Override
+    public void readAdditionalSaveData(net.minecraft.nbt.CompoundTag compound) {
+        super.readAdditionalSaveData(compound);
+        if (compound.contains(MODEL_KEY)) setModelId(compound.getString(MODEL_KEY));
+        if (compound.contains(TEXTURE_KEY)) setTextureId(compound.getString(TEXTURE_KEY));
     }
 
     public ResourceLocation getTextureLocation() {
@@ -167,22 +184,32 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
     // === GeckoLib ===
     @Override
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
-        controllers.add(new AnimationController<>(this, "main", MAIN_TRANSITION_TICKS, state -> {
-            RawAnimation emoteAnimation = getEmoteAnimation(this.getEmote());
-            if (emoteAnimation != null && this.hasActiveEmote()) {
-                return state.setAndContinue(emoteAnimation);
-            }
-            if (state.isMoving()) {
+        // Контроллер 1: Базовые движения (ходьба/idle)
+        controllers.add(new AnimationController<>(this, "base", 10, state -> {
+            if (state.isMoving() && this.hurtTime == 0) {
+                // Ускорили анимацию ног (x2.2), чтобы убрать эффект "замедленной съемки"
+                state.getController().setAnimationSpeed(state.getLimbSwingAmount() * 2.2f);
                 return state.setAndContinue(WALK_ANIM);
             }
+            state.getController().setAnimationSpeed(1.0f);
             return state.setAndContinue(IDLE_ANIM);
         }));
 
-        controllers.add(new AnimationController<>(this, "talk", TALK_TRANSITION_TICKS, state -> {
-            if (this.isTalking()) {
-                return state.setAndContinue(TALK_ANIM);
+        // Контроллер 2: Эмоции и жесты
+        controllers.add(new AnimationController<>(this, "emote", 15, state -> {
+            if (this.hasActiveEmote()) {
+                String emote = normalizeEmote(this.getEmote());
+                RawAnimation emoteAnimation = getEmoteAnimation(emote);
+                if (emoteAnimation != null) {
+                    long emoteUntil = this.entityData.get(EMOTE_UNTIL);
+                    if (emoteUntil != lastEmoteUntil) {
+                        state.getController().forceAnimationReset();
+                        lastEmoteUntil = emoteUntil;
+                    }
+                    return state.setAndContinue(emoteAnimation);
+                }
             }
-            return state.setAndContinue(IDLE_MOUTH_ANIM);
+            return PlayState.CONTINUE; 
         }));
     }
 
@@ -200,6 +227,7 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
             case "salute" -> SALUTE_ANIM;
             case "point" -> POINT_ANIM;
             case "crossed_arms" -> CROSSED_ARMS_ANIM;
+            case "please" -> PLEASE_ANIM;
             case "celebrate" -> CELEBRATE_ANIM;
             case "think" -> THINK_ANIM;
             case "facepalm" -> FACEPALM_ANIM;

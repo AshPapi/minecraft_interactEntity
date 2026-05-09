@@ -2,6 +2,7 @@ package net.ashpapi.interactentity.action;
 
 import com.google.gson.JsonObject;
 import net.ashpapi.interactentity.InteractEntityMod;
+import net.ashpapi.interactentity.quest.CompleteObjectiveAction;
 import net.ashpapi.interactentity.quest.CompleteQuestAction;
 import net.ashpapi.interactentity.quest.FailQuestAction;
 import net.ashpapi.interactentity.quest.StartQuestAction;
@@ -41,6 +42,7 @@ public class ActionRegistry {
         register("remove_item", new RemoveItemAction());
         register("run_command", new RunCommandAction());
         register("start_quest", new StartQuestAction());
+        register("complete_objective", new CompleteObjectiveAction());
         register("complete_quest", new CompleteQuestAction());
         register("fail_quest", new FailQuestAction());
         register("update_quest", new UpdateQuestAction());
@@ -54,6 +56,7 @@ public class ActionRegistry {
         register("set_weather", new SetWeatherAction());
         register("force_dialogue", new ForceDialogueAction());
         register("set_var", new SetVarAction());
+        register("give_gift", new GiveGiftAction());
         register("summon_npc", new SummonNpcAction());
         register("notify_npc", new NotifyNpcAction());
         register("add_reputation", new AddReputationAction());

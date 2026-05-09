@@ -35,11 +35,19 @@ public class DelayedEventHandler {
 
         for (DelayedEvent ev : fired) {
             data.removeDelayedEvent(ev);
-            // Execute actions for all online players
-            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-                ActionRegistry.executeActions(ev.getActions(), player, player);
+            
+            // Execute actions only for the player who triggered it
+            ServerPlayer targetPlayer = null;
+            if (ev.getPlayerUuid() != null) {
+                targetPlayer = server.getPlayerList().getPlayer(ev.getPlayerUuid());
             }
-            InteractEntityMod.LOGGER.debug("Fired delayed event '{}'", ev.getId());
+
+            if (targetPlayer != null) {
+                ActionRegistry.executeActions(ev.getActions(), targetPlayer, targetPlayer);
+                InteractEntityMod.LOGGER.debug("Fired delayed event '{}' for player {}", ev.getId(), targetPlayer.getName().getString());
+            } else {
+                InteractEntityMod.LOGGER.debug("Delayed event '{}' skipped: player offline", ev.getId());
+            }
         }
     }
 }

@@ -13,6 +13,7 @@ public class ClientProgressData {
     private static final Set<String> completedDialogues = new HashSet<>();
     private static final Set<String> npcNotifications = new HashSet<>();
     private static final Map<String, Integer> reputation = new HashMap<>();
+    private static final LinkedHashSet<String> trackedQuests = new LinkedHashSet<>();
 
     public static void setCompletedDialogues(Set<String> ids) {
         completedDialogues.clear();
@@ -54,10 +55,12 @@ public class ClientProgressData {
     public static void setQuests(Map<String, QuestState> questMap) {
         quests.clear();
         quests.putAll(questMap);
+        pruneTrackedQuests();
     }
 
     public static void updateQuest(QuestState quest) {
         quests.put(quest.getId(), quest);
+        pruneTrackedQuests();
     }
 
     public static Map<String, QuestState> getAllQuests() {
@@ -73,6 +76,62 @@ public class ClientProgressData {
         return quests.values().stream()
                 .filter(q -> "active".equals(q.getStatus()))
                 .toList();
+    }
+
+    public static void setTrackedQuests(Collection<String> questIds) {
+        trackedQuests.clear();
+        for (String questId : questIds) {
+            QuestState quest = quests.get(questId);
+            if (quest != null && "active".equals(quest.getStatus()) && trackedQuests.size() < 3) {
+                trackedQuests.add(questId);
+            }
+        }
+    }
+
+    public static Set<String> getTrackedQuestIds() {
+        return Collections.unmodifiableSet(trackedQuests);
+    }
+
+    public static boolean isQuestTracked(String questId) {
+        return trackedQuests.contains(questId);
+    }
+
+    public static boolean toggleTrackedQuest(String questId) {
+        if (trackedQuests.remove(questId)) {
+            return true;
+        }
+
+        QuestState quest = quests.get(questId);
+        if (quest == null || !"active".equals(quest.getStatus()) || trackedQuests.size() >= 3) {
+            return false;
+        }
+
+        trackedQuests.add(questId);
+        return true;
+    }
+
+    public static List<QuestState> getTrackedActiveQuests() {
+        List<QuestState> result = new ArrayList<>();
+        for (String questId : trackedQuests) {
+            QuestState quest = quests.get(questId);
+            if (quest != null && "active".equals(quest.getStatus())) {
+                result.add(quest);
+            }
+        }
+        return result;
+    }
+
+    private static void pruneTrackedQuests() {
+        trackedQuests.removeIf(questId -> {
+            QuestState quest = quests.get(questId);
+            return quest == null || !"active".equals(quest.getStatus());
+        });
+        while (trackedQuests.size() > 3) {
+            Iterator<String> it = trackedQuests.iterator();
+            if (!it.hasNext()) break;
+            it.next();
+            it.remove();
+        }
     }
 
     public static String getQuestStatus(String questId) {
@@ -113,5 +172,6 @@ public class ClientProgressData {
         completedDialogues.clear();
         npcNotifications.clear();
         reputation.clear();
+        trackedQuests.clear();
     }
 }

@@ -44,6 +44,11 @@ public class ConditionRegistry {
         register("killed_mob", new KilledMobCondition());
         register("if_var", new IfVarCondition());
         register("reputation", new ReputationCondition());
+        register("can_give_gift", new CanGiveGiftCondition());
         register("npc_relationship", new NpcRelationshipCondition());
+        register("has_advancement", new HasAdvancementCondition());
+        register("experience_level", new ExperienceLevelCondition());
+        register("is_raining", new IsRainingCondition());
+        register("is_night", new IsNightCondition());
     }
 }

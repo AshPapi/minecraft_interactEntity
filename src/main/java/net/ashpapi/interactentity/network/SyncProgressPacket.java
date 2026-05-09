@@ -59,6 +59,13 @@ public class SyncProgressPacket {
             }
             ClientProgressData.setQuests(quests);
 
+            Set<String> trackedQuests = new LinkedHashSet<>();
+            ListTag trackedQuestTag = data.getList("tracked_quests", Tag.TAG_STRING);
+            for (int i = 0; i < trackedQuestTag.size(); i++) {
+                trackedQuests.add(trackedQuestTag.getString(i));
+            }
+            ClientProgressData.setTrackedQuests(trackedQuests);
+
             Set<String> completed = new HashSet<>();
             ListTag completedTag = data.getList("completed", Tag.TAG_STRING);
             for (int i = 0; i < completedTag.size(); i++) completed.add(completedTag.getString(i));

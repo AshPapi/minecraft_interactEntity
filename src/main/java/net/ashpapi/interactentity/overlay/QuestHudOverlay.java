@@ -46,72 +46,88 @@ public class QuestHudOverlay {
         Minecraft mc = Minecraft.getInstance();
         if (mc.screen != null) return;
 
-        List<QuestState> activeQuests = ClientProgressData.getActiveQuests();
-        if (activeQuests.isEmpty()) return;
+        List<QuestState> trackedQuests = ClientProgressData.getTrackedActiveQuests();
+        if (trackedQuests.isEmpty()) return;
 
         Font font = mc.font;
         GuiGraphics graphics = event.getGuiGraphics();
         int screenWidth = mc.getWindow().getGuiScaledWidth();
-        int y = PADDING + 2;
+        
+        // Настройки отступов
+        int topPadding = 8;
+        int sidePadding = 6;
+        int startY = PADDING + topPadding;
+        int y = startY;
 
-        int count = Math.min(activeQuests.size(), MAX_QUESTS);
+        int count = Math.min(trackedQuests.size(), MAX_QUESTS);
         int maxWidth = 0;
         for (int i = 0; i < count; i++) {
-            QuestState quest = activeQuests.get(i);
+            QuestState quest = trackedQuests.get(i);
             Component title = TextFormatter.format(quest.getTitle());
             int titleWidth = font.width(title);
             if (quest.hasDeadline()) {
-                titleWidth += 6 + font.width("\u23F1 99:99");
+                titleWidth += 8 + font.width(formatDeadline(1000, quest.getDeadlineType()));
             }
             maxWidth = Math.max(maxWidth, titleWidth);
             for (String obj : quest.getObjectives()) {
-                Component objComp = TextFormatter.format("  " + obj);
+                Component objComp = TextFormatter.format(objectiveMarker(obj) + " " + QuestState.objectiveText(obj));
                 maxWidth = Math.max(maxWidth, font.width(objComp));
             }
         }
-        int bgWidth = maxWidth + PADDING * 2 + 6;
-        int bgX = screenWidth - bgWidth - PADDING;
-        int bgHeight = 0;
-        int tempY = y;
-        for (int i = 0; i < count; i++) {
-            QuestState quest = activeQuests.get(i);
-            tempY += 10;
-            tempY += quest.getObjectives().size() * 8 + 2;
-            if (i < count - 1) tempY += 2;
-        }
-        bgHeight = tempY - y + PADDING;
-        int bgY = y - 2;
 
+        // Компактная ширина
+        int bgWidth = maxWidth + sidePadding * 2; 
+        int bgX = screenWidth - bgWidth - PADDING;
+        
+        int totalContentH = 0;
+        for (int i = 0; i < count; i++) {
+            QuestState quest = trackedQuests.get(i);
+            totalContentH += 10; // Заголовок
+            totalContentH += quest.getObjectives().size() * 8 + 2; // Цели
+            if (i < count - 1) totalContentH += 4; // Зазор между квестами
+        }
+        
+        int bgHeight = totalContentH + topPadding * 2; // Симметричные отступы верх/низ
+        int bgY = startY - topPadding;
+
+        // Отрисовка фона
         graphics.fill(bgX, bgY, bgX + bgWidth, bgY + bgHeight, 0x80000000);
         graphics.fill(bgX, bgY, bgX + bgWidth, bgY + 1, 0x40FFFFFF);
         graphics.fill(bgX, bgY + bgHeight - 1, bgX + bgWidth, bgY + bgHeight, 0x40FFFFFF);
         graphics.fill(bgX, bgY, bgX + 1, bgY + bgHeight, 0x40FFFFFF);
         graphics.fill(bgX + bgWidth - 1, bgY, bgX + bgWidth, bgY + bgHeight, 0x40FFFFFF);
 
-        int textX = bgX + PADDING;
         for (int i = 0; i < count; i++) {
-            QuestState quest = activeQuests.get(i);
+            QuestState quest = trackedQuests.get(i);
             Component title = TextFormatter.format(quest.getTitle());
-            graphics.drawString(font, title, textX, y, 0xFFCC00, false);
+            int titleW = font.width(title);
+            
+            // Расчет центрирования для заголовка
+            int currentTitleAreaW = titleW;
+            if (quest.hasDeadline()) currentTitleAreaW += 8 + font.width(formatDeadline(1000, quest.getDeadlineType()));
+            
+            int titleX = bgX + (bgWidth - currentTitleAreaW) / 2;
+            graphics.drawString(font, title, titleX, y, 0xFFCC00, false);
 
-            // Отображение дедлайна рядом с заголовком
             if (quest.hasDeadline() && mc.level != null) {
                 long remaining = quest.getDeadlineTick() - mc.level.getGameTime();
                 if (remaining > 0) {
-                    String timerStr = formatDeadline(remaining, quest.getDeadlineType());
+                    String actualTimer = formatDeadline(remaining, quest.getDeadlineType());
                     int timerColor = (remaining < 1200) ? getFlashingRed(mc.level.getGameTime()) : 0xAAAAAA;
-                    int timerX = textX + font.width(title) + 6;
-                    graphics.drawString(font, timerStr, timerX, y, timerColor, false);
+                    graphics.drawString(font, actualTimer, titleX + titleW + 8, y, timerColor, false);
                 }
             }
 
             y += 10;
             for (String obj : quest.getObjectives()) {
-                Component objComp = TextFormatter.format("  " + obj);
-                graphics.drawString(font, objComp, textX, y, 0xCCCCCC, false);
+                Component objComp = TextFormatter.format(objectiveMarker(obj) + " " + QuestState.objectiveText(obj));
+                int objW = font.width(objComp);
+                int color = QuestState.isObjectiveCompleted(obj) ? 0x88CC88 : 0xCCCCCC;
+                int objX = bgX + (bgWidth - objW) / 2;
+                graphics.drawString(font, objComp, objX, y, color, false);
                 y += 8;
             }
-            y += 2;
+            y += 4;
         }
     }
 
@@ -134,5 +150,9 @@ public class QuestHudOverlay {
 
     private static int getFlashingRed(long gameTime) {
         return (gameTime % 20 < 10) ? 0xFF5555 : 0xAA0000;
+    }
+
+    private static String objectiveMarker(String objective) {
+        return QuestState.isObjectiveCompleted(objective) ? "&a[\u2714]&r" : "[ ]";
     }
 }

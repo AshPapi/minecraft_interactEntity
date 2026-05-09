@@ -43,6 +43,13 @@ public class ModNetwork {
                 .consumerMainThread(NavigatePacket::handle)
                 .add();
 
+        // C2S: client-side intercepted NPC click without vanilla hand swing
+        CHANNEL.messageBuilder(StartDialoguePacket.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(StartDialoguePacket::encode)
+                .decoder(StartDialoguePacket::new)
+                .consumerMainThread(StartDialoguePacket::handle)
+                .add();
+
         // C2S: player closed dialogue
         CHANNEL.messageBuilder(CloseDialogueC2SPacket.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
                 .encoder(CloseDialogueC2SPacket::encode)
@@ -71,6 +78,20 @@ public class ModNetwork {
                 .consumerMainThread(QuestUpdatePacket::handle)
                 .add();
 
+        // C2S: player pinned/unpinned a quest for HUD display
+        CHANNEL.messageBuilder(ToggleTrackedQuestPacket.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(ToggleTrackedQuestPacket::encode)
+                .decoder(ToggleTrackedQuestPacket::new)
+                .consumerMainThread(ToggleTrackedQuestPacket::handle)
+                .add();
+
+        // S2C: sync HUD-pinned quests
+        CHANNEL.messageBuilder(TrackedQuestsPacket.class, packetId++, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(TrackedQuestsPacket::encode)
+                .decoder(TrackedQuestsPacket::new)
+                .consumerMainThread(TrackedQuestsPacket::handle)
+                .add();
+
         // S2C: camera shake
         CHANNEL.messageBuilder(CameraShakePacket.class, packetId++, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(CameraShakePacket::encode)
@@ -83,6 +104,13 @@ public class ModNetwork {
                 .encoder(NpcSyncPacket::encode)
                 .decoder(NpcSyncPacket::new)
                 .consumerMainThread(NpcSyncPacket::handle)
+                .add();
+
+        // S2C: reputation change notification
+        CHANNEL.messageBuilder(ReputationToastPacket.class, packetId++, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(ReputationToastPacket::encode)
+                .decoder(ReputationToastPacket::new)
+                .consumerMainThread(ReputationToastPacket::handle)
                 .add();
     }
 

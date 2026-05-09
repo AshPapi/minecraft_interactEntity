@@ -2,7 +2,6 @@ package net.ashpapi.interactentity.screen;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.ashpapi.interactentity.camera.DialogueCameraController;
-import net.ashpapi.interactentity.entity.CustomNpcEntity;
 import net.ashpapi.interactentity.formatting.TextFormatter;
 import net.ashpapi.interactentity.network.CloseDialogueC2SPacket;
 import net.ashpapi.interactentity.network.ModNetwork;
@@ -22,16 +21,26 @@ import java.util.List;
 
 public class DialogueScreen extends Screen {
 
-    private static final int PANEL_WIDTH = 320;
-    private static final int PADDING = 8;
-    private static final int HOTBAR_GAP = 40;            // подняли выше (было 30)
-    private static final int LINE_HEIGHT = 8;
-    private static final int HEAD_SIZE = 32;
+    private static final int PANEL_WIDTH = 300;          // Увеличено с 280
+    private static final int PADDING = 8;                // Увеличено с 5
+    private static final int HOTBAR_GAP = 20;            // еще ниже
+    private static final int LINE_HEIGHT = 9;            // увеличено с 8
+    private static final int LINE_SPACING = 1;           // минимальный интервал
+    private static final int HEAD_SIZE = 24;             // уменьшено
+    private static final float TEXT_SCALE = 0.90f;       // масштаб текста 90%
+
+    private static final ResourceLocation DEFAULT_WINDOW = new ResourceLocation("interactentity", "textures/gui/dialogue_window.png");
+    private static final ResourceLocation DEFAULT_OPTIONS = new ResourceLocation("interactentity", "textures/gui/option_window.png");
+    private static final ResourceLocation DEFAULT_OPTIONS_HOVER = new ResourceLocation("interactentity", "textures/gui/option_window_hover.png");
 
     private static final int BG_COLOR_TOP = 0xCC1A1A2E;
     private static final int BG_COLOR_BOTTOM = 0xCC0D0D1A;
     private static final int BORDER_COLOR = 0x66FFFFFF;
     private static final int SHADOW_COLOR = 0x80000000;
+
+    private boolean textureExists(ResourceLocation location) {
+        return Minecraft.getInstance().getResourceManager().getResource(location).isPresent();
+    }
     private static final int NAME_COLOR = 0xFFFFCC44;
     private static final int TEXT_COLOR = 0xFFDDDDDD;
     private static final int OPTION_COLOR = 0xFFFFFFFF;
@@ -49,6 +58,8 @@ public class DialogueScreen extends Screen {
     @Nullable private ResourceLocation avatarTexture;
     @Nullable private ResourceLocation background;
     @Nullable private ResourceLocation optionsBackground;
+    @Nullable private String factionId;
+    private int reputation;
 
     private boolean ignoreNextClick = false;
     private int hoveredOption = -1;
@@ -83,6 +94,19 @@ public class DialogueScreen extends Screen {
     private int panelX, panelY, panelW, panelH;
     private final List<OptionHitbox> optionHitboxes = new ArrayList<>();
 
+    // Оптимизация: кэш текстур и текста
+    private boolean useDefaultWindowTex;
+    private boolean useDefaultOptionsTex;
+    private boolean useDefaultOptionsHoverTex;
+    private List<FormattedCharSequence> cachedFullLines = new ArrayList<>();
+    private int cachedTextAreaWidth = -1;
+    private String lastDialogueText = "";
+
+    public void setFactionInfo(@Nullable String factionId, int reputation) {
+        this.factionId = factionId;
+        this.reputation = reputation;
+    }
+
     public DialogueScreen(int entityId, String displayName, String text, String nodeType,
                           List<String> optionTexts, List<Integer> optionIndices,
                           List<Boolean> optionLocked, List<String> optionLockReasons,
@@ -109,6 +133,10 @@ public class DialogueScreen extends Screen {
     @Override
     protected void init() {
         super.init();
+        this.useDefaultWindowTex = textureExists(DEFAULT_WINDOW);
+        this.useDefaultOptionsTex = textureExists(DEFAULT_OPTIONS);
+        this.useDefaultOptionsHoverTex = textureExists(DEFAULT_OPTIONS_HOVER);
+        this.cachedTextAreaWidth = -1; // Сброс кэша текста при ресайзе
     }
 
     @Override
@@ -129,17 +157,10 @@ public class DialogueScreen extends Screen {
         } else {
             typewriterTickCounter = 0;
         }
-
-        syncClientTalkingState();
     }
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
-        int alpha = (int)(0xCC * animationTime);
-        int topColor = (alpha << 24) | (BG_COLOR_TOP & 0x00FFFFFF);
-        int bottomColor = (alpha << 24) | (BG_COLOR_BOTTOM & 0x00FFFFFF);
-        int borderColor = ((int)(0x66 * animationTime) << 24) | (BORDER_COLOR & 0x00FFFFFF);
-
         int effectivePanelW = Math.min(PANEL_WIDTH, this.width - 40);
         panelW = effectivePanelW;
         panelX = (this.width - panelW) / 2;
@@ -148,31 +169,49 @@ public class DialogueScreen extends Screen {
         Component fullTextComp = TextFormatter.format(dialogueText);
         Component visibleTextComp = TextFormatter.format(getVisibleDialogueText());
 
-        int textStartX = panelX + PADDING + HEAD_SIZE + 12;
-        int textAreaWidth = panelW - PADDING * 2 - HEAD_SIZE - 12;
+        int textStartX = panelX + PADDING + HEAD_SIZE + 8;
+        int textAreaWidth = panelW - PADDING * 2 - HEAD_SIZE - 8;
+        int scaledTextWidth = (int)(textAreaWidth / TEXT_SCALE);
 
-        List<FormattedCharSequence> textLines = this.font.split(visibleTextComp, textAreaWidth);
-        List<FormattedCharSequence> fullTextLines = this.font.split(fullTextComp, textAreaWidth);
+        // ОПТИМИЗАЦИЯ: Кэшируем разбиение полного текста
+        if (scaledTextWidth != cachedTextAreaWidth || !dialogueText.equals(lastDialogueText)) {
+            cachedFullLines = this.font.split(TextFormatter.format(dialogueText), scaledTextWidth);
+            cachedTextAreaWidth = scaledTextWidth;
+            lastDialogueText = dialogueText;
+        }
+
+        List<FormattedCharSequence> textLines = this.font.split(visibleTextComp, scaledTextWidth);
 
         optionHitboxes.clear();
 
         // When showingOptions=false for choice nodes, render as linear (no options inline)
         boolean renderingInlineOptions = "choice".equals(nodeType) && showingOptions;
-        boolean showHint = !renderingInlineOptions;
+        boolean showHint = false; // ПОДСКАЗКИ ОТКЛЮЧЕНЫ
 
-        int contentH = fullTextLines.size() * LINE_HEIGHT;
-        int hintH = showHint ? LINE_HEIGHT + 4 : 0;
+        int contentH = cachedFullLines.size() * (LINE_HEIGHT + LINE_SPACING);
+        int hintH = showHint ? (int)(10 * TEXT_SCALE) + 2 : 0;
 
-        int minHeightByHead = HEAD_SIZE + PADDING * 2;
-        int textAreaNeeded = PADDING + LINE_HEIGHT + 2 + contentH + hintH + PADDING;
-        panelH = Math.max(minHeightByHead, textAreaNeeded);
+        int textAreaNeeded = PADDING + LINE_HEIGHT + contentH + hintH + PADDING;
+
+        panelH = Math.max(HEAD_SIZE + PADDING * 2, textAreaNeeded);
         panelY = this.height - HOTBAR_GAP - panelH;
 
-        graphics.fill(panelX + 2, panelY + 2, panelX + panelW + 2, panelY + panelH + 2, SHADOW_COLOR);
-        if (background != null) {
+        ResourceLocation tex = background != null ? background : DEFAULT_WINDOW;
+        boolean hasTex = (background != null) ? textureExists(background) : useDefaultWindowTex;
+
+        if (hasTex) {
             RenderSystem.enableBlend();
-            graphics.blit(background, panelX, panelY, 0, 0, panelW, panelH, panelW, panelH);
+            // ТОЛЬКО ТЕКСТУРА И ТЕКСТ. Никаких программных теней/рамок.
+            graphics.blitNineSliced(tex, panelX, panelY, panelW, panelH, 4, 32, 32, 0, 0);
         } else {
+            // ПРОЦЕДУРНЫЙ ТЕМНЫЙ RPG ГУИ (по умолчанию)
+            graphics.fill(panelX + 2, panelY + 2, panelX + panelW + 2, panelY + panelH + 2, SHADOW_COLOR);
+            
+            int alpha = (int)(0xCC * animationTime);
+            int topColor = (alpha << 24) | (BG_COLOR_TOP & 0x00FFFFFF);
+            int bottomColor = (alpha << 24) | (BG_COLOR_BOTTOM & 0x00FFFFFF);
+            int borderColor = ((int)(0x66 * animationTime) << 24) | (BORDER_COLOR & 0x00FFFFFF);
+
             graphics.fillGradient(panelX, panelY, panelX + panelW, panelY + panelH, topColor, bottomColor);
             graphics.fill(panelX, panelY, panelX + panelW, panelY + 1, borderColor);
             graphics.fill(panelX, panelY + panelH - 1, panelX + panelW, panelY + panelH, borderColor);
@@ -182,8 +221,11 @@ public class DialogueScreen extends Screen {
 
         int headX = panelX + PADDING;
         int headY = panelY + (panelH - HEAD_SIZE) / 2;
-        int nameY = panelY + PADDING;
-        int textY = nameY + LINE_HEIGHT + 2;
+        
+        // Центрируем блок текста (имя + реплики) относительно головы
+        int totalTextHeight = LINE_HEIGHT + contentH;
+        int nameY = panelY + (panelH - totalTextHeight) / 2;
+        int textY = nameY + LINE_HEIGHT + 2; // Увеличено расстояние (было +0)
 
         if (showingPlayerResponse) {
             // Show player avatar + response text instead of NPC content
@@ -196,14 +238,14 @@ public class DialogueScreen extends Screen {
             String youLabel = net.minecraft.client.resources.language.I18n.get("gui.interactentity.dialogue.you");
             drawShadowedString(graphics, net.minecraft.network.chat.Component.literal(youLabel), textStartX, nameY, YOU_COLOR);
             Component respComp = TextFormatter.format(playerResponseText);
-            for (FormattedCharSequence line : this.font.split(respComp, textAreaWidth)) {
-                graphics.drawString(this.font, line, textStartX, textY, TEXT_COLOR, false);
-                textY += LINE_HEIGHT;
+            for (FormattedCharSequence line : this.font.split(respComp, scaledTextWidth)) {
+                drawStringScaled(graphics, line, textStartX, textY, TEXT_COLOR);
+                textY += LINE_HEIGHT + LINE_SPACING;
             }
             String hint = net.minecraft.client.resources.language.I18n.get("gui.interactentity.hint.next");
-            int hintWidth = this.font.width(hint);
-            graphics.drawString(this.font, hint,
-                    panelX + panelW - PADDING - hintWidth, panelY + panelH - PADDING - 2, HINT_COLOR, false);
+            int hintWidth = (int)(this.font.width(hint) * TEXT_SCALE);
+            drawStringScaled(graphics, Component.literal(hint),
+                    panelX + panelW - PADDING - hintWidth, panelY + panelH - PADDING - 2, HINT_COLOR);
         } else {
             // NPC avatar + text
             ResourceLocation texture = avatarTexture != null ? avatarTexture
@@ -214,8 +256,8 @@ public class DialogueScreen extends Screen {
 
             drawShadowedString(graphics, nameComp, textStartX, nameY, NAME_COLOR);
             for (FormattedCharSequence line : textLines) {
-                graphics.drawString(this.font, line, textStartX, textY, TEXT_COLOR, false);
-                textY += LINE_HEIGHT;
+                drawStringScaled(graphics, line, textStartX, textY, TEXT_COLOR);
+                textY += LINE_HEIGHT + LINE_SPACING;
             }
 
             if (showHint) {
@@ -230,9 +272,21 @@ public class DialogueScreen extends Screen {
                     hintKey = "gui.interactentity.hint.next";
                 }
                 String hint = net.minecraft.client.resources.language.I18n.get(hintKey);
-                int hintWidth = this.font.width(hint);
-                graphics.drawString(this.font, hint,
-                        panelX + panelW - PADDING - hintWidth, panelY + panelH - PADDING - 2, HINT_COLOR, false);
+                int hintWidth = (int)(this.font.width(hint) * TEXT_SCALE);
+                drawStringScaled(graphics, Component.literal(hint),
+                        panelX + panelW - PADDING - hintWidth, panelY + panelH - PADDING - (int)(8 * TEXT_SCALE), HINT_COLOR);
+            }
+
+            // Render Faction Info (Top-Right of the panel)
+            if (factionId != null) {
+                int repColor = reputation > 0 ? 0xFF55FF55 : (reputation < 0 ? 0xFFFF5555 : 0xFFAAAAAA);
+
+                String repLabel = net.minecraft.client.resources.language.I18n.get("gui.interactentity.reputation");
+                Component factionText = Component.literal(repLabel + ": ").withStyle(net.minecraft.ChatFormatting.GRAY)
+                        .append(Component.literal(String.valueOf(reputation)).withStyle(net.minecraft.network.chat.Style.EMPTY.withColor(repColor)));
+                
+                int factionWidth = (int)(this.font.width(factionText) * TEXT_SCALE);
+                drawStringScaled(graphics, factionText, panelX + panelW - PADDING - factionWidth, panelY + PADDING, 0xFFFFFFFF);
             }
         }
 
@@ -265,7 +319,7 @@ public class DialogueScreen extends Screen {
         int curY = optPanelY;
         for (int i = 0; i < optionComps.size(); i++) {
             List<FormattedCharSequence> lines = optionLines.get(i);
-            int panelH = lines.size() * LINE_HEIGHT + OPT_PADDING_V * 2;
+            int panelH = lines.size() * (LINE_HEIGHT + LINE_SPACING) + OPT_PADDING_V * 2;
             boolean hovered = mouseMoved && (i == hoveredOption);
 
             boolean isLocked = i < optionLocked.size() && optionLocked.get(i);
@@ -281,9 +335,23 @@ public class DialogueScreen extends Screen {
             int textY = curY + OPT_PADDING_V;
 
             graphics.fill(optPanelX + 2, curY + 2, optPanelX + panelW + 2, curY + panelH + 2, SHADOW_COLOR);
+            
+            ResourceLocation optTex = isLocked ? DEFAULT_OPTIONS : (hovered ? DEFAULT_OPTIONS_HOVER : DEFAULT_OPTIONS);
+            if (optionsBackground != null && !isLocked) optTex = optionsBackground;
+            
+            boolean hasOptTex;
             if (optionsBackground != null && !isLocked) {
+                hasOptTex = textureExists(optionsBackground);
+            } else if (isLocked) {
+                hasOptTex = useDefaultOptionsTex;
+            } else {
+                hasOptTex = hovered ? useDefaultOptionsHoverTex : useDefaultOptionsTex;
+            }
+
+            if (hasOptTex) {
                 RenderSystem.enableBlend();
-                graphics.blit(optionsBackground, optPanelX, curY, 0, 0, panelW, panelH, panelW, panelH);
+                // ТОЛЬКО КНОПКА-ТЕКСТУРА (без программных теней/рамок)
+                graphics.blitNineSliced(optTex, optPanelX, curY, panelW, panelH, 4, 32, 32, 0, 0);
             } else {
                 graphics.fill(optPanelX, curY, optPanelX + panelW, curY + panelH, bgColor);
                 graphics.fill(optPanelX, curY, optPanelX + panelW, curY + 1, borderCol);
@@ -297,17 +365,17 @@ public class DialogueScreen extends Screen {
                 int lockIconW = this.font.width("[X] ");
                 for (FormattedCharSequence line : lines) {
                     graphics.drawString(this.font, line, textX + lockIconW, textY, OPT_LOCKED_TEXT, false);
-                    textY += LINE_HEIGHT;
+                    textY += LINE_HEIGHT + LINE_SPACING;
                 }
                 if (!lockReason.isEmpty()) {
                     graphics.drawString(this.font, lockReason, textX + lockIconW, textY, OPT_LOCKED_REASON, false);
                 }
             } else {
                 graphics.drawString(this.font, (i + 1) + ". ", textX, textY, OPT_NUM_COLOR, false);
+                int textCol = hasOptTex ? 0xFF202020 : (hovered ? OPTION_HOVER : OPTION_COLOR);
                 for (FormattedCharSequence line : lines) {
-                    graphics.drawString(this.font, line, textX + numWidth, textY,
-                            hovered ? OPTION_HOVER : OPTION_COLOR, false);
-                    textY += LINE_HEIGHT;
+                    graphics.drawString(this.font, line, textX + numWidth, textY, textCol, false);
+                    textY += LINE_HEIGHT + LINE_SPACING;
                 }
             }
 
@@ -317,8 +385,24 @@ public class DialogueScreen extends Screen {
     }
 
     private void drawShadowedString(GuiGraphics graphics, Component text, int x, int y, int color) {
-        graphics.drawString(this.font, text, x + 1, y + 1, 0x60000000, false);
-        graphics.drawString(this.font, text, x, y, color, false);
+        drawStringScaled(graphics, text, x + 1, y + 1, 0x60000000);
+        drawStringScaled(graphics, text, x, y, color);
+    }
+
+    private void drawStringScaled(GuiGraphics graphics, Component text, int x, int y, int color) {
+        graphics.pose().pushPose();
+        graphics.pose().translate(x, y, 0);
+        graphics.pose().scale(TEXT_SCALE, TEXT_SCALE, 1.0f);
+        graphics.drawString(this.font, text, 0, 0, color, false);
+        graphics.pose().popPose();
+    }
+
+    private void drawStringScaled(GuiGraphics graphics, FormattedCharSequence text, int x, int y, int color) {
+        graphics.pose().pushPose();
+        graphics.pose().translate(x, y, 0);
+        graphics.pose().scale(TEXT_SCALE, TEXT_SCALE, 1.0f);
+        graphics.drawString(this.font, text, 0, 0, color, false);
+        graphics.pose().popPose();
     }
 
     @Override
@@ -392,7 +476,6 @@ public class DialogueScreen extends Screen {
         pendingOptionRawIndex = optionIndices.get(filteredIndex);
         showingOptions = false;
         showingPlayerResponse = true;
-        syncClientTalkingState();
         DialogueCameraController.stopSide();
     }
 
@@ -482,7 +565,6 @@ public class DialogueScreen extends Screen {
         this.showingPlayerResponse = false;
         this.pendingOptionRawIndex = -1;
         resetTypewriter();
-        syncClientTalkingState();
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null) mc.player.stopUsingItem();
@@ -498,25 +580,6 @@ public class DialogueScreen extends Screen {
         this.typewriterTickCounter = 0;
     }
 
-    private void syncClientTalkingState() {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) return;
-
-        if (mc.level.getEntity(this.entityId) instanceof CustomNpcEntity customNpc) {
-            boolean shouldTalk = !showingPlayerResponse && !showingOptions && totalDialogueChars > 0 && !isDialogueFullyVisible();
-            customNpc.setClientTalkingOverride(shouldTalk);
-        }
-    }
-
-    private void clearClientTalkingOverride() {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.level == null) return;
-
-        if (mc.level.getEntity(this.entityId) instanceof CustomNpcEntity customNpc) {
-            customNpc.setClientTalkingOverride(null);
-        }
-    }
-
     private boolean isDialogueFullyVisible() {
         return visibleDialogueChars >= totalDialogueChars;
     }
@@ -524,7 +587,9 @@ public class DialogueScreen extends Screen {
     private void revealDialogueText() {
         this.visibleDialogueChars = this.totalDialogueChars;
         this.typewriterTickCounter = 0;
-        syncClientTalkingState();
+    }
+
+    private void clearClientTalkingOverride() {
     }
 
     private String getVisibleDialogueText() {
