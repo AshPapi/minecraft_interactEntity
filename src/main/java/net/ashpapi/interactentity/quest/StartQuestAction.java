@@ -64,6 +64,15 @@ public class StartQuestAction implements DialogueAction {
             quest.setRequiredItem(itemId, count);
         }
 
+        // Добавление required_kills (если есть в JSON)
+        if (questJson.has("required_kills")) {
+            JsonObject rk = questJson.getAsJsonObject("required_kills");
+            String entityType = rk.get("entity").getAsString();
+            int count = rk.get("count").getAsInt();
+            int objIndex = rk.has("objective") ? rk.get("objective").getAsInt() : 0;
+            quest.setRequiredKills(entityType, count, objIndex);
+        }
+
         // Добавление deadline (если есть в JSON)
         if (questJson.has("deadline")) {
             JsonObject deadlineJson = questJson.getAsJsonObject("deadline");

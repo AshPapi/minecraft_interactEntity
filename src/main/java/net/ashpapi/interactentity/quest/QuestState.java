@@ -28,6 +28,13 @@ public class QuestState {
     private int requiredCount;
     private boolean itemCollected; // флаг, что предмет уже подобран (чтобы не обновлять objectives повторно)
 
+    // Поля для автоматического отслеживания убийств
+    @Nullable
+    private String killEntityType;
+    private int killRequired;
+    private int killProgress;
+    private int killObjectiveIndex; // индекс objective для обновления
+
     // Поля для дедлайна квеста
     private long deadlineTick;    // game time, когда квест фейлится (0 = нет дедлайна)
     @Nullable
@@ -44,6 +51,10 @@ public class QuestState {
         this.requiredItemId = null;
         this.requiredCount = 0;
         this.itemCollected = false;
+        this.killEntityType = null;
+        this.killRequired = 0;
+        this.killProgress = 0;
+        this.killObjectiveIndex = 0;
         this.deadlineTick = 0;
         this.deadlineType = null;
     }
@@ -76,6 +87,43 @@ public class QuestState {
         this.itemCollected = true;
     }
 
+    @Nullable
+    public String getKillEntityType() { return killEntityType; }
+    public int getKillRequired() { return killRequired; }
+    public int getKillProgress() { return killProgress; }
+    public boolean isKillCompleted() { return killRequired > 0 && killProgress >= killRequired; }
+
+    public void setRequiredKills(String entityType, int count, int objectiveIndex) {
+        this.killEntityType = entityType;
+        this.killRequired = count;
+        this.killProgress = 0;
+        this.killObjectiveIndex = objectiveIndex;
+    }
+
+    /** Добавляет прогресс убийств. Возвращает true если objective только что выполнен. */
+    public boolean addKillProgress(int amount) {
+        if (killEntityType == null || killRequired <= 0 || isKillCompleted()) return false;
+        killProgress = Math.min(killProgress + amount, killRequired);
+        updateKillObjectiveText();
+        return isKillCompleted();
+    }
+
+    private void updateKillObjectiveText() {
+        if (killObjectiveIndex < 0 || killObjectiveIndex >= objectives.size()) return;
+        String current = objectives.get(killObjectiveIndex);
+        // Убираем предыдущий маркер прогресса и completion, берём базовый текст
+        String base = current
+                .replaceAll("\\s*\\(\\d+/\\d+\\)$", "")
+                .replace(COMPLETE_MARKER + " ", "")
+                .replace(COMPLETE_MARKER, "")
+                .trim();
+        if (isKillCompleted()) {
+            objectives.set(killObjectiveIndex, COMPLETE_MARKER + " " + base + " (" + killRequired + "/" + killRequired + ")");
+        } else {
+            objectives.set(killObjectiveIndex, base + " (" + killProgress + "/" + killRequired + ")");
+        }
+    }
+
     public long getDeadlineTick() { return deadlineTick; }
     public void setDeadlineTick(long deadlineTick) { this.deadlineTick = deadlineTick; }
     @Nullable
@@ -98,6 +146,13 @@ public class QuestState {
             tag.putString("requiredItemId", requiredItemId);
             tag.putInt("requiredCount", requiredCount);
             tag.putBoolean("itemCollected", itemCollected);
+        }
+
+        if (killEntityType != null) {
+            tag.putString("killEntityType", killEntityType);
+            tag.putInt("killRequired", killRequired);
+            tag.putInt("killProgress", killProgress);
+            tag.putInt("killObjectiveIndex", killObjectiveIndex);
         }
 
         if (deadlineTick > 0) {
@@ -138,6 +193,13 @@ public class QuestState {
         if (tag.contains("deadlineTick")) {
             quest.deadlineTick = tag.getLong("deadlineTick");
             quest.deadlineType = tag.contains("deadlineType") ? tag.getString("deadlineType") : null;
+        }
+
+        if (tag.contains("killEntityType")) {
+            quest.killEntityType = tag.getString("killEntityType");
+            quest.killRequired = tag.getInt("killRequired");
+            quest.killProgress = tag.getInt("killProgress");
+            quest.killObjectiveIndex = tag.getInt("killObjectiveIndex");
         }
 
         return quest;
