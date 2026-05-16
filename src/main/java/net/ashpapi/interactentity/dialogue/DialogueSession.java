@@ -185,17 +185,18 @@ public class DialogueSession {
         for (int i = 0; i < node.getOptions().size(); i++) {
             DialogueOption option = node.getOptions().get(i);
             boolean conditionMet = ConditionRegistry.check(option.getCondition(), player, entity);
-            if (conditionMet) {
-                optionTexts.add(net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(option.getText(), player, entity));
-                optionIndices.add(i);
-                optionLocked.add(false);
-                optionLockReasons.add("");
-            } else if (option.isLocked()) {
-                optionTexts.add(net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(option.getText(), player, entity));
-                optionIndices.add(i);
-                optionLocked.add(true);
-                optionLockReasons.add(option.getLockReason() != null ? net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(option.getLockReason(), player, entity) : "");
+            boolean locked = !conditionMet || option.isLocked();
+            String text = net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(option.getText(), player, entity);
+            String reason = "";
+            if (locked) {
+                reason = option.getLockReason() != null
+                        ? net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(option.getLockReason(), player, entity)
+                        : "";
             }
+            optionTexts.add(text);
+            optionIndices.add(i);
+            optionLocked.add(locked);
+            optionLockReasons.add(reason);
         }
 
         String nodeType;

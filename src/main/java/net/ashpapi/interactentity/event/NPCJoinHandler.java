@@ -1,8 +1,10 @@
 package net.ashpapi.interactentity.event;
 
+import com.google.gson.JsonObject;
 import net.ashpapi.interactentity.InteractEntityMod;
 import net.ashpapi.interactentity.dialogue.DialogueManager;
 import net.ashpapi.interactentity.dialogue.DialogueTree;
+import net.ashpapi.interactentity.entity.CustomNpcEntity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
@@ -28,6 +30,7 @@ public class NPCJoinHandler {
                     || entity.getPersistentData().getBoolean("InteractEntity_Invulnerable");
             entity.getPersistentData().putBoolean("InteractEntity_Invulnerable", invulnerable);
             entity.setInvulnerable(invulnerable);
+            if (tree != null) applyVisual(entity, tree);
             InteractEntityMod.LOGGER.debug("NPC re-joined (NBT flag): {}", entity.getName().getString());
             return;
         }
@@ -63,6 +66,18 @@ public class NPCJoinHandler {
         if (!entity.getPersistentData().contains("InteractEntity_HomeX")) {
             setHome(entity, entity.blockPosition(), 16);
         }
+
+        applyVisual(entity, tree);
+    }
+
+    /** Применяет visual.{model,texture,scale} из JSON диалога к CustomNpcEntity. */
+    public static void applyVisual(LivingEntity entity, DialogueTree tree) {
+        if (!(entity instanceof CustomNpcEntity customNpc)) return;
+        JsonObject visual = tree.getVisualConfig();
+        if (visual == null) return;
+        if (visual.has("texture")) customNpc.setTextureId(visual.get("texture").getAsString());
+        if (visual.has("model")) customNpc.setModelId(visual.get("model").getAsString());
+        if (visual.has("scale")) customNpc.setNpcScale(visual.get("scale").getAsFloat());
     }
 
     /** Задать домашнюю позицию и радиус для NPC. */

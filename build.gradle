@@ -25,6 +25,7 @@ minecraft {
     runs {
         configureEach {
             workingDirectory project.file('run')
+            jvmArgs '-Xmx2G', '-Xms512M'
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
             property 'mixin.env.remapRefMap', 'true'

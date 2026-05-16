@@ -26,7 +26,12 @@ public class MobIconRenderer {
 
     @SubscribeEvent
     public static void onRenderLiving(RenderLivingEvent.Post<?, ?> event) {
-        LivingEntity entity = event.getEntity();
+        tryRender(event.getEntity(), event.getPoseStack(), event.getMultiBufferSource());
+    }
+
+    /** Public entry point so renderers that bypass RenderLivingEvent (e.g. Geckolib's GeoEntityRenderer)
+     *  can still draw the dialogue marker. Call after super.render(). */
+    public static void tryRender(LivingEntity entity, PoseStack poseStack, MultiBufferSource buffers) {
         if (entity instanceof Player) return;
         if (Minecraft.getInstance().player == null) return;
 
@@ -42,20 +47,9 @@ public class MobIconRenderer {
         boolean completed = ClientProgressData.isCompleted(dialogueId);
         boolean notified = ClientProgressData.hasNotification(dialogueId);
 
-        String icon;
-        int color;
+        if (!notified && (visited || completed)) return;
 
-        if (notified) {
-            icon = "!";
-            color = 0xFFFFDD00;
-        } else if (!visited && !completed) {
-            icon = "!";
-            color = 0xFFFFDD00;
-        } else {
-            return;
-        }
-
-        renderIcon(event.getPoseStack(), event.getMultiBufferSource(), entity, icon, color);
+        renderIcon(poseStack, buffers, entity, "!", 0xFFFFDD00);
     }
 
     private static void renderIcon(PoseStack poseStack, MultiBufferSource buffers,
