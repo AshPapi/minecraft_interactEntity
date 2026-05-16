@@ -106,6 +106,9 @@ public class StartQuestAction implements DialogueAction {
         }
 
         data.setQuest(quest);
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
+                new net.ashpapi.interactentity.api.QuestStartEvent(player, id,
+                        params.has("scope") ? params.get("scope").getAsString() : "global"));
 
         // === НОВОЕ: проверка, есть ли уже нужное количество предметов ===
         if (quest.getRequiredItemId() != null) {

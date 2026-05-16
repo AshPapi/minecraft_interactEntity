@@ -250,6 +250,8 @@ public class DialogueSession {
         DialogueSession session = new DialogueSession(player, entity, tree);
         ACTIVE_SESSIONS.put(player.getUUID(), session);
         PlayerProtectionHandler.protect(player);
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
+                new net.ashpapi.interactentity.api.DialogueStartEvent(player, entity, tree.getId(), session.currentNodeId));
         session.sendCurrentNode();
     }
 
@@ -277,6 +279,8 @@ public class DialogueSession {
         }
         ACTIVE_SESSIONS.put(player.getUUID(), session);
         PlayerProtectionHandler.protect(player);
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
+                new net.ashpapi.interactentity.api.DialogueStartEvent(player, entity, tree.getId(), session.currentNodeId));
         session.sendCurrentNode();
     }
 
@@ -329,6 +333,8 @@ public class DialogueSession {
         }
 
         SummonScheduler.scheduleAfterDialogue(session.tree.getId(), player);
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
+                new net.ashpapi.interactentity.api.DialogueEndEvent(player, entity, session.tree.getId(), session.currentNodeId, session.completed));
         InteractEntityMod.LOGGER.debug("Dialogue session ended for {}", player.getName().getString());
     }
 
@@ -356,6 +362,14 @@ public class DialogueSession {
 
     public String getDialogueId() {
         return tree.getId();
+    }
+
+    public String getCurrentNodeId() {
+        return currentNodeId;
+    }
+
+    public LivingEntity getEntity() {
+        return entity;
     }
 
     public String getDisplayName() {
@@ -388,6 +402,11 @@ public class DialogueSession {
         }
         String resolvedText = net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(selected.getText(), player, session.entity);
         session.historyEntry.addLine(new HistoryLine("player", resolvedText));
+
+        net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
+                new net.ashpapi.interactentity.api.DialogueChoiceEvent(
+                        player, session.entity, session.tree.getId(), session.currentNodeId,
+                        "option", "option_" + optionIndex));
 
         DialogueSavedData optData = session.getData();
         if (!selected.getActions().isEmpty() && session.markActionPoint(optData, "option:" + session.currentNodeId + ":" + optionIndex)) {

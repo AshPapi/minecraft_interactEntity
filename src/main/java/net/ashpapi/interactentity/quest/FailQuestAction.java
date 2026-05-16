@@ -22,6 +22,9 @@ public class FailQuestAction implements DialogueAction {
             data.setDirty();
             ModNetwork.sendToAll(new QuestUpdatePacket(quest));
             ModNetwork.sendToAll(new TrackedQuestsPacket(data.getTrackedQuestIds()));
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
+                    new net.ashpapi.interactentity.api.QuestFailEvent(player, questId,
+                            params.has("scope") ? params.get("scope").getAsString() : "global"));
         }
     }
 }

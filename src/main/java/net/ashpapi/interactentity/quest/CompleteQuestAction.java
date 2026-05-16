@@ -24,6 +24,9 @@ public class CompleteQuestAction implements DialogueAction {
             data.setDirty();
             ModNetwork.sendToAll(new QuestUpdatePacket(quest));
             ModNetwork.sendToAll(new TrackedQuestsPacket(data.getTrackedQuestIds()));
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
+                    new net.ashpapi.interactentity.api.QuestCompleteEvent(player, questId,
+                            params.has("scope") ? params.get("scope").getAsString() : "global"));
             InteractEntityMod.LOGGER.debug("Quest '{}' completed for player {}", questId, player.getName().getString());
         } else {
             InteractEntityMod.LOGGER.warn("Attempted to complete unknown quest '{}'", questId);

@@ -69,5 +69,6 @@ public class ActionRegistry {
         register("set_home", new SetHomeAction());
         register("set_companion", new SetCompanionAction());
         register("play_emote", new PlayEmoteAction());
+        register("fire_event", new FireEventAction());
     }
 }
