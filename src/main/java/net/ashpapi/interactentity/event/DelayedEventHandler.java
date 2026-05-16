@@ -2,6 +2,7 @@ package net.ashpapi.interactentity.event;
 
 import net.ashpapi.interactentity.InteractEntityMod;
 import net.ashpapi.interactentity.action.ActionRegistry;
+import net.ashpapi.interactentity.data.DialogueDataManager;
 import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -22,15 +23,20 @@ public class DelayedEventHandler {
         if (server.getTickCount() % 20 != 0) return;
 
         long gameTime = server.overworld().getGameTime();
-        DialogueSavedData data = DialogueSavedData.get(server.overworld());
-        List<DelayedEvent> fired = new ArrayList<>();
 
-        for (DelayedEvent ev : data.getDelayedEvents()) {
-            if (gameTime >= ev.getFireTick()) {
-                fired.add(ev);
-            }
+        processData(DialogueDataManager.getGlobal(server.overworld()), gameTime, server);
+
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            DialogueSavedData playerData = DialogueDataManager.getPlayer(player);
+            if (playerData != null) processData(playerData, gameTime, server);
         }
+    }
 
+    private static void processData(DialogueSavedData data, long gameTime, MinecraftServer server) {
+        List<DelayedEvent> fired = new ArrayList<>();
+        for (DelayedEvent ev : data.getDelayedEvents()) {
+            if (gameTime >= ev.getFireTick()) fired.add(ev);
+        }
         if (fired.isEmpty()) return;
 
         for (DelayedEvent ev : fired) {

@@ -3,6 +3,7 @@ package net.ashpapi.interactentity.event;
 import net.ashpapi.interactentity.InteractEntityMod;
 import net.ashpapi.interactentity.condition.ConditionRegistry;
 import net.ashpapi.interactentity.data.ClientNpcRegistry;
+import net.ashpapi.interactentity.data.DialogueDataManager;
 import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.ashpapi.interactentity.dialogue.DialogueManager;
 import net.ashpapi.interactentity.dialogue.DialogueSession;
@@ -88,7 +89,7 @@ public class EntityInteractHandler {
         DialogueTree tree = manager.findDialogueForEntity(target);
         if (tree == null) return false;
 
-        DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
+        DialogueSavedData data = DialogueDataManager.get(player, tree.getScope());
 
         // Есть незавершённая позиция — возобновить с неё
         String resumeNode = data.getResumeNode(tree.getId());
@@ -147,7 +148,7 @@ public class EntityInteractHandler {
                     DialogueSession.startRevisitSession(player, target, tree);
                     String repId = tree.getReputationId();
                     String repLabel = tree.getFaction() != null ? tree.getFaction() : repId;
-                    int reputation = repId != null ? DialogueSavedData.get(player.serverLevel()).getReputation(repId) : 0;
+                    int reputation = repId != null ? DialogueDataManager.get(player, tree.getScope()).getReputation(repId) : 0;
                     ModNetwork.sendToPlayer(player, new OpenDialoguePacket(
                             target.getId(),
                             "revisit",
@@ -181,7 +182,7 @@ public class EntityInteractHandler {
             DialogueSession.startRevisitSession(player, target, tree);
             String repId = tree.getReputationId();
             String repLabel = tree.getFaction() != null ? tree.getFaction() : repId;
-            int reputation = repId != null ? DialogueSavedData.get(player.serverLevel()).getReputation(repId) : 0;
+            int reputation = repId != null ? DialogueDataManager.get(player, tree.getScope()).getReputation(repId) : 0;
             ModNetwork.sendToPlayer(player, new OpenDialoguePacket(
                     target.getId(),
                     "revisit",

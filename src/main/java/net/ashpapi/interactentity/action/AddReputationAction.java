@@ -1,6 +1,7 @@
 package net.ashpapi.interactentity.action;
 
 import com.google.gson.JsonObject;
+import net.ashpapi.interactentity.data.DialogueDataManager;
 import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.ashpapi.interactentity.dialogue.DialogueSession;
 import net.ashpapi.interactentity.network.ModNetwork;
@@ -31,9 +32,9 @@ public class AddReputationAction implements DialogueAction {
         
         if (label == null) label = id;
 
-        DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
+        DialogueSavedData data = DialogueDataManager.get(player, params);
         data.addReputation(id, delta);
-        ModNetwork.sendToAll(new SyncProgressPacket(data));
+        ModNetwork.sendToPlayer(player, SyncProgressPacket.createFor(player));
         ModNetwork.sendToPlayer(player, new ReputationToastPacket(id, label, delta));
     }
 }

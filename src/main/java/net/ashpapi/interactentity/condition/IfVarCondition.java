@@ -1,7 +1,7 @@
 package net.ashpapi.interactentity.condition;
 
 import com.google.gson.JsonObject;
-import net.ashpapi.interactentity.data.DialogueSavedData;
+import net.ashpapi.interactentity.data.DialogueDataManager;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 
@@ -11,7 +11,7 @@ public class IfVarCondition implements DialogueCondition {
         String name = params.get("name").getAsString();
         String op = params.has("op") ? params.get("op").getAsString() : "eq";
         String expected = params.has("value") ? params.get("value").getAsString() : "";
-        String actual = DialogueSavedData.get(player.serverLevel()).getVar(name);
+        String actual = DialogueDataManager.get(player, params).getVar(name);
         return switch (op) {
             case "eq" -> actual.equals(expected);
             case "neq" -> !actual.equals(expected);

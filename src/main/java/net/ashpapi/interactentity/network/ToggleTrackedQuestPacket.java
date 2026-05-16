@@ -1,5 +1,6 @@
 package net.ashpapi.interactentity.network;
 
+import net.ashpapi.interactentity.data.DialogueDataManager;
 import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerPlayer;
@@ -27,9 +28,16 @@ public class ToggleTrackedQuestPacket {
             ServerPlayer player = ctx.get().getSender();
             if (player == null) return;
 
-            DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
-            data.toggleTrackedQuest(questId);
-            ModNetwork.sendToAll(new TrackedQuestsPacket(data.getTrackedQuestIds()));
+            // The quest could live in either scope — toggle in whichever has it.
+            DialogueSavedData globalData = DialogueDataManager.getGlobal(player.serverLevel());
+            DialogueSavedData playerData = DialogueDataManager.getPlayer(player);
+            if (globalData.getQuest(questId) != null) {
+                globalData.toggleTrackedQuest(questId);
+                ModNetwork.sendToAll(new TrackedQuestsPacket(globalData.getTrackedQuestIds()));
+            } else if (playerData != null && playerData.getQuest(questId) != null) {
+                playerData.toggleTrackedQuest(questId);
+                ModNetwork.sendToPlayer(player, SyncProgressPacket.createFor(player));
+            }
         });
         ctx.get().setPacketHandled(true);
     }

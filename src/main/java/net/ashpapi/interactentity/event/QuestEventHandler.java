@@ -1,6 +1,7 @@
 package net.ashpapi.interactentity.event;
 
 import net.ashpapi.interactentity.InteractEntityMod;
+import net.ashpapi.interactentity.data.DialogueDataManager;
 import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.ashpapi.interactentity.network.ModNetwork;
 import net.ashpapi.interactentity.network.QuestUpdatePacket;
@@ -33,15 +34,17 @@ public class QuestEventHandler {
     }
 
     private static void checkItemQuests(ServerPlayer player, String changedItemId) {
-        DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
-        boolean dirty = false;
+        checkItemQuestsInData(DialogueDataManager.getGlobal(player.serverLevel()), player, changedItemId);
+        DialogueSavedData playerData = DialogueDataManager.getPlayer(player);
+        if (playerData != null) checkItemQuestsInData(playerData, player, changedItemId);
+    }
 
+    private static void checkItemQuestsInData(DialogueSavedData data, ServerPlayer player, String changedItemId) {
+        boolean dirty = false;
         for (QuestState quest : data.getActiveQuests()) {
             String requiredItem = quest.getRequiredItemId();
             if (requiredItem == null) continue;
             if (quest.isItemCollected()) continue;
-
-            // Если мы знаем, какой предмет изменился, и это не тот - пропускаем (оптимизация для Pickup)
             if (changedItemId != null && !requiredItem.equals(changedItemId)) continue;
 
             int totalInInventory = countItemInInventory(player, requiredItem);
@@ -52,7 +55,6 @@ public class QuestEventHandler {
                 ModNetwork.sendToAll(new QuestUpdatePacket(quest));
             }
         }
-        
         if (dirty) data.setDirty();
     }
 

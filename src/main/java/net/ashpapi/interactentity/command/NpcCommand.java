@@ -153,11 +153,17 @@ public class NpcCommand {
         }
 
         level.addFreshEntity(living);
-        DialogueSavedData data = DialogueSavedData.get(level);
+        DialogueSavedData data = net.ashpapi.interactentity.data.DialogueDataManager.getGlobal(level);
         data.removeVisit(tree.getId());
         data.clearResumeNode(tree.getId());
         for (ServerPlayer p : level.getServer().getPlayerList().getPlayers()) {
-            ModNetwork.sendToPlayer(p, new SyncProgressPacket(data));
+            // Also clear per-player visit for this dialogue
+            DialogueSavedData pData = net.ashpapi.interactentity.data.DialogueDataManager.getPlayer(p);
+            if (pData != null) {
+                pData.removeVisit(tree.getId());
+                pData.clearResumeNode(tree.getId());
+            }
+            ModNetwork.sendToPlayer(p, SyncProgressPacket.createFor(p));
         }
         ModNetwork.sendToTracking(living, new NpcSyncPacket(living.getId(), tree.getId(), tree.getEntryNodeId()));
         src.sendSuccess(() -> Component.literal("Spawned NPC: " + tree.getTarget().getName()

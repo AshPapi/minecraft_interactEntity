@@ -1,6 +1,7 @@
 package net.ashpapi.interactentity.event;
 
 import net.ashpapi.interactentity.InteractEntityMod;
+import net.ashpapi.interactentity.data.DialogueDataManager;
 import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.ashpapi.interactentity.network.ModNetwork;
 import net.ashpapi.interactentity.network.QuestUpdatePacket;
@@ -11,6 +12,8 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.registries.ForgeRegistries;
 
+import java.util.Set;
+
 @Mod.EventBusSubscriber(modid = InteractEntityMod.MOD_ID, bus = Mod.EventBusSubscriber.Bus.FORGE)
 public class KillTrackHandler {
     @SubscribeEvent
@@ -18,15 +21,24 @@ public class KillTrackHandler {
         if (event.getEntity().level().isClientSide()) return;
         if (!(event.getSource().getEntity() instanceof ServerPlayer player)) return;
         String typeId = ForgeRegistries.ENTITY_TYPES.getKey(event.getEntity().getType()).toString();
+        Set<String> tags = event.getEntity().getTags();
 
-        DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
+        DialogueSavedData globalData = DialogueDataManager.getGlobal(player.serverLevel());
+        DialogueSavedData playerData = DialogueDataManager.getPlayer(player);
+
+        recordKill(globalData, typeId, tags);
+        if (playerData != null) recordKill(playerData, typeId, tags);
+
+        updateKillQuests(globalData, typeId, tags);
+        if (playerData != null) updateKillQuests(playerData, typeId, tags);
+    }
+
+    private static void recordKill(DialogueSavedData data, String typeId, Set<String> tags) {
         data.addKill(typeId);
+        for (String tag : tags) data.addKill(typeId + "#" + tag);
+    }
 
-        java.util.Set<String> tags = event.getEntity().getTags();
-        for (String tag : tags) {
-            data.addKill(typeId + "#" + tag);
-        }
-
+    private static void updateKillQuests(DialogueSavedData data, String typeId, Set<String> tags) {
         for (QuestState quest : data.getActiveQuests()) {
             String questEntityType = quest.getKillEntityType();
             if (questEntityType == null) continue;

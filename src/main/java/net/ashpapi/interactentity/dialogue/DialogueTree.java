@@ -14,6 +14,7 @@ import java.util.Map;
 
 public class DialogueTree {
     private final String id;
+    private final String scope;
     private final DialogueTarget target;
     private final String displayName;
     private final String entryNodeId;
@@ -31,7 +32,7 @@ public class DialogueTree {
     private final boolean repeatable;
     @Nullable private final List<NpcRoutine> routines;
 
-    public DialogueTree(String id, DialogueTarget target, String displayName, String entryNodeId,
+    public DialogueTree(String id, String scope, DialogueTarget target, String displayName, String entryNodeId,
                         Map<String, DialogueNode> nodes, @Nullable RevisitConfig revisitConfig,
                         @Nullable JsonObject summonConfig, @Nullable JsonObject startTrigger,
                         @Nullable String faction, @Nullable String reputationId, @Nullable String characterInfo,
@@ -39,6 +40,7 @@ public class DialogueTree {
                         @Nullable ResourceLocation background, @Nullable ResourceLocation optionsBackground,
                         boolean invulnerable, boolean repeatable, @Nullable List<NpcRoutine> routines) {
         this.id = id;
+        this.scope = scope;
         this.target = target;
         this.displayName = displayName;
         this.entryNodeId = entryNodeId;
@@ -58,6 +60,7 @@ public class DialogueTree {
     }
 
     public String getId() { return id; }
+    public String getScope() { return scope; }
     public DialogueTarget getTarget() { return target; }
     public String getDisplayName() { return displayName; }
     public String getEntryNodeId() { return entryNodeId; }
@@ -79,6 +82,7 @@ public class DialogueTree {
 
     public static DialogueTree fromJson(String id, JsonObject json) {
         DialogueTarget target = DialogueTarget.fromJson(json.getAsJsonObject("target"));
+        String scope = json.has("scope") ? json.get("scope").getAsString() : "global";
         String displayName = json.has("display_name") ? json.get("display_name").getAsString() : target.getName();
         String entry = json.get("entry").getAsString();
 
@@ -125,6 +129,24 @@ public class DialogueTree {
             }
         }
 
-        return new DialogueTree(id, target, displayName, entry, nodes, revisitConfig, summonConfig, startTrigger, faction, reputationId, characterInfo, avatar, background, optionsBackground, invulnerable, repeatable, routines);
+        injectScope(json, scope);
+        return new DialogueTree(id, scope, target, displayName, entry, nodes, revisitConfig, summonConfig, startTrigger, faction, reputationId, characterInfo, avatar, background, optionsBackground, invulnerable, repeatable, routines);
+    }
+
+    /** Recursively injects 'scope' into all JsonObjects that have 'type' (action/condition) and no explicit 'scope'. */
+    private static void injectScope(JsonElement element, String scope) {
+        if (element.isJsonObject()) {
+            JsonObject obj = element.getAsJsonObject();
+            if (obj.has("type") && !obj.has("scope")) {
+                obj.addProperty("scope", scope);
+            }
+            for (Map.Entry<String, JsonElement> entry : obj.entrySet()) {
+                injectScope(entry.getValue(), scope);
+            }
+        } else if (element.isJsonArray()) {
+            for (JsonElement el : element.getAsJsonArray()) {
+                injectScope(el, scope);
+            }
+        }
     }
 }

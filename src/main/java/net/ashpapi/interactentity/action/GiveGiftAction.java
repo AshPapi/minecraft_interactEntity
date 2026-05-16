@@ -1,6 +1,7 @@
 package net.ashpapi.interactentity.action;
 
 import com.google.gson.JsonObject;
+import net.ashpapi.interactentity.data.DialogueDataManager;
 import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.ashpapi.interactentity.network.ModNetwork;
 import net.ashpapi.interactentity.network.ReputationToastPacket;
@@ -22,7 +23,7 @@ public class GiveGiftAction implements DialogueAction {
         int repGain = params.has("reputation") ? params.get("reputation").getAsInt() : 5;
         String label = params.has("label") ? params.get("label").getAsString() : characterId;
 
-        DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
+        DialogueSavedData data = DialogueDataManager.get(player, params);
 
         // 1. Проверка кулдауна (1 час)
         if (!data.canGiveGift(characterId)) {

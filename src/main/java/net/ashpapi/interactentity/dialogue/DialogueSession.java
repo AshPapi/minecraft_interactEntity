@@ -3,6 +3,7 @@ package net.ashpapi.interactentity.dialogue;
 import net.ashpapi.interactentity.InteractEntityMod;
 import net.ashpapi.interactentity.action.ActionRegistry;
 import net.ashpapi.interactentity.condition.ConditionRegistry;
+import net.ashpapi.interactentity.data.DialogueDataManager;
 import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.ashpapi.interactentity.event.PlayerProtectionHandler;
 import net.ashpapi.interactentity.history.DialogueHistoryEntry;
@@ -60,7 +61,7 @@ public class DialogueSession {
         freezeEntity();
 
         // Продолжаем существующую историю если диалог был прерван ранее
-        DialogueSavedData existingData = DialogueSavedData.get(player.serverLevel());
+        DialogueSavedData existingData = DialogueDataManager.get(player, tree.getScope());
         DialogueHistoryEntry existing = existingData.getHistoryEntry(tree.getId());
         String entityType = tree.getTarget().getEntityType();
         String characterInfo = tree.getCharacterInfo();
@@ -157,7 +158,7 @@ public class DialogueSession {
 
         nodeEnterGameTime = player.serverLevel().getGameTime();
 
-        DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
+        DialogueSavedData data = getData();
         boolean firstVisit = !data.hasVisited(tree.getId(), currentNodeId);
         data.visit(tree.getId(), currentNodeId);
 
@@ -172,7 +173,7 @@ public class DialogueSession {
             }
             // Если action заменил сессию (summon_npc+start_dialogue, force_dialogue) — не продолжаем
             if (ACTIVE_SESSIONS.get(player.getUUID()) != this) return;
-            ModNetwork.sendToPlayer(player, new SyncProgressPacket(data));
+            ModNetwork.sendToPlayer(player, SyncProgressPacket.createFor(player));
         }
         if (ACTIVE_SESSIONS.get(player.getUUID()) != this) return;
 
@@ -219,7 +220,7 @@ public class DialogueSession {
         String repLabel = tree.getFaction() != null ? tree.getFaction() : repId;
         int reputation = 0;
         if (repId != null) {
-            reputation = DialogueSavedData.get(player.serverLevel()).getReputation(repId);
+            reputation = getData().getReputation(repId);
         }
 
         ModNetwork.sendToPlayer(player, new OpenDialoguePacket(
@@ -253,11 +254,12 @@ public class DialogueSession {
     }
 
     private static void clearNotification(ServerPlayer player, String dialogueId) {
-        DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
+        // Notifications live in the global store (cross-player concept).
+        DialogueSavedData data = DialogueDataManager.getGlobal(player.serverLevel());
         if (data.hasNotification(dialogueId)) {
             data.removeNotification(dialogueId);
             for (ServerPlayer online : player.getServer().getPlayerList().getPlayers()) {
-                ModNetwork.sendToPlayer(online, new net.ashpapi.interactentity.network.SyncProgressPacket(data));
+                ModNetwork.sendToPlayer(online, SyncProgressPacket.createFor(online));
             }
         }
     }
@@ -307,7 +309,7 @@ public class DialogueSession {
         PlayerProtectionHandler.unprotect(player);
         session.unfreezeEntity();
 
-        DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
+        DialogueSavedData data = DialogueDataManager.get(player, session.tree.getScope());
 
         if (!session.completed) {
             data.setResumeNode(session.tree.getId(), session.currentNodeId);
@@ -318,7 +320,7 @@ public class DialogueSession {
             data.clearResumeNode(session.tree.getId());
             data.markCompleted(session.tree.getId());
         }
-        ModNetwork.sendToPlayer(player, new SyncProgressPacket(data));
+        ModNetwork.sendToPlayer(player, SyncProgressPacket.createFor(player));
 
         LivingEntity entity = session.entity;
         if (entity.getTags().contains("interactentity_despawn")) {
@@ -387,7 +389,7 @@ public class DialogueSession {
         String resolvedText = net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(selected.getText(), player, session.entity);
         session.historyEntry.addLine(new HistoryLine("player", resolvedText));
 
-        DialogueSavedData optData = DialogueSavedData.get(player.serverLevel());
+        DialogueSavedData optData = session.getData();
         if (!selected.getActions().isEmpty() && session.markActionPoint(optData, "option:" + session.currentNodeId + ":" + optionIndex)) {
             ActionRegistry.executeActions(selected.getActions(), player, session.entity);
         }
@@ -395,7 +397,7 @@ public class DialogueSession {
         if (getSession(player) != session) return;
 
         optData.addHistory(session.historyEntry);
-        ModNetwork.sendToPlayer(player, new SyncProgressPacket(optData));
+        ModNetwork.sendToPlayer(player, SyncProgressPacket.createFor(player));
 
         String nextId = selected.getNextNodeId();
         if (nextId == null) {
@@ -458,5 +460,10 @@ public class DialogueSession {
         }
         data.markActionExecuted(tree.getId(), actionKey);
         return true;
+    }
+
+    /** Returns the correct data store based on this dialogue's scope. */
+    private DialogueSavedData getData() {
+        return DialogueDataManager.get(player, tree.getScope());
     }
 }

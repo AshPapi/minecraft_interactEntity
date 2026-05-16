@@ -1,6 +1,7 @@
 package net.ashpapi.interactentity.action;
 
 import com.google.gson.JsonObject;
+import net.ashpapi.interactentity.data.DialogueDataManager;
 import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
@@ -11,7 +12,7 @@ public class SetVarAction implements DialogueAction {
         String name = params.get("name").getAsString();
         String value = params.has("value") ? params.get("value").getAsString() : "";
         String op = params.has("op") ? params.get("op").getAsString() : "set";
-        DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
+        DialogueSavedData data = DialogueDataManager.get(player, params);
         switch (op) {
             case "set" -> data.setVar(name, value);
             case "inc" -> {

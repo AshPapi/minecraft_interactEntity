@@ -1,6 +1,7 @@
 package net.ashpapi.interactentity.condition;
 
 import com.google.gson.JsonObject;
+import net.ashpapi.interactentity.data.DialogueDataManager;
 import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
@@ -12,7 +13,7 @@ public class NpcRelationshipCondition implements DialogueCondition {
         String npcB = params.get("npc_b").getAsString();
         String expected = params.get("relationship").getAsString();
 
-        DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
+        DialogueSavedData data = DialogueDataManager.get(player, params);
         String actual = data.getRelationship(npcA, npcB);
         return expected.equals(actual);
     }

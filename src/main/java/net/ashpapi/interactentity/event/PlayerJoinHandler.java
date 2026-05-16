@@ -1,7 +1,6 @@
 package net.ashpapi.interactentity.event;
 
 import net.ashpapi.interactentity.InteractEntityMod;
-import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.ashpapi.interactentity.network.ModNetwork;
 import net.ashpapi.interactentity.network.SyncProgressPacket;
 import net.ashpapi.interactentity.summon.SummonScheduler;
@@ -16,9 +15,8 @@ public class PlayerJoinHandler {
     @SubscribeEvent
     public static void onPlayerJoin(PlayerEvent.PlayerLoggedInEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
-            // Sync progress to client
-            DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
-            ModNetwork.sendToPlayer(player, new SyncProgressPacket(data));
+            // Sync merged (global+player) progress to client
+            ModNetwork.sendToPlayer(player, SyncProgressPacket.createFor(player));
 
             // Schedule on_join summons
             SummonScheduler.scheduleOnJoin(player);

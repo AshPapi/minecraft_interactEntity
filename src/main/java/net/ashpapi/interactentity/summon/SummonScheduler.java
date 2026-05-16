@@ -1,6 +1,7 @@
 package net.ashpapi.interactentity.summon;
 
 import net.ashpapi.interactentity.InteractEntityMod;
+import net.ashpapi.interactentity.data.DialogueDataManager;
 import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.ashpapi.interactentity.dialogue.DialogueManager;
 import net.ashpapi.interactentity.dialogue.DialogueSession;
@@ -39,7 +40,7 @@ public class SummonScheduler {
             String key = tree.getId() + ":" + player.getUUID();
             if (!tree.isRepeatable()) {
                 if (TRIGGERED_DIALOGUES.contains(key)) continue;
-                DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
+                DialogueSavedData data = DialogueDataManager.get(player, tree.getScope());
                 if (data.hasVisited(tree.getId(), tree.getEntryNodeId())) continue;
                 TRIGGERED_DIALOGUES.add(key);
             }
@@ -54,7 +55,7 @@ public class SummonScheduler {
         String key = tree.getId() + ":" + player.getUUID();
         if (!tree.isRepeatable()) {
             if (TRIGGERED_DIALOGUES.contains(key)) return;
-            DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
+            DialogueSavedData data = DialogueDataManager.get(player, tree.getScope());
             if (data.hasVisited(tree.getId(), tree.getEntryNodeId())) return;
             TRIGGERED_DIALOGUES.add(key);
         }
@@ -77,7 +78,7 @@ public class SummonScheduler {
             String key = tree.getId() + ":" + player.getUUID();
             if (!tree.isRepeatable()) {
                 if (TRIGGERED_DIALOGUES.contains(key)) continue;
-                DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
+                DialogueSavedData data = DialogueDataManager.get(player, tree.getScope());
                 if (data.hasVisited(tree.getId(), tree.getEntryNodeId())) continue;
                 TRIGGERED_DIALOGUES.add(key);
             }

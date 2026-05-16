@@ -2,8 +2,10 @@ package net.ashpapi.interactentity.command;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import net.minecraft.commands.arguments.EntityArgument;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.ashpapi.interactentity.InteractEntityMod;
+import net.ashpapi.interactentity.data.DialogueDataManager;
 import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.ashpapi.interactentity.dialogue.DialogueManager;
 import net.ashpapi.interactentity.dialogue.DialogueSession;
@@ -66,7 +68,70 @@ public class DialogueCommand {
                                 StringArgumentType.getString(ctx, "node")))
                     )
                 )
+                .then(Commands.literal("var")
+                    .then(Commands.literal("set")
+                        .then(Commands.argument("name", StringArgumentType.string())
+                            .then(Commands.argument("value", StringArgumentType.string())
+                                .executes(ctx -> setVar(ctx.getSource(),
+                                        StringArgumentType.getString(ctx, "name"),
+                                        StringArgumentType.getString(ctx, "value"), null))
+                                .then(Commands.argument("target", EntityArgument.player())
+                                    .executes(ctx -> setVar(ctx.getSource(),
+                                            StringArgumentType.getString(ctx, "name"),
+                                            StringArgumentType.getString(ctx, "value"),
+                                            EntityArgument.getPlayer(ctx, "target")))
+                                )
+                            )
+                        )
+                    )
+                    .then(Commands.literal("get")
+                        .then(Commands.argument("name", StringArgumentType.string())
+                            .executes(ctx -> getVar(ctx.getSource(),
+                                    StringArgumentType.getString(ctx, "name"), null))
+                            .then(Commands.argument("target", EntityArgument.player())
+                                .executes(ctx -> getVar(ctx.getSource(),
+                                        StringArgumentType.getString(ctx, "name"),
+                                        EntityArgument.getPlayer(ctx, "target")))
+                            )
+                        )
+                    )
+                )
         );
+    }
+
+    private static int setVar(CommandSourceStack src, String name, String value, ServerPlayer target) {
+        DialogueSavedData data;
+        if (target != null) {
+            data = DialogueDataManager.getPlayer(target);
+            if (data == null) { src.sendFailure(Component.literal("Player has no data")); return 0; }
+        } else {
+            data = DialogueDataManager.getGlobal(src.getServer().overworld());
+        }
+        data.setVar(name, value);
+        final String scope = target != null ? "player " + target.getScoreboardName() : "global";
+        src.sendSuccess(() -> Component.literal("Set " + scope + " var '" + name + "' = '" + value + "'"), true);
+        if (target != null) {
+            ModNetwork.sendToPlayer(target, SyncProgressPacket.createFor(target));
+        } else {
+            for (ServerPlayer p : src.getServer().getPlayerList().getPlayers()) {
+                ModNetwork.sendToPlayer(p, SyncProgressPacket.createFor(p));
+            }
+        }
+        return 1;
+    }
+
+    private static int getVar(CommandSourceStack src, String name, ServerPlayer target) {
+        DialogueSavedData data;
+        if (target != null) {
+            data = DialogueDataManager.getPlayer(target);
+            if (data == null) { src.sendFailure(Component.literal("Player has no data")); return 0; }
+        } else {
+            data = DialogueDataManager.getGlobal(src.getServer().overworld());
+        }
+        final String value = data.getVar(name);
+        final String scope = target != null ? "Player " + target.getScoreboardName() : "Global";
+        src.sendSuccess(() -> Component.literal(scope + " var '" + name + "' = '" + value + "'"), false);
+        return 1;
     }
 
     private static int reloadAll(CommandSourceStack src) {
@@ -84,14 +149,17 @@ public class DialogueCommand {
         }
         SummonScheduler.clearAll();
         mgr.loadAll();
-        // Сбрасываем весь прогресс и синхронизируем клиентов
-        DialogueSavedData data = DialogueSavedData.get(server.overworld());
-        for (String id : mgr.getLoadedIds()) {
-            data.resetDialogue(id);
-        }
+        // Сбрасываем прогресс в обоих хранилищах
+        DialogueSavedData data = DialogueDataManager.getGlobal(server.overworld());
+        for (String id : mgr.getLoadedIds()) data.resetDialogue(id);
         data.clearAllQuests();
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
-            ModNetwork.sendToPlayer(p, new SyncProgressPacket(data));
+            DialogueSavedData pData = DialogueDataManager.getPlayer(p);
+            if (pData != null) {
+                for (String id : mgr.getLoadedIds()) pData.resetDialogue(id);
+                pData.clearAllQuests();
+            }
+            ModNetwork.sendToPlayer(p, SyncProgressPacket.createFor(p));
         }
         int count = mgr.getLoadedIds().size();
         src.sendSuccess(() -> Component.literal("Reloaded " + count + " dialogue(s), progress reset"), true);
@@ -140,12 +208,17 @@ public class DialogueCommand {
         MinecraftServer server = src.getServer();
         boolean ok = mgr.reloadOne(id);
         if (ok) {
-            // Полный сброс прогресса для этого диалога + всех квестов (режим тестирования)
-            DialogueSavedData data = DialogueSavedData.get(server.overworld());
+            // Полный сброс прогресса для этого диалога + всех квестов в обоих хранилищах
+            DialogueSavedData data = DialogueDataManager.getGlobal(server.overworld());
             data.resetDialogue(id);
             data.clearAllQuests();
             for (ServerPlayer p : server.getPlayerList().getPlayers()) {
-                ModNetwork.sendToPlayer(p, new SyncProgressPacket(data));
+                DialogueSavedData pData = DialogueDataManager.getPlayer(p);
+                if (pData != null) {
+                    pData.resetDialogue(id);
+                    pData.clearAllQuests();
+                }
+                ModNetwork.sendToPlayer(p, SyncProgressPacket.createFor(p));
             }
             src.sendSuccess(() -> Component.literal("Reloaded and reset: " + id), true);
             return 1;

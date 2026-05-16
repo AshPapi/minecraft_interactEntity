@@ -268,6 +268,9 @@ public class DialogueSavedData extends SavedData {
     public String getVar(String name) {
         return variables.getOrDefault(name, "");
     }
+    public boolean hasVar(String name) {
+        return variables.containsKey(name);
+    }
     public Map<String, String> getAllVars() {
         return Collections.unmodifiableMap(variables);
     }
@@ -275,6 +278,9 @@ public class DialogueSavedData extends SavedData {
     // === Reputation ===
     public int getReputation(String id) {
         return reputation.getOrDefault(id, 0);
+    }
+    public boolean hasReputation(String id) {
+        return reputation.containsKey(id);
     }
     public void setReputation(String id, int value) {
         reputation.put(id, Math.max(-100, Math.min(100, value)));
@@ -508,6 +514,8 @@ public class DialogueSavedData extends SavedData {
         return data;
     }
 
+    /** @deprecated Use {@link DialogueDataManager#getGlobal(ServerLevel)} or {@link DialogueDataManager#get(net.minecraft.world.entity.player.Player, String)}. */
+    @Deprecated
     public static DialogueSavedData get(ServerLevel level) {
         // Always use overworld storage — shared across all dimensions
         return level.getServer().overworld().getDataStorage().computeIfAbsent(

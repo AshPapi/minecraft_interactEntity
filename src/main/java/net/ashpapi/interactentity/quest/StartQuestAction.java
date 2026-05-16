@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import net.ashpapi.interactentity.InteractEntityMod;
 import net.ashpapi.interactentity.action.DialogueAction;
+import net.ashpapi.interactentity.data.DialogueDataManager;
 import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.ashpapi.interactentity.dialogue.DialogueSession;
 import net.ashpapi.interactentity.network.ModNetwork;
@@ -23,7 +24,7 @@ public class StartQuestAction implements DialogueAction {
         JsonObject questJson = params.getAsJsonObject("quest");
         String id = questJson.get("id").getAsString();
 
-        DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
+        DialogueSavedData data = DialogueDataManager.get(player, params);
         QuestState existing = data.getQuest(id);
 
         // Исправлено: не запускаем, если квест уже active ИЛИ completed
@@ -119,8 +120,10 @@ public class StartQuestAction implements DialogueAction {
             }
         }
 
-        // Обычный синхрон
-        ModNetwork.sendToAll(new SyncProgressPacket(data));
+        // Sync to all players (each gets a personalized merged view).
+        for (ServerPlayer p : player.serverLevel().getServer().getPlayerList().getPlayers()) {
+            ModNetwork.sendToPlayer(p, SyncProgressPacket.createFor(p));
+        }
     }
 
     // Вспомогательный метод (дубликат из QuestEventHandler, чтобы не плодить зависимости)

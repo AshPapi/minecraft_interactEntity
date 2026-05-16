@@ -1,7 +1,7 @@
 package net.ashpapi.interactentity.condition;
 
 import com.google.gson.JsonObject;
-import net.ashpapi.interactentity.data.DialogueSavedData;
+import net.ashpapi.interactentity.data.DialogueDataManager;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 
@@ -13,6 +13,6 @@ public class KilledMobCondition implements DialogueCondition {
             type = type + "#" + params.get("tag").getAsString();
         }
         int required = params.has("count") ? params.get("count").getAsInt() : 1;
-        return DialogueSavedData.get(player.serverLevel()).getKillCount(type) >= required;
+        return DialogueDataManager.get(player, params).getKillCount(type) >= required;
     }
 }

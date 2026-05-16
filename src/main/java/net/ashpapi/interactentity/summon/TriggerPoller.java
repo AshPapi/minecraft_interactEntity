@@ -1,6 +1,7 @@
 package net.ashpapi.interactentity.summon;
 
 import net.ashpapi.interactentity.InteractEntityMod;
+import net.ashpapi.interactentity.data.DialogueDataManager;
 import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.ashpapi.interactentity.dialogue.DialogueManager;
 import net.ashpapi.interactentity.dialogue.DialogueTree;
@@ -32,12 +33,12 @@ public class TriggerPoller {
         if (mgr == null) return;
 
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
             for (DialogueTree tree : mgr.getAllDialogues()) {
                 if (tree.getSummonConfig() == null) continue;
                 SummonConfig cfg = SummonConfig.fromJson(tree.getSummonConfig());
                 if (cfg == null) continue;
                 SummonTrigger tr = cfg.getTrigger();
+                DialogueSavedData data = DialogueDataManager.get(player, tree.getScope());
                 if (data.hasVisited(tree.getId(), tree.getEntryNodeId())) continue;
 
                 switch (tr.getType()) {
