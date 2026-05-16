@@ -100,9 +100,8 @@ public class CustomNpcModel extends GeoModel<CustomNpcEntity> {
     }
 
     private static PlayerModelShape detectPlayerModelShape(ResourceLocation model) {
-        if (NPC_PLAYER_MODEL.equals(model) || NPC_PLAYER_SLIM_MODEL.equals(model)) {
-            return PlayerModelShape.NONE;
-        }
+        if (NPC_PLAYER_MODEL.equals(model)) return PlayerModelShape.DEFAULT;
+        if (NPC_PLAYER_SLIM_MODEL.equals(model)) return PlayerModelShape.SLIM;
         return PLAYER_MODEL_CACHE.computeIfAbsent(model, CustomNpcModel::readPlayerModelShape);
     }
 

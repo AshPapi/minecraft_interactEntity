@@ -37,6 +37,8 @@ public class SummonScheduler {
             if (!"after_dialogue".equals(trigger.getType())) continue;
             if (!completedDialogueId.equals(trigger.getDialogueId())) continue;
 
+            if (npcAlreadyExists(player, tree)) continue;
+
             String key = tree.getId() + ":" + player.getUUID();
             if (!tree.isRepeatable()) {
                 if (TRIGGERED_DIALOGUES.contains(key)) continue;
@@ -52,6 +54,7 @@ public class SummonScheduler {
     }
 
     public static void scheduleNow(DialogueTree tree, SummonConfig config, ServerPlayer player) {
+        if (npcAlreadyExists(player, tree)) return;
         String key = tree.getId() + ":" + player.getUUID();
         if (!tree.isRepeatable()) {
             if (TRIGGERED_DIALOGUES.contains(key)) return;
@@ -75,6 +78,11 @@ public class SummonScheduler {
             SummonTrigger trigger = config.getTrigger();
             if (!"on_join".equals(trigger.getType())) continue;
 
+            if (npcAlreadyExists(player, tree)) {
+                InteractEntityMod.LOGGER.debug("Skipping on_join spawn for '{}': NPC already exists in world", tree.getId());
+                continue;
+            }
+
             String key = tree.getId() + ":" + player.getUUID();
             if (!tree.isRepeatable()) {
                 if (TRIGGERED_DIALOGUES.contains(key)) continue;
@@ -87,6 +95,20 @@ public class SummonScheduler {
             InteractEntityMod.LOGGER.debug("Scheduled summon for dialogue '{}' on join, delay={} ticks",
                     tree.getId(), trigger.getDelay());
         }
+    }
+
+    /** True if a loaded entity in any of the server's dimensions matches this dialogue's target (name + tag). */
+    private static boolean npcAlreadyExists(ServerPlayer player, DialogueTree tree) {
+        String wantTag = tree.getTarget().getTag();
+        if (wantTag == null || wantTag.isEmpty()) return false;
+        for (ServerLevel level : player.getServer().getAllLevels()) {
+            for (net.minecraft.world.entity.Entity e : level.getAllEntities()) {
+                if (e instanceof LivingEntity le && tree.getTarget().matches(le)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public static void tick() {

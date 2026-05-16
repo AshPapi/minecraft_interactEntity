@@ -86,14 +86,14 @@ public class NpcCommand {
             Commands.literal("npc")
                 .requires(src -> src.hasPermission(2))
                 .then(Commands.literal("spawn")
-                    .then(Commands.argument("dialogue", StringArgumentType.string())
+                    .then(Commands.argument("dialogue", StringArgumentType.greedyString())
                         .suggests(DIALOGUE_IDS)
                         .executes(ctx -> spawn(ctx.getSource(),
                                 StringArgumentType.getString(ctx, "dialogue"), null))
                     )
                 )
                 .then(Commands.literal("tag")
-                    .then(Commands.argument("dialogue", StringArgumentType.string())
+                    .then(Commands.argument("dialogue", StringArgumentType.greedyString())
                         .suggests(DIALOGUE_IDS)
                         .executes(ctx -> tagNearest(ctx.getSource(),
                                 StringArgumentType.getString(ctx, "dialogue")))
