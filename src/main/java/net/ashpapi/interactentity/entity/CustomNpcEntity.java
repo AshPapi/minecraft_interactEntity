@@ -32,6 +32,8 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
             SynchedEntityData.defineId(CustomNpcEntity.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<String> TEXTURE_ID =
             SynchedEntityData.defineId(CustomNpcEntity.class, EntityDataSerializers.STRING);
+    private static final EntityDataAccessor<Float> SCALE =
+            SynchedEntityData.defineId(CustomNpcEntity.class, EntityDataSerializers.FLOAT);
     private static final String NO_EMOTE = "";
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
@@ -69,6 +71,7 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
     // Кастомная модель и текстура задаются через NBT
     private static final String MODEL_KEY = "InteractEntity_Model";
     private static final String TEXTURE_KEY = "InteractEntity_Texture";
+    private static final String SCALE_KEY = "InteractEntity_Scale";
 
     public CustomNpcEntity(EntityType<? extends PathfinderMob> type, Level level) {
         super(type, level);
@@ -101,6 +104,16 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
         this.entityData.define(EMOTE_UNTIL, 0L);
         this.entityData.define(MODEL_ID, "");
         this.entityData.define(TEXTURE_ID, "");
+        this.entityData.define(SCALE, 1.0f);
+    }
+
+    @Override
+    public float getScale() {
+        return this.entityData.get(SCALE);
+    }
+
+    public void setNpcScale(float scale) {
+        this.entityData.set(SCALE, Math.max(0.1f, Math.min(5.0f, scale)));
     }
 
     public String getEmote() {
@@ -156,6 +169,7 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
         super.addAdditionalSaveData(compound);
         compound.putString(MODEL_KEY, getModelId());
         compound.putString(TEXTURE_KEY, getTextureId());
+        compound.putFloat(SCALE_KEY, getScale());
     }
 
     @Override
@@ -163,6 +177,7 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
         super.readAdditionalSaveData(compound);
         if (compound.contains(MODEL_KEY)) setModelId(compound.getString(MODEL_KEY));
         if (compound.contains(TEXTURE_KEY)) setTextureId(compound.getString(TEXTURE_KEY));
+        if (compound.contains(SCALE_KEY)) setNpcScale(compound.getFloat(SCALE_KEY));
     }
 
     public ResourceLocation getTextureLocation() {

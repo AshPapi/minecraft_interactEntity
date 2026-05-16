@@ -22,6 +22,7 @@ public class DialogueTree {
     @Nullable private final RevisitConfig revisitConfig;
     @Nullable private final JsonObject summonConfig;
     @Nullable private final JsonObject startTrigger;
+    @Nullable private final JsonObject visualConfig;
     @Nullable private final String faction;
     @Nullable private final String reputationId;
     @Nullable private final String characterInfo;
@@ -35,6 +36,7 @@ public class DialogueTree {
     public DialogueTree(String id, String scope, DialogueTarget target, String displayName, String entryNodeId,
                         Map<String, DialogueNode> nodes, @Nullable RevisitConfig revisitConfig,
                         @Nullable JsonObject summonConfig, @Nullable JsonObject startTrigger,
+                        @Nullable JsonObject visualConfig,
                         @Nullable String faction, @Nullable String reputationId, @Nullable String characterInfo,
                         @Nullable ResourceLocation avatar,
                         @Nullable ResourceLocation background, @Nullable ResourceLocation optionsBackground,
@@ -48,6 +50,7 @@ public class DialogueTree {
         this.revisitConfig = revisitConfig;
         this.summonConfig = summonConfig;
         this.startTrigger = startTrigger;
+        this.visualConfig = visualConfig;
         this.faction = faction;
         this.reputationId = reputationId;
         this.characterInfo = characterInfo;
@@ -70,6 +73,7 @@ public class DialogueTree {
     @Nullable public RevisitConfig getRevisitConfig() { return revisitConfig; }
     @Nullable public JsonObject getSummonConfig() { return summonConfig; }
     @Nullable public JsonObject getStartTrigger() { return startTrigger; }
+    @Nullable public JsonObject getVisualConfig() { return visualConfig; }
     @Nullable public String getFaction() { return faction; }
     @Nullable public String getReputationId() { return reputationId; }
     @Nullable public String getCharacterInfo() { return characterInfo; }
@@ -98,6 +102,7 @@ public class DialogueTree {
 
         JsonObject summonConfig = json.has("summon") ? json.getAsJsonObject("summon") : null;
         JsonObject startTrigger = json.has("start_trigger") ? json.getAsJsonObject("start_trigger") : null;
+        JsonObject visualConfig = json.has("visual") ? json.getAsJsonObject("visual") : null;
         String faction = json.has("faction") ? json.get("faction").getAsString() : null;
         String reputationId = json.has("reputation_id") ? json.get("reputation_id").getAsString() : faction;
         String characterInfo = json.has("character_info") ? json.get("character_info").getAsString() : null;
@@ -130,7 +135,7 @@ public class DialogueTree {
         }
 
         injectScope(json, scope);
-        return new DialogueTree(id, scope, target, displayName, entry, nodes, revisitConfig, summonConfig, startTrigger, faction, reputationId, characterInfo, avatar, background, optionsBackground, invulnerable, repeatable, routines);
+        return new DialogueTree(id, scope, target, displayName, entry, nodes, revisitConfig, summonConfig, startTrigger, visualConfig, faction, reputationId, characterInfo, avatar, background, optionsBackground, invulnerable, repeatable, routines);
     }
 
     /** Recursively injects 'scope' into all JsonObjects that have 'type' (action/condition) and no explicit 'scope'. */

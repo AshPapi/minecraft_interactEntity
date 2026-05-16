@@ -1,8 +1,11 @@
 package net.ashpapi.interactentity.command;
 
 import com.google.gson.JsonObject;
+import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
+import net.ashpapi.interactentity.entity.CustomNpcEntity;
+import net.minecraft.commands.arguments.EntityArgument;
 import net.ashpapi.interactentity.InteractEntityMod;
 import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.ashpapi.interactentity.dialogue.DialogueManager;
@@ -102,7 +105,75 @@ public class NpcCommand {
                 .then(Commands.literal("list")
                     .executes(ctx -> listNearby(ctx.getSource(), 32.0))
                 )
+                .then(Commands.literal("set_model")
+                    .then(Commands.argument("targets", EntityArgument.entities())
+                        .then(Commands.argument("model_path", StringArgumentType.greedyString())
+                            .executes(ctx -> setModel(ctx.getSource(),
+                                    EntityArgument.getEntities(ctx, "targets"),
+                                    StringArgumentType.getString(ctx, "model_path"))))))
+                .then(Commands.literal("set_texture")
+                    .then(Commands.argument("targets", EntityArgument.entities())
+                        .then(Commands.argument("texture_path", StringArgumentType.greedyString())
+                            .executes(ctx -> setTexture(ctx.getSource(),
+                                    EntityArgument.getEntities(ctx, "targets"),
+                                    StringArgumentType.getString(ctx, "texture_path"))))))
+                .then(Commands.literal("set_scale")
+                    .then(Commands.argument("targets", EntityArgument.entities())
+                        .then(Commands.argument("scale", FloatArgumentType.floatArg(0.1f, 5.0f))
+                            .executes(ctx -> setScale(ctx.getSource(),
+                                    EntityArgument.getEntities(ctx, "targets"),
+                                    FloatArgumentType.getFloat(ctx, "scale"))))))
+                .then(Commands.literal("set_name")
+                    .then(Commands.argument("targets", EntityArgument.entities())
+                        .then(Commands.argument("name", StringArgumentType.greedyString())
+                            .executes(ctx -> setName(ctx.getSource(),
+                                    EntityArgument.getEntities(ctx, "targets"),
+                                    StringArgumentType.getString(ctx, "name"))))))
         );
+    }
+
+    private static int setModel(CommandSourceStack src, java.util.Collection<? extends Entity> targets, String path) {
+        int count = 0;
+        for (Entity e : targets) {
+            if (e instanceof CustomNpcEntity npc) { npc.setModelId(path); count++; }
+        }
+        final int n = count;
+        src.sendSuccess(() -> Component.literal("Set model to '" + path + "' on " + n + " NPCs"), true);
+        return n;
+    }
+
+    private static int setTexture(CommandSourceStack src, java.util.Collection<? extends Entity> targets, String path) {
+        int count = 0;
+        for (Entity e : targets) {
+            if (e instanceof CustomNpcEntity npc) { npc.setTextureId(path); count++; }
+        }
+        final int n = count;
+        src.sendSuccess(() -> Component.literal("Set texture to '" + path + "' on " + n + " NPCs"), true);
+        return n;
+    }
+
+    private static int setScale(CommandSourceStack src, java.util.Collection<? extends Entity> targets, float scale) {
+        int count = 0;
+        for (Entity e : targets) {
+            if (e instanceof CustomNpcEntity npc) { npc.setNpcScale(scale); count++; }
+        }
+        final int n = count;
+        src.sendSuccess(() -> Component.literal("Set scale to " + scale + " on " + n + " NPCs"), true);
+        return n;
+    }
+
+    private static int setName(CommandSourceStack src, java.util.Collection<? extends Entity> targets, String name) {
+        int count = 0;
+        for (Entity e : targets) {
+            if (e instanceof LivingEntity living) {
+                living.setCustomName(Component.literal(name));
+                living.setCustomNameVisible(true);
+                count++;
+            }
+        }
+        final int n = count;
+        src.sendSuccess(() -> Component.literal("Set name to '" + name + "' on " + n + " entities"), true);
+        return n;
     }
 
     private static int spawn(CommandSourceStack src, String dialogueId, String entityOverride) {
@@ -150,6 +221,16 @@ public class NpcCommand {
         }
         if (tree.isInvulnerable()) {
             living.setInvulnerable(true);
+        }
+
+        // Apply visual config (texture/model/scale) for CustomNpcEntity.
+        if (living instanceof CustomNpcEntity customNpc) {
+            JsonObject visual = tree.getVisualConfig();
+            if (visual != null) {
+                if (visual.has("texture")) customNpc.setTextureId(visual.get("texture").getAsString());
+                if (visual.has("model")) customNpc.setModelId(visual.get("model").getAsString());
+                if (visual.has("scale")) customNpc.setNpcScale(visual.get("scale").getAsFloat());
+            }
         }
 
         level.addFreshEntity(living);
@@ -257,9 +338,14 @@ public class NpcCommand {
     }
 
     private static String extractEntityType(DialogueTree tree) {
+        // Prefer summon.entity, then target.entity_type from the dialogue JSON.
         JsonObject summon = tree.getSummonConfig();
         if (summon != null && summon.has("entity")) {
             return summon.get("entity").getAsString();
+        }
+        String targetType = tree.getTarget().getEntityType();
+        if (targetType != null && !targetType.isEmpty()) {
+            return targetType;
         }
         return "minecraft:zombie";
     }
