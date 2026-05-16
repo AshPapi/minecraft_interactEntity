@@ -22,8 +22,24 @@ public class KillTrackHandler {
         DialogueSavedData data = DialogueSavedData.get(player.serverLevel());
         data.addKill(typeId);
 
+        java.util.Set<String> tags = event.getEntity().getTags();
+        for (String tag : tags) {
+            data.addKill(typeId + "#" + tag);
+        }
+
         for (QuestState quest : data.getActiveQuests()) {
-            if (typeId.equals(quest.getKillEntityType())) {
+            String questEntityType = quest.getKillEntityType();
+            if (questEntityType == null) continue;
+
+            boolean matches;
+            if (questEntityType.contains("#")) {
+                String[] parts = questEntityType.split("#", 2);
+                matches = typeId.equals(parts[0]) && tags.contains(parts[1]);
+            } else {
+                matches = typeId.equals(questEntityType);
+            }
+
+            if (matches) {
                 quest.addKillProgress(1);
                 data.setDirty();
                 ModNetwork.sendToAll(new QuestUpdatePacket(quest));

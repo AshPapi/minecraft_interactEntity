@@ -20,10 +20,20 @@ public class ConditionRegistry {
     public static boolean check(@Nullable JsonObject conditionJson, ServerPlayer player, LivingEntity entity) {
         if (conditionJson == null) return true;
 
+        if (!conditionJson.has("type") || conditionJson.get("type").isJsonNull()) {
+            InteractEntityMod.LOGGER.warn("Condition is missing 'type' field: {}", conditionJson);
+            return false;
+        }
+
         String type = conditionJson.get("type").getAsString();
         DialogueCondition condition = CONDITIONS.get(type);
         if (condition != null) {
-            return condition.test(player, entity, conditionJson);
+            try {
+                return condition.test(player, entity, conditionJson);
+            } catch (Exception e) {
+                InteractEntityMod.LOGGER.error("Error evaluating condition '{}': {}", type, e.getMessage());
+                return false;
+            }
         }
 
         InteractEntityMod.LOGGER.warn("Unknown condition type: {}", type);

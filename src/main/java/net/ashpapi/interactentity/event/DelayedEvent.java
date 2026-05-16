@@ -13,7 +13,7 @@ import java.util.UUID;
 
 public class DelayedEvent {
     private final String id;
-    private final long fireTick;
+    private long fireTick;
     private final List<JsonObject> actions;
     private final UUID playerUuid;
 
@@ -26,6 +26,7 @@ public class DelayedEvent {
 
     public String getId() { return id; }
     public long getFireTick() { return fireTick; }
+    public void setFireTick(long fireTick) { this.fireTick = fireTick; }
     public List<JsonObject> getActions() { return actions; }
     public UUID getPlayerUuid() { return playerUuid; }
 

@@ -20,7 +20,7 @@ public class HasItemCondition implements DialogueCondition {
         int total = 0;
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack stack = player.getInventory().getItem(i);
-            if (stack.getItem() == item) {
+            if (!stack.isEmpty() && stack.getItem() == item && !stack.hasTag()) {
                 total += stack.getCount();
                 if (total >= requiredCount) return true;
             }

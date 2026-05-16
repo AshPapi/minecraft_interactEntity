@@ -29,6 +29,12 @@ public class PeacefulMobHandler {
     public static void onLivingHurt(LivingHurtEvent event) {
         LivingEntity entity = event.getEntity();
         if (entity.level().isClientSide()) return;
+
+        if (entity instanceof ServerPlayer player && DialogueSession.hasActiveSession(player)) {
+            event.setCanceled(true);
+            return;
+        }
+
         DialogueManager manager = DialogueManager.get();
         if (manager == null) return;
         DialogueTree tree = manager.findDialogueForEntity(entity);

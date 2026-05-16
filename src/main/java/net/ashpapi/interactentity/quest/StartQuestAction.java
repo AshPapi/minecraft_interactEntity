@@ -68,6 +68,9 @@ public class StartQuestAction implements DialogueAction {
         if (questJson.has("required_kills")) {
             JsonObject rk = questJson.getAsJsonObject("required_kills");
             String entityType = rk.get("entity").getAsString();
+            if (rk.has("tag")) {
+                entityType = entityType + "#" + rk.get("tag").getAsString();
+            }
             int count = rk.get("count").getAsInt();
             int objIndex = rk.has("objective") ? rk.get("objective").getAsInt() : 0;
             quest.setRequiredKills(entityType, count, objIndex);

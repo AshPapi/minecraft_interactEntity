@@ -83,7 +83,8 @@ public class HistoryScreen extends Screen {
     private int dialogueScroll = 0;
     private int historyScroll = 0;
     private int questScroll = 0;
-    private int draggingScrollbar = -1; // -1=none, 0=dialogue, 1=history, 2=quest
+    private int detailsScroll = 0;
+    private int draggingScrollbar = -1; // -1=none, 0=dialogue, 1=history, 2=quest, 3=details
 
     private final Map<String, LivingEntity> entityCache = new HashMap<>();
     
@@ -196,6 +197,7 @@ public class HistoryScreen extends Screen {
         drawSection(graphics, dialogueX, dialogueY, dialogueW, dialogueH, tr("dialogues"), CYAN, showingCharacterDetails, mouseX, mouseY);
         if (showingCharacterDetails) {
             renderCharacterDetails(graphics, mouseX, mouseY);
+            drawScrollbar(graphics, dialogueX + dialogueW - 6, dialogueY + HEADER + 5, dialogueH - HEADER - 10, getDetailsContentHeight(), detailsScroll);
         } else {
             renderDialogueList(graphics, mouseX, mouseY);
             drawScrollbar(graphics, dialogueX + dialogueW - 6, dialogueY + HEADER + 5, dialogueH - HEADER - 10, getDialogueContentHeight(), dialogueScroll);
@@ -242,30 +244,33 @@ public class HistoryScreen extends Screen {
         // Применяем анимацию "сверху-вниз" через Scissor
         int animHeight = (int) ( (clipBottom - clipTop) * detailRevealProgress );
         graphics.enableScissor(contentX, clipTop, contentX + contentW, clipTop + animHeight);
-        
+
+        int y = contentY - detailsScroll;
+
         // 1. Имя
         Component name = TextFormatter.format(entry.getDisplayName());
-        drawStringScaled(graphics, name, contentX + 2, contentY, GOLD);
-        contentY += 10;
-        
+        if (y + 10 > clipTop && y < clipBottom) drawStringScaled(graphics, name, contentX + 2, y, GOLD);
+        y += 10;
+
         // 2. Фракция (белый текст, '-' если пусто)
         String faction = entry.getFactionLabel();
         String fValue = (faction != null && !faction.isEmpty()) ? faction : "-";
         String fLabel = tr("bestiary.faction") + ": " + fValue;
-        drawStringScaled(graphics, Component.literal(fLabel), contentX + 2, contentY, 0xFFFFFFFF);
-        contentY += 10;
+        if (y + 10 > clipTop && y < clipBottom) drawStringScaled(graphics, Component.literal(fLabel), contentX + 2, y, 0xFFFFFFFF);
+        y += 10;
 
         // 3. Отрисовка 3D модели
         if (entry.getEntityType() != null) {
             LivingEntity dummy = getCachedEntity(entry.getEntityType());
             if (dummy != null) {
                 int modelX = contentX + contentW / 2;
-                int modelY = contentY + 85;
-                
-                // Эффект легкого скольжения вниз при появлении
+                int modelY = y + 85;
+
                 int slideOffset = (int) (15 * (1.0f - detailRevealProgress));
-                InventoryScreen.renderEntityInInventoryFollowsMouse(graphics, modelX, modelY - slideOffset, 30, (float)modelX - mouseX, (float)modelY - 40 - mouseY, dummy);
-                contentY += 100;
+                if (modelY - 90 < clipBottom && modelY > clipTop) {
+                    InventoryScreen.renderEntityInInventoryFollowsMouse(graphics, modelX, modelY - slideOffset, 30, (float)modelX - mouseX, (float)modelY - 40 - mouseY, dummy);
+                }
+                y += 100;
             }
         }
 
@@ -275,22 +280,22 @@ public class HistoryScreen extends Screen {
             Component rLabel = Component.literal(tr("bestiary.relationship") + ": ").withStyle(net.minecraft.ChatFormatting.WHITE);
             Component rStatus = getReputationStatus(rep);
             Component combined = Component.literal("").append(rLabel).append(rStatus);
-            
-            drawStringScaled(graphics, combined, contentX + 2, contentY, -1);
-            contentY += 10;
+
+            if (y + 10 > clipTop && y < clipBottom) drawStringScaled(graphics, combined, contentX + 2, y, -1);
+            y += 10;
         }
 
         // 5. Квесты
         int completed = getCompletedQuestCount(entry);
         String qLabel = tr("bestiary.quests") + ": " + completed;
-        drawStringScaled(graphics, Component.literal(qLabel), contentX + 2, contentY, 0xFFFFFFFF);
-        contentY += 12;
+        if (y + 12 > clipTop && y < clipBottom) drawStringScaled(graphics, Component.literal(qLabel), contentX + 2, y, 0xFFFFFFFF);
+        y += 12;
 
         // 6. Описание (Lore)
         String lore = entry.getCharacterInfo();
         if (lore != null && !lore.isEmpty()) {
             Component loreComp = TextFormatter.format(lore);
-            drawWrapped(graphics, loreComp, contentX + 2, contentY, contentW - 4, MUTED, clipTop, clipBottom);
+            drawWrapped(graphics, loreComp, contentX + 2, y, contentW - 4, MUTED, clipTop, clipBottom);
         }
 
         graphics.disableScissor();
@@ -592,7 +597,7 @@ public class HistoryScreen extends Screen {
 
         // Проверка клика по скроллбарам
         if (isInside(mouseX, mouseY, dialogueX + dialogueW - 6, dialogueY + HEADER + 5, 4, dialogueH - HEADER - 10)) {
-            draggingScrollbar = 0;
+            draggingScrollbar = showingCharacterDetails ? 3 : 0;
             return true;
         }
         if (isInside(mouseX, mouseY, historyX + historyW - 6, historyY + HEADER + 5, 4, historyH - HEADER - 10)) {
@@ -627,6 +632,7 @@ public class HistoryScreen extends Screen {
                 if (selectedDialogueIndex >= 0 && selectedDialogueIndex != oldIndex) {
                     showingCharacterDetails = true;
                     dialogueScroll = 0;
+                    detailsScroll = 0;
                     startExpansionValue = expansionProgress;
                     lastStateChangeTime = net.minecraft.Util.getMillis();
                     startDetailRevealValue = 0f;
@@ -656,6 +662,10 @@ public class HistoryScreen extends Screen {
         }
         if (draggingScrollbar == 2) {
             questScroll = handleScrollbarDrag(mouseY, questY + HEADER + 5, questH - HEADER - 10, getQuestContentHeight());
+            return true;
+        }
+        if (draggingScrollbar == 3) {
+            detailsScroll = handleScrollbarDrag(mouseY, dialogueY + HEADER + 5, dialogueH - HEADER - 10, getDetailsContentHeight());
             return true;
         }
         return super.mouseDragged(mouseX, mouseY, button, dragX, deltaY);
@@ -730,7 +740,11 @@ public class HistoryScreen extends Screen {
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
         int amount = (int) (delta * 18);
         if (isInside(mouseX, mouseY, dialogueX, dialogueY, dialogueW, dialogueH)) {
-            dialogueScroll = clampScroll(dialogueScroll - amount, getDialogueContentHeight(), getDialogueVisibleHeight());
+            if (showingCharacterDetails) {
+                detailsScroll = clampScroll(detailsScroll - amount, getDetailsContentHeight(), getDialogueVisibleHeight());
+            } else {
+                dialogueScroll = clampScroll(dialogueScroll - amount, getDialogueContentHeight(), getDialogueVisibleHeight());
+            }
             return true;
         }
         if (isInside(mouseX, mouseY, historyX, historyY, historyW, historyH)) {
@@ -817,6 +831,7 @@ public class HistoryScreen extends Screen {
         dialogueScroll = clampScroll(dialogueScroll, getDialogueContentHeight(), getDialogueVisibleHeight());
         historyScroll = clampScroll(historyScroll, getHistoryContentHeight(), getColumnVisibleHeight(historyH));
         questScroll = clampScroll(questScroll, getQuestContentHeight(), getColumnVisibleHeight(questH));
+        detailsScroll = clampScroll(detailsScroll, getDetailsContentHeight(), getDialogueVisibleHeight());
     }
 
     private int clampScroll(int scroll, int contentHeight, int visibleHeight) {
@@ -834,6 +849,17 @@ public class HistoryScreen extends Screen {
 
     private int getDialogueContentHeight() {
         return ClientProgressData.getHistory().size() * ROW_HEIGHT;
+    }
+
+    private int getDetailsContentHeight() {
+        DialogueHistoryEntry entry = getSelectedDialogue();
+        if (entry == null) return 0;
+        int h = 142;
+        String lore = entry.getCharacterInfo();
+        if (lore != null && !lore.isEmpty()) {
+            h += minecraft.font.wordWrapHeight(TextFormatter.format(lore), dialogueW - 12);
+        }
+        return h;
     }
 
     private int getHistoryContentHeight() {

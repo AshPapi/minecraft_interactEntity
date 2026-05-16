@@ -9,6 +9,9 @@ public class KilledMobCondition implements DialogueCondition {
     @Override
     public boolean test(ServerPlayer player, LivingEntity entity, JsonObject params) {
         String type = params.get("entity").getAsString();
+        if (params.has("tag")) {
+            type = type + "#" + params.get("tag").getAsString();
+        }
         int required = params.has("count") ? params.get("count").getAsInt() : 1;
         return DialogueSavedData.get(player.serverLevel()).getKillCount(type) >= required;
     }

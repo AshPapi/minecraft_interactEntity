@@ -34,19 +34,19 @@ public class DelayedEventHandler {
         if (fired.isEmpty()) return;
 
         for (DelayedEvent ev : fired) {
-            data.removeDelayedEvent(ev);
-            
-            // Execute actions only for the player who triggered it
             ServerPlayer targetPlayer = null;
             if (ev.getPlayerUuid() != null) {
                 targetPlayer = server.getPlayerList().getPlayer(ev.getPlayerUuid());
             }
 
             if (targetPlayer != null) {
+                data.removeDelayedEvent(ev);
                 ActionRegistry.executeActions(ev.getActions(), targetPlayer, targetPlayer);
                 InteractEntityMod.LOGGER.debug("Fired delayed event '{}' for player {}", ev.getId(), targetPlayer.getName().getString());
             } else {
-                InteractEntityMod.LOGGER.debug("Delayed event '{}' skipped: player offline", ev.getId());
+                ev.setFireTick(gameTime + 100);
+                data.setDirty();
+                InteractEntityMod.LOGGER.debug("Delayed event '{}' postponed: player offline", ev.getId());
             }
         }
     }

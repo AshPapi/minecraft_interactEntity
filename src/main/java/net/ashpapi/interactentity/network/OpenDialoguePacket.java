@@ -13,6 +13,7 @@ import java.util.function.Supplier;
 
 public class OpenDialoguePacket {
     private final int entityId;
+    private final String nodeId;
     private final String displayName;
     private final String text;
     private final String nodeType;
@@ -29,7 +30,7 @@ public class OpenDialoguePacket {
     private final float cameraYawOffset;
     private final float cameraPitchOffset;
 
-    public OpenDialoguePacket(int entityId, String displayName, String text, String nodeType,
+    public OpenDialoguePacket(int entityId, String nodeId, String displayName, String text, String nodeType,
                               List<String> optionTexts, List<Integer> optionIndices,
                               List<Boolean> optionLocked, List<String> optionLockReasons,
                               ResourceLocation avatarTexture,
@@ -37,6 +38,7 @@ public class OpenDialoguePacket {
                               String factionId, int reputation,
                               String cameraMode, float cameraYawOffset, float cameraPitchOffset) {
         this.entityId = entityId;
+        this.nodeId = nodeId;
         this.displayName = displayName;
         this.text = text;
         this.nodeType = nodeType;
@@ -56,6 +58,7 @@ public class OpenDialoguePacket {
 
     public OpenDialoguePacket(FriendlyByteBuf buf) {
         this.entityId = buf.readInt();
+        this.nodeId = buf.readUtf();
         this.displayName = buf.readUtf();
         this.text = buf.readUtf();
         this.nodeType = buf.readUtf();
@@ -85,6 +88,7 @@ public class OpenDialoguePacket {
 
     public void encode(FriendlyByteBuf buf) {
         buf.writeInt(entityId);
+        buf.writeUtf(nodeId);
         buf.writeUtf(displayName);
         buf.writeUtf(text);
         buf.writeUtf(nodeType);
@@ -116,10 +120,10 @@ public class OpenDialoguePacket {
         ctx.get().enqueueWork(() -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.screen instanceof DialogueScreen screen) {
-                screen.updateDialogue(displayName, text, nodeType, optionTexts, optionIndices, optionLocked, optionLockReasons, avatarTexture, background, optionsBackground);
+                screen.updateDialogue(nodeId, displayName, text, nodeType, optionTexts, optionIndices, optionLocked, optionLockReasons, avatarTexture, background, optionsBackground);
                 screen.setFactionInfo(factionId, reputation);
             } else {
-                DialogueScreen screen = new DialogueScreen(entityId, displayName, text, nodeType,
+                DialogueScreen screen = new DialogueScreen(entityId, nodeId, displayName, text, nodeType,
                         optionTexts, optionIndices, optionLocked, optionLockReasons, avatarTexture, background, optionsBackground);
                 screen.setFactionInfo(factionId, reputation);
                 mc.setScreen(screen);

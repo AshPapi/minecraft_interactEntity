@@ -84,7 +84,10 @@ public class DialogueSession {
     }
 
     public void tick() {
-        if (player == null || entity == null || !entity.isAlive()) {
+        if (player == null || entity == null || !entity.isAlive()
+                || player.level() != entity.level()
+                || player.distanceToSqr(entity) > 256.0D) {
+            ModNetwork.sendToPlayer(player, new CloseDialogueS2CPacket());
             DialogueSession.endSession(player);
             return;
         }
@@ -107,7 +110,7 @@ public class DialogueSession {
         DialogueNode node = tree.getNode(currentNodeId);
         if (node != null && node.getAutoNextTicks() > 0 && node.isLinear()
                 && player.serverLevel().getGameTime() - nodeEnterGameTime >= node.getAutoNextTicks()) {
-            handleNavigate(player, true);
+            handleNavigate(player, currentNodeId, true);
         }
     }
 
@@ -221,6 +224,7 @@ public class DialogueSession {
 
         ModNetwork.sendToPlayer(player, new OpenDialoguePacket(
                 entity.getId(),
+                currentNodeId,
                 net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(tree.getDisplayName(), player, entity),
                 net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(nodeText, player, entity),
                 nodeType,
@@ -360,9 +364,13 @@ public class DialogueSession {
         return ACTIVE_SESSIONS.containsKey(player.getUUID());
     }
 
-    public static void handleOptionSelected(ServerPlayer player, int optionIndex) {
+    public static void handleOptionSelected(ServerPlayer player, String expectedNodeId, int optionIndex) {
         DialogueSession session = getSession(player);
         if (session == null) return;
+        if (expectedNodeId != null && !expectedNodeId.isEmpty() && !expectedNodeId.equals(session.currentNodeId)) {
+            InteractEntityMod.LOGGER.debug("SelectOption ignored: client node '{}' != server node '{}'", expectedNodeId, session.currentNodeId);
+            return;
+        }
 
         DialogueNode currentNode = session.tree.getNode(session.currentNodeId);
         if (currentNode == null || !currentNode.isChoice()) return;
@@ -371,6 +379,11 @@ public class DialogueSession {
         if (optionIndex < 0 || optionIndex >= options.size()) return;
 
         DialogueOption selected = options.get(optionIndex);
+        if (selected.isLocked() || !ConditionRegistry.check(selected.getCondition(), player, session.entity)) {
+            InteractEntityMod.LOGGER.warn("Player {} tried to select locked/unavailable option (dialogue '{}', node '{}', index {})",
+                    player.getName().getString(), session.tree.getId(), session.currentNodeId, optionIndex);
+            return;
+        }
         String resolvedText = net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(selected.getText(), player, session.entity);
         session.historyEntry.addLine(new HistoryLine("player", resolvedText));
 
@@ -402,9 +415,13 @@ public class DialogueSession {
         }
     }
 
-    public static void handleNavigate(ServerPlayer player, boolean forward) {
+    public static void handleNavigate(ServerPlayer player, String expectedNodeId, boolean forward) {
         DialogueSession session = getSession(player);
         if (session == null) return;
+        if (expectedNodeId != null && !expectedNodeId.isEmpty() && !expectedNodeId.equals(session.currentNodeId)) {
+            InteractEntityMod.LOGGER.debug("Navigate ignored: client node '{}' != server node '{}'", expectedNodeId, session.currentNodeId);
+            return;
+        }
 
         DialogueNode currentNode = session.tree.getNode(session.currentNodeId);
         if (currentNode == null) return;

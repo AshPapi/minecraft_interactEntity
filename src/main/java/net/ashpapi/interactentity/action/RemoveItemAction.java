@@ -20,7 +20,7 @@ public class RemoveItemAction implements DialogueAction {
         int remaining = count;
         for (int i = 0; i < player.getInventory().getContainerSize() && remaining > 0; i++) {
             ItemStack stack = player.getInventory().getItem(i);
-            if (stack.getItem() == item) {
+            if (!stack.isEmpty() && stack.getItem() == item && !stack.hasTag()) {
                 int toRemove = Math.min(remaining, stack.getCount());
                 stack.shrink(toRemove);
                 remaining -= toRemove;

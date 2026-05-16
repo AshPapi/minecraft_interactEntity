@@ -23,6 +23,10 @@ public class ActionRegistry {
 
     public static void executeActions(List<JsonObject> actions, ServerPlayer player, LivingEntity entity) {
         for (JsonObject actionJson : actions) {
+            if (!actionJson.has("type") || actionJson.get("type").isJsonNull()) {
+                InteractEntityMod.LOGGER.warn("Action is missing 'type' field: {}", actionJson);
+                continue;
+            }
             String type = actionJson.get("type").getAsString();
             DialogueAction action = ACTIONS.get(type);
             if (action != null) {

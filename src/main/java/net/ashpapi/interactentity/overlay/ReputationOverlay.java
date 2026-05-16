@@ -79,10 +79,11 @@ public class ReputationOverlay {
             if (alphaInt <= 0) continue;
 
             int color = note.delta > 0 ? 0x55FF55 : 0xFF5555;
-            
+
+            String sign = note.delta > 0 ? "+" : "";
             String repLabel = net.minecraft.client.resources.language.I18n.get("gui.interactentity.reputation");
             Component text = Component.literal(repLabel + ": ")
-                    .append(Component.literal(String.valueOf(note.delta)).withStyle(note.delta > 0 ? net.minecraft.ChatFormatting.GREEN : net.minecraft.ChatFormatting.RED));
+                    .append(Component.literal(sign + note.delta).withStyle(note.delta > 0 ? net.minecraft.ChatFormatting.GREEN : net.minecraft.ChatFormatting.RED));
 
             int bgWidth = font.width(text) + 10;
             int bgHeight = 14;

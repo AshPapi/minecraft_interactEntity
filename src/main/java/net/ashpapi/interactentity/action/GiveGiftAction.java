@@ -44,19 +44,27 @@ public class GiveGiftAction implements DialogueAction {
         Item item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(itemId));
         if (item == null) return;
 
-        boolean hasItem = false;
+        int totalFound = 0;
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack stack = player.getInventory().getItem(i);
-            if (!stack.isEmpty() && stack.getItem() == item && stack.getCount() >= amount) {
-                stack.shrink(amount);
-                hasItem = true;
-                break;
+            if (!stack.isEmpty() && stack.getItem() == item && !stack.hasTag()) {
+                totalFound += stack.getCount();
             }
         }
 
-        if (!hasItem) {
+        if (totalFound < amount) {
             player.sendSystemMessage(Component.literal("У вас нет нужного предмета (" + amount + " шт.)!").withStyle(ChatFormatting.RED));
             return;
+        }
+
+        int remaining = amount;
+        for (int i = 0; i < player.getInventory().getContainerSize() && remaining > 0; i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            if (!stack.isEmpty() && stack.getItem() == item && !stack.hasTag()) {
+                int toTake = Math.min(remaining, stack.getCount());
+                stack.shrink(toTake);
+                remaining -= toTake;
+            }
         }
 
         // 3. Выдача награды и запись кулдауна

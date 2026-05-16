@@ -150,6 +150,7 @@ public class EntityInteractHandler {
                     int reputation = repId != null ? DialogueSavedData.get(player.serverLevel()).getReputation(repId) : 0;
                     ModNetwork.sendToPlayer(player, new OpenDialoguePacket(
                             target.getId(),
+                            "revisit",
                             net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(tree.getDisplayName(), player, target),
                             net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(cond.getText(), player, target),
                             "end",
@@ -183,6 +184,7 @@ public class EntityInteractHandler {
             int reputation = repId != null ? DialogueSavedData.get(player.serverLevel()).getReputation(repId) : 0;
             ModNetwork.sendToPlayer(player, new OpenDialoguePacket(
                     target.getId(),
+                    "revisit",
                     net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(tree.getDisplayName(), player, target),
                     net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(defaultText, player, target),
                     "end",

@@ -48,6 +48,7 @@ public class DialogueScreen extends Screen {
     private static final int HINT_COLOR = 0xFF8888AA;
 
     private final int entityId;
+    private String nodeId;
     private String displayName;
     private String dialogueText;
     private String nodeType;
@@ -107,13 +108,14 @@ public class DialogueScreen extends Screen {
         this.reputation = reputation;
     }
 
-    public DialogueScreen(int entityId, String displayName, String text, String nodeType,
+    public DialogueScreen(int entityId, String nodeId, String displayName, String text, String nodeType,
                           List<String> optionTexts, List<Integer> optionIndices,
                           List<Boolean> optionLocked, List<String> optionLockReasons,
                           @Nullable ResourceLocation avatarTexture,
                           @Nullable ResourceLocation background, @Nullable ResourceLocation optionsBackground) {
         super(Component.translatable("gui.interactentity.dialogue"));
         this.entityId = entityId;
+        this.nodeId = nodeId;
         this.displayName = displayName;
         this.dialogueText = text;
         this.nodeType = nodeType;
@@ -431,7 +433,7 @@ public class DialogueScreen extends Screen {
         if (mc.player != null) mc.player.stopUsingItem();
 
         if (showingPlayerResponse && button == 1) {
-            ModNetwork.sendToServer(new SelectOptionPacket(pendingOptionRawIndex));
+            ModNetwork.sendToServer(new SelectOptionPacket(nodeId, pendingOptionRawIndex));
             showingPlayerResponse = false;
             return true;
         }
@@ -447,7 +449,7 @@ public class DialogueScreen extends Screen {
         }
 
         if ("linear".equals(nodeType) && button == 1) {
-            ModNetwork.sendToServer(new NavigatePacket(true));
+            ModNetwork.sendToServer(new NavigatePacket(nodeId, true));
             return true;
         }
 
@@ -482,7 +484,7 @@ public class DialogueScreen extends Screen {
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (showingPlayerResponse && (keyCode == 257 || keyCode == 335 || keyCode == 32)) {
-            ModNetwork.sendToServer(new SelectOptionPacket(pendingOptionRawIndex));
+            ModNetwork.sendToServer(new SelectOptionPacket(nodeId, pendingOptionRawIndex));
             showingPlayerResponse = false;
             return true;
         }
@@ -542,11 +544,12 @@ public class DialogueScreen extends Screen {
         return false;
     }
 
-    public void updateDialogue(String displayName, String text, String nodeType,
+    public void updateDialogue(String nodeId, String displayName, String text, String nodeType,
                                List<String> optionTexts, List<Integer> optionIndices,
                                List<Boolean> optionLocked, List<String> optionLockReasons,
                                @Nullable ResourceLocation avatarTexture,
                                @Nullable ResourceLocation background, @Nullable ResourceLocation optionsBackground) {
+        this.nodeId = nodeId;
         this.displayName = displayName;
         this.dialogueText = text;
         this.nodeType = nodeType;

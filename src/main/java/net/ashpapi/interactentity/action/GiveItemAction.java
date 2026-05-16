@@ -17,7 +17,8 @@ public class GiveItemAction implements DialogueAction {
         Item item = ForgeRegistries.ITEMS.getValue(new ResourceLocation(itemId));
         if (item != null) {
             ItemStack stack = new ItemStack(item, count);
-            if (!player.getInventory().add(stack)) {
+            player.getInventory().add(stack);
+            if (!stack.isEmpty()) {
                 player.drop(stack, false);
             }
         }
