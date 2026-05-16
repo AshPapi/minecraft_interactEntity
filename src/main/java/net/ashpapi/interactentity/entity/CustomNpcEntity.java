@@ -46,10 +46,7 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
     private static final RawAnimation NOD_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.nod");
     private static final RawAnimation SHAKE_HEAD_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.shake_head");
     private static final RawAnimation HAPPY_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.happy");
-    private static final RawAnimation ANGRY_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.angry");
-    private static final RawAnimation SAD_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.sad");
     private static final RawAnimation SHRUG_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.shrug");
-    private static final RawAnimation SALUTE_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.salute");
     private static final RawAnimation POINT_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.point");
     private static final RawAnimation CROSSED_ARMS_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.crossed_arms");
     private static final RawAnimation PLEASE_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.please");
@@ -236,10 +233,7 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
             case "shake_head" -> SHAKE_HEAD_ANIM;
             case "no" -> SHAKE_HEAD_ANIM;
             case "happy" -> HAPPY_ANIM;
-            case "angry" -> ANGRY_ANIM;
-            case "sad" -> SAD_ANIM;
             case "shrug" -> SHRUG_ANIM;
-            case "salute" -> SALUTE_ANIM;
             case "point" -> POINT_ANIM;
             case "crossed_arms" -> CROSSED_ARMS_ANIM;
             case "please" -> PLEASE_ANIM;

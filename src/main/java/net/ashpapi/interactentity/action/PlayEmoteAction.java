@@ -41,19 +41,12 @@ public class PlayEmoteAction implements DialogueAction {
                 level.playSound(null, x, y, z, SoundEvents.VILLAGER_YES, SoundSource.NEUTRAL, 0.7f, 1.2f);
                 level.sendParticles(ParticleTypes.HAPPY_VILLAGER, x, y + 0.5, z, 8, 0.3, 0.3, 0.3, 0.05);
             }
-            case "angry" -> {
-                level.playSound(null, x, y, z, SoundEvents.VILLAGER_NO, SoundSource.NEUTRAL, 0.7f, 0.8f);
-                level.sendParticles(ParticleTypes.ANGRY_VILLAGER, x, y + 0.5, z, 5, 0.2, 0.2, 0.2, 0.0);
-            }
-            case "sad", "facepalm" -> {
+            case "facepalm" -> {
                 level.playSound(null, x, y, z, SoundEvents.VILLAGER_CELEBRATE, SoundSource.NEUTRAL, 0.5f, 0.5f);
                 level.sendParticles(ParticleTypes.CLOUD, x, y + 0.5, z, 3, 0.1, 0.1, 0.1, 0.01);
             }
             case "shrug", "confused" -> {
                 level.playSound(null, x, y, z, SoundEvents.VILLAGER_AMBIENT, SoundSource.NEUTRAL, 0.6f, 1.0f);
-            }
-            case "salute" -> {
-                level.playSound(null, x, y, z, SoundEvents.ARMOR_EQUIP_IRON, SoundSource.NEUTRAL, 0.6f, 1.1f);
             }
             case "point" -> {
                 level.playSound(null, x, y, z, SoundEvents.EXPERIENCE_ORB_PICKUP, SoundSource.NEUTRAL, 0.3f, 0.8f);
@@ -100,10 +93,7 @@ public class PlayEmoteAction implements DialogueAction {
             case "nod" -> 0.7f;
             case "shake_head", "no" -> 0.85f;
             case "happy" -> 1.1f;
-            case "angry" -> 1.0f;
-            case "sad" -> 1.2f;
             case "shrug" -> 1.0f;
-            case "salute" -> 1.0f;
             case "point" -> 1.0f;
             case "crossed_arms" -> 1.1f;
             case "please" -> 1.5f;
