@@ -14,10 +14,17 @@ public class CompleteObjectiveAction implements DialogueAction {
     @Override
     public void execute(ServerPlayer player, LivingEntity entity, JsonObject params) {
         String questId = params.get("quest_id").getAsString();
-        DialogueSavedData data = DialogueDataManager.get(player, params);
+        DialogueSavedData data = DialogueDataManager.findQuestStore(player, params, questId);
         QuestState quest = data.getQuest(questId);
         if (quest == null) {
             InteractEntityMod.LOGGER.warn("Attempted to complete objective for unknown quest '{}'", questId);
+            return;
+        }
+
+        boolean hasSelector = params.has("objective") || params.has("objective_number") || params.has("objective_text");
+        if (!hasSelector) {
+            InteractEntityMod.LOGGER.warn("complete_objective for quest '{}': missing selector. Expected one of: \"objective\" (0-indexed), \"objective_number\" (1-indexed), or \"objective_text\". Got fields: {}",
+                    questId, params.keySet());
             return;
         }
 
@@ -35,7 +42,8 @@ public class CompleteObjectiveAction implements DialogueAction {
             ModNetwork.sendToAll(new QuestUpdatePacket(quest));
             InteractEntityMod.LOGGER.debug("Objective completed for quest '{}' by player {}", questId, player.getName().getString());
         } else {
-            InteractEntityMod.LOGGER.warn("Could not complete objective for quest '{}': {}", questId, params);
+            InteractEntityMod.LOGGER.warn("Could not complete objective for quest '{}' (index out of range or text mismatch). Quest has {} objectives. Params: {}",
+                    questId, quest.getObjectives().size(), params);
         }
     }
 }

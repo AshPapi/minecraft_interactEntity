@@ -111,7 +111,18 @@ public class DialogueTree {
         List<JsonObject> triggers = new ArrayList<>();
         if (json.has("triggers") && json.get("triggers").isJsonArray()) {
             for (JsonElement el : json.getAsJsonArray("triggers")) {
-                if (el.isJsonObject()) triggers.add(el.getAsJsonObject());
+                if (!el.isJsonObject()) continue;
+                JsonObject trig = el.getAsJsonObject();
+                String type = trig.has("type") ? trig.get("type").getAsString() : "";
+                if (!isValidInteractionTrigger(type)) {
+                    net.ashpapi.interactentity.InteractEntityMod.LOGGER.warn(
+                            "Dialogue '{}': triggers[] entry of type '{}' is not a valid interaction trigger and will be ignored. "
+                                    + "Expected one of: proximity, on_hurt, on_death, health_below. "
+                                    + "(spawn triggers like 'on_join'/'after_dialogue' go inside the 'summon.trigger' block.)",
+                            id, type);
+                    continue;
+                }
+                triggers.add(trig);
             }
         } else if (startTrigger != null) {
             triggers.add(startTrigger);
@@ -149,6 +160,11 @@ public class DialogueTree {
 
         injectScope(json, scope);
         return new DialogueTree(id, scope, target, displayName, entry, nodes, revisitConfig, summonConfig, startTrigger, triggers, visualConfig, faction, reputationId, characterInfo, avatar, background, optionsBackground, invulnerable, repeatable, routines);
+    }
+
+    private static boolean isValidInteractionTrigger(String type) {
+        return "proximity".equals(type) || "on_hurt".equals(type)
+                || "on_death".equals(type) || "health_below".equals(type);
     }
 
     /** Recursively injects 'scope' into all JsonObjects that have 'type' (action/condition) and no explicit 'scope'. */

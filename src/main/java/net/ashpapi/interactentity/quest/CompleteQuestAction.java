@@ -15,7 +15,7 @@ public class CompleteQuestAction implements DialogueAction {
     @Override
     public void execute(ServerPlayer player, LivingEntity entity, JsonObject params) {
         String questId = params.get("quest_id").getAsString();
-        DialogueSavedData data = DialogueDataManager.get(player, params);
+        DialogueSavedData data = DialogueDataManager.findQuestStore(player, params, questId);
         QuestState quest = data.getQuest(questId);
         if (quest != null) {
             quest.setStatus("completed");

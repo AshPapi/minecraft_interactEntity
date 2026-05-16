@@ -1,6 +1,7 @@
 package net.ashpapi.interactentity.action;
 
 import com.google.gson.JsonObject;
+import net.ashpapi.interactentity.InteractEntityMod;
 import net.ashpapi.interactentity.dialogue.DialogueManager;
 import net.ashpapi.interactentity.dialogue.DialogueSession;
 import net.ashpapi.interactentity.dialogue.DialogueTree;
@@ -17,7 +18,10 @@ public class ForceDialogueAction implements DialogueAction {
         DialogueManager mgr = DialogueManager.get();
         if (mgr == null) return;
         DialogueTree tree = mgr.getDialogueById(id);
-        if (tree == null) return;
+        if (tree == null) {
+            InteractEntityMod.LOGGER.warn("force_dialogue: unknown dialogue_id '{}'", id);
+            return;
+        }
 
         LivingEntity target = entity;
         if (params.has("target_tag")) {
@@ -26,7 +30,12 @@ public class ForceDialogueAction implements DialogueAction {
             AABB box = player.getBoundingBox().inflate(r);
             List<LivingEntity> found = player.serverLevel().getEntitiesOfClass(LivingEntity.class, box,
                     e -> e.getTags().contains(tag));
-            if (!found.isEmpty()) target = found.get(0);
+            if (found.isEmpty()) {
+                InteractEntityMod.LOGGER.warn("force_dialogue '{}': no entity with tag '{}' found within {} blocks of player {}",
+                        id, tag, r, player.getName().getString());
+                return;
+            }
+            target = found.get(0);
         }
 
         String startNode = params.has("start_node") ? params.get("start_node").getAsString() : tree.getEntryNodeId();

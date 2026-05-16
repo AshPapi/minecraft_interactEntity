@@ -31,7 +31,7 @@ public class DialogueDataManager {
 
     /** Returns the data store for the given scope. Falls back to global when scope is unknown or player data is unavailable. */
     public static DialogueSavedData get(Player player, @Nullable String scope) {
-        if ("player".equalsIgnoreCase(scope)) {
+        if (isPlayerScope(scope)) {
             DialogueSavedData data = getPlayer(player);
             if (data != null) return data;
         }
@@ -42,5 +42,28 @@ public class DialogueDataManager {
     public static DialogueSavedData get(Player player, @Nullable JsonObject params) {
         String scope = params != null && params.has("scope") ? params.get("scope").getAsString() : "global";
         return get(player, scope);
+    }
+
+    /** Accept both "player" and "per_player" (and a few common variants); anything else = global. */
+    public static boolean isPlayerScope(@Nullable String scope) {
+        if (scope == null) return false;
+        String s = scope.trim().toLowerCase(java.util.Locale.ROOT);
+        return s.equals("player") || s.equals("per_player") || s.equals("perplayer") || s.equals("per-player");
+    }
+
+    /** Find which store actually owns a quest. Use for cross-dialogue ops where the
+     *  caller's scope may differ from where the quest was originally stored.
+     *  Checks player first (if requested), then global. Returns the action's scope store as fallback. */
+    public static DialogueSavedData findQuestStore(Player player, @Nullable JsonObject params, String questId) {
+        DialogueSavedData primary = get(player, params);
+        if (primary.getQuest(questId) != null) return primary;
+
+        DialogueSavedData playerData = getPlayer(player);
+        if (playerData != null && playerData != primary && playerData.getQuest(questId) != null) return playerData;
+
+        DialogueSavedData global = getGlobal((ServerLevel) player.level());
+        if (global != primary && global.getQuest(questId) != null) return global;
+
+        return primary; // not found anywhere — caller will warn
     }
 }

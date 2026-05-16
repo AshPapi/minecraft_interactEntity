@@ -190,6 +190,14 @@ public class SummonScheduler {
         DespawnHandler.clear();
     }
 
+    /** Clears the "already triggered" flag for a single dialogue id (all players), and drops any pending spawns for it.
+     *  Pair with /dialogue reload &lt;id&gt; so re-triggers of after_dialogue/on_join work without a full reload. */
+    public static void clearForDialogue(String dialogueId) {
+        String prefix = dialogueId + ":";
+        TRIGGERED_DIALOGUES.removeIf(key -> key.startsWith(prefix));
+        SCHEDULED.removeIf(s -> dialogueId.equals(s.tree.getId()));
+    }
+
     private static class ScheduledSummon {
         final DialogueTree tree;
         final SummonConfig config;

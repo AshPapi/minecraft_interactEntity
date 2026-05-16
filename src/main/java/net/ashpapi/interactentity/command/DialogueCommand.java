@@ -220,6 +220,8 @@ public class DialogueCommand {
                 }
                 ModNetwork.sendToPlayer(p, SyncProgressPacket.createFor(p));
             }
+            // Очищаем in-memory spawn-флаг, иначе after_dialogue/on_join для этого id не сработает повторно
+            SummonScheduler.clearForDialogue(id);
             src.sendSuccess(() -> Component.literal("Reloaded and reset: " + id), true);
             return 1;
         } else {
