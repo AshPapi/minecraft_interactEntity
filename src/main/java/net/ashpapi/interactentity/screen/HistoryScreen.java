@@ -77,6 +77,8 @@ public class HistoryScreen extends Screen {
 
     private float detailRevealProgress = 0f;
     private float startDetailRevealValue = 0f;
+    private float targetDetailReveal = 1f;
+    private boolean closingCharacterDetails = false;
     private long lastDetailChangeTime = 0;
     private static final long DETAIL_ANIM_DURATION = 400;
 
@@ -151,7 +153,11 @@ public class HistoryScreen extends Screen {
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         clampScrollOffsets();
-        
+
+        // Прокручиваем reveal-анимацию ДО branch-выбора, чтобы close-завершение
+        // переключило showingCharacterDetails в том же кадре (иначе один frame пустой).
+        updateDetailRevealAnimation();
+
         // 1. Плавная интерполяция по времени (Time-based LERP)
         if (lastStateChangeTime > 0) {
             long elapsed = net.minecraft.Util.getMillis() - lastStateChangeTime;
@@ -160,7 +166,7 @@ public class HistoryScreen extends Screen {
             // Плавная кривая (Ease-Out) для профессионального ощущения
             float ease = 1.0f - (1.0f - timeFactor) * (1.0f - timeFactor);
             
-            float target = selectedDialogueIndex >= 0 ? 1.0f : 0.0f;
+            float target = (selectedDialogueIndex >= 0 && !closingCharacterDetails) ? 1.0f : 0.0f;
             expansionProgress = net.minecraft.util.Mth.lerp(ease, startExpansionValue, target);
         }
 
@@ -220,19 +226,35 @@ public class HistoryScreen extends Screen {
         }
     }
 
+    /** Прокручивает таймер reveal-анимации. Вызывать ОДИН раз в начале render(),
+     *  до выбора ветки renderCharacterDetails / renderDialogueList — чтобы переключение
+     *  state в момент завершения close-анимации происходило в том же кадре. */
+    private void updateDetailRevealAnimation() {
+        if (lastDetailChangeTime > 0) {
+            long elapsed = net.minecraft.Util.getMillis() - lastDetailChangeTime;
+            float t = net.minecraft.util.Mth.clamp((float)elapsed / DETAIL_ANIM_DURATION, 0.0f, 1.0f);
+            float ease = 1.0f - (1.0f - t) * (1.0f - t);
+            detailRevealProgress = net.minecraft.util.Mth.lerp(ease, startDetailRevealValue, targetDetailReveal);
+            if (t >= 1.0f) {
+                detailRevealProgress = targetDetailReveal;
+                lastDetailChangeTime = 0;
+                if (closingCharacterDetails) {
+                    showingCharacterDetails = false;
+                    closingCharacterDetails = false;
+                    selectedDialogueIndex = -1;
+                }
+            }
+        } else if (!showingCharacterDetails && !closingCharacterDetails) {
+            detailRevealProgress = 0f;
+        }
+    }
+
     private void renderCharacterDetails(GuiGraphics graphics, int mouseX, int mouseY) {
         DialogueHistoryEntry entry = getSelectedDialogue();
         if (entry == null) {
             showingCharacterDetails = false;
+            closingCharacterDetails = false;
             return;
-        }
-
-        // Расчет прогресса вертикального проявления
-        if (lastDetailChangeTime > 0) {
-            long elapsed = net.minecraft.Util.getMillis() - lastDetailChangeTime;
-            detailRevealProgress = net.minecraft.util.Mth.clamp((float)elapsed / DETAIL_ANIM_DURATION, 0.0f, 1.0f);
-        } else {
-            detailRevealProgress = 1.0f;
         }
 
         int contentX = dialogueX + 4;
@@ -241,16 +263,23 @@ public class HistoryScreen extends Screen {
         int clipTop = dialogueY + HEADER + 5;
         int clipBottom = dialogueY + dialogueH - 10;
 
-        // Применяем анимацию "сверху-вниз" через Scissor
+        // 1. Имя — рендерим ДО scissor, чтобы оно не клиппалось во время close-анимации
+        // и было видно непрерывно (его положение совпадает с позицией строки в списке).
+        // Лерп X из позиции списка (contentX+7) к левому краю (contentX+2 как у «Фракция»).
+        int nameY = contentY + 6 - detailsScroll;
+        Component name = TextFormatter.format(entry.getDisplayName());
+        int listNameX = contentX + 7;
+        int openNameX = contentX + 2;
+        int nameX = (int) net.minecraft.util.Mth.lerp(detailRevealProgress, listNameX, openNameX);
+        if (nameY + 10 > clipTop && nameY < clipBottom) {
+            drawStringScaled(graphics, name, nameX, nameY, GOLD);
+        }
+
+        // Применяем анимацию "сверху-вниз" через Scissor для всего ОСТАЛЬНОГО контента
         int animHeight = (int) ( (clipBottom - clipTop) * detailRevealProgress );
         graphics.enableScissor(contentX, clipTop, contentX + contentW, clipTop + animHeight);
 
-        int y = contentY - detailsScroll;
-
-        // 1. Имя
-        Component name = TextFormatter.format(entry.getDisplayName());
-        if (y + 10 > clipTop && y < clipBottom) drawStringScaled(graphics, name, contentX + 2, y, GOLD);
-        y += 10;
+        int y = nameY + 10;
 
         // 2. Фракция (белый текст, '-' если пусто)
         String faction = entry.getFactionLabel();
@@ -291,11 +320,12 @@ public class HistoryScreen extends Screen {
         if (y + 12 > clipTop && y < clipBottom) drawStringScaled(graphics, Component.literal(qLabel), contentX + 2, y, 0xFFFFFFFF);
         y += 12;
 
-        // 6. Описание (Lore)
+        // 6. Описание (Lore) — сужаем правый край (rightInset) чтобы текст не упирался в границу
         String lore = entry.getCharacterInfo();
         if (lore != null && !lore.isEmpty()) {
             Component loreComp = TextFormatter.format(lore);
-            drawWrapped(graphics, loreComp, contentX + 2, y, contentW - 4, MUTED, clipTop, clipBottom);
+            int loreRightInset = 14;
+            drawWrapped(graphics, loreComp, contentX + 2, y, contentW - loreRightInset, MUTED, clipTop, clipBottom);
         }
 
         graphics.disableScissor();
@@ -560,7 +590,7 @@ public class HistoryScreen extends Screen {
                     int markerY = curY + Math.max(0, (textH - lineHeight()) / 2) + 1;
                     drawObjectiveMarker(graphics, objective, markerX, markerY);
                     int objTextCol = useSectionTex ? 0xFF202020 : TEXT;
-                    drawWrapped(graphics, objectiveComponent, textX, curY, textWidth, objTextCol, clipTop, clipBottom);
+                    drawWrapped(graphics, objectiveComponent, textX, curY + 1, textWidth, objTextCol, clipTop, clipBottom);
                 }
                 curY += objH + 2;
             }
@@ -616,12 +646,13 @@ public class HistoryScreen extends Screen {
         }
 
         if (isInsideCharacterBackButton(mouseX, mouseY)) {
-            showingCharacterDetails = false;
-            selectedDialogueIndex = -1; 
+            // Запускаем close-анимацию (снизу вверх). selectedDialogueIndex обнулится когда анимация закончится.
+            closingCharacterDetails = true;
             startExpansionValue = expansionProgress;
             lastStateChangeTime = net.minecraft.Util.getMillis();
-            detailRevealProgress = 0f;
-            lastDetailChangeTime = 0;
+            startDetailRevealValue = detailRevealProgress;
+            targetDetailReveal = 0f;
+            lastDetailChangeTime = net.minecraft.Util.getMillis();
             return true;
         }
 
@@ -631,11 +662,13 @@ public class HistoryScreen extends Screen {
                 selectDialogueAt(mouseY);
                 if (selectedDialogueIndex >= 0 && selectedDialogueIndex != oldIndex) {
                     showingCharacterDetails = true;
+                    closingCharacterDetails = false;
                     dialogueScroll = 0;
                     detailsScroll = 0;
                     startExpansionValue = expansionProgress;
                     lastStateChangeTime = net.minecraft.Util.getMillis();
                     startDetailRevealValue = 0f;
+                    targetDetailReveal = 1f;
                     lastDetailChangeTime = net.minecraft.Util.getMillis();
                 }
             }
@@ -761,11 +794,13 @@ public class HistoryScreen extends Screen {
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
-            if (showingCharacterDetails) {
-                showingCharacterDetails = false;
-                selectedDialogueIndex = -1;
+            if (showingCharacterDetails && !closingCharacterDetails) {
+                closingCharacterDetails = true;
                 startExpansionValue = expansionProgress;
                 lastStateChangeTime = net.minecraft.Util.getMillis();
+                startDetailRevealValue = detailRevealProgress;
+                targetDetailReveal = 0f;
+                lastDetailChangeTime = net.minecraft.Util.getMillis();
                 return true;
             }
             onClose();
