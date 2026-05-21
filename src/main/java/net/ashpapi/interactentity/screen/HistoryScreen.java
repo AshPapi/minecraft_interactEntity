@@ -88,6 +88,21 @@ public class HistoryScreen extends Screen {
     private int detailsScroll = 0;
     private int draggingScrollbar = -1; // -1=none, 0=dialogue, 1=history, 2=quest, 3=details
 
+    // Анимация hover на кнопках X / стрелка назад: 0..1, лерпится по target
+    private float closeButtonHover = 0f;
+    private float backArrowHover = 0f;
+    private float closeButtonPress = 0f;
+    private float backArrowPress = 0f;
+
+    // Геометрия кнопки X (вычисляется в render() и используется в hit-тесте)
+    private int closeButtonX = 0, closeButtonY = 0;
+    // Текущая (анимированная) геометрия панели — нужна mouseClicked'у чтобы корректно
+    // определять «клик за пределами окна» именно по видимым границам, а не по полному размеру.
+    private int currentPanelXCache = 0;
+    private int currentPanelWCache = 0;
+    private static final int CLOSE_BUTTON_SIZE = 14;
+    private static final String CLOSE_X = "✕"; // ✕
+
     private final Map<String, LivingEntity> entityCache = new HashMap<>();
     
     // Оптимизация: кэш текстур и текста
@@ -177,6 +192,8 @@ public class HistoryScreen extends Screen {
         int compactW = dialogueW + PADDING * 2;
         int currentPanelW = (int) net.minecraft.util.Mth.lerp(expansionProgress, compactW, targetFullW);
         int currentPanelX = (this.width - currentPanelW) / 2;
+        currentPanelXCache = currentPanelX;
+        currentPanelWCache = currentPanelW;
 
         // Обновляем координаты относительно динамического центра
         dialogueX = currentPanelX + PADDING;
@@ -195,9 +212,20 @@ public class HistoryScreen extends Screen {
         }
 
         // 4. Заголовок (всегда рисуем, с обрезкой по текущей ширине)
-        graphics.enableScissor(currentPanelX + 4, panelY + 4, currentPanelX + currentPanelW - 4, panelY + WINDOW_HEADER - 3);
+        // Резервируем место справа под X-кнопку — заголовок не должен под неё заезжать
+        int titleClipRight = currentPanelX + currentPanelW - 4 - CLOSE_BUTTON_SIZE - 6;
+        graphics.enableScissor(currentPanelX + 4, panelY + 4, titleClipRight, panelY + WINDOW_HEADER - 3);
         drawStringScaled(graphics, Component.literal(tr("journal_title")), currentPanelX + 14, panelY + 11, 0xFFFFFFFF);
         graphics.disableScissor();
+
+        // 4b. Кнопка X — закрытие окна.
+        closeButtonX = currentPanelX + currentPanelW - CLOSE_BUTTON_SIZE - 6;
+        closeButtonY = panelY + (WINDOW_HEADER - CLOSE_BUTTON_SIZE) / 2;
+        boolean closeHovered = isInsideCloseButton(mouseX, mouseY);
+        // Плавный лерп hover/press к таргетам каждый кадр.
+        closeButtonHover = net.minecraft.util.Mth.lerp(0.20f, closeButtonHover, closeHovered ? 1f : 0f);
+        closeButtonPress = Math.max(0f, closeButtonPress - 0.08f);
+        drawCloseButton(graphics, closeButtonX, closeButtonY, closeButtonHover, closeButtonPress);
 
         // 5. Панель персонажей (всегда видна)
         drawSection(graphics, dialogueX, dialogueY, dialogueW, dialogueH, tr("dialogues"), CYAN, showingCharacterDetails, mouseX, mouseY);
@@ -265,10 +293,11 @@ public class HistoryScreen extends Screen {
 
         // 1. Имя — рендерим ДО scissor, чтобы оно не клиппалось во время close-анимации
         // и было видно непрерывно (его положение совпадает с позицией строки в списке).
-        // Лерп X из позиции списка (contentX+7) к левому краю (contentX+2 как у «Фракция»).
+        // Лерп X из позиции списка (после иконки головы) к левому краю (contentX+2 как у «Фракция»).
         int nameY = contentY + 6 - detailsScroll;
         Component name = TextFormatter.format(entry.getDisplayName());
-        int listNameX = contentX + 7;
+        // listX = dialogueX + 4 = contentX. Иконка: listX+5, размер 12, gap 4 → текст начинается с listX+21.
+        int listNameX = contentX + 21;
         int openNameX = contentX + 2;
         int nameX = (int) net.minecraft.util.Mth.lerp(detailRevealProgress, listNameX, openNameX);
         if (nameY + 10 > clipTop && nameY < clipBottom) {
@@ -403,9 +432,26 @@ public class HistoryScreen extends Screen {
                 graphics.fill(listX, rowY, listX + 2, rowY + ROW_HEIGHT - 2, selected ? GOLD : BORDER_SOFT);
             }
 
+            // Иконка-голова из avatar-текстуры (область 8×8 от (8,8) — лицо в стандартном player-skin layout).
+            int iconSize = 12;
+            int iconX = listX + 5;
+            int iconY = rowY + (ROW_HEIGHT - 2 - iconSize) / 2;
+            drawAvatarHead(graphics, entry.getAvatar(), iconX, iconY, iconSize);
+
             Component label = TextFormatter.format(entry.getDisplayName());
-            drawStringScaled(graphics, label, listX + 7, rowY + 6, selected ? GOLD : TEXT);
+            drawStringScaled(graphics, label, listX + 7 + iconSize + 4, rowY + 6, selected ? GOLD : TEXT);
         }        graphics.disableScissor();
+    }
+
+    /** Рисует квадратную иконку-голову из 64x64 player-skin текстуры (берёт face UV (8,8)→(16,16)). */
+    private void drawAvatarHead(GuiGraphics graphics, String avatarPath, int x, int y, int size) {
+        net.minecraft.resources.ResourceLocation tex = avatarPath != null && !avatarPath.isEmpty()
+                ? net.minecraft.resources.ResourceLocation.tryParse(avatarPath)
+                : null;
+        if (tex == null) tex = new net.minecraft.resources.ResourceLocation("minecraft", "textures/entity/zombie/zombie.png");
+        // Лёгкая рамка вокруг иконки для контраста.
+        graphics.fill(x - 1, y - 1, x + size + 1, y + size + 1, 0xFF1B1F2A);
+        graphics.blit(tex, x, y, size, size, 8.0f, 8.0f, 8, 8, 64, 64);
     }
 
     private void renderSelectedHistory(GuiGraphics graphics) {
@@ -620,7 +666,15 @@ public class HistoryScreen extends Screen {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button != 0) return super.mouseClicked(mouseX, mouseY, button);
 
-        if (!isInside(mouseX, mouseY, panelX, panelY, panelW, panelH)) {
+        // X-кнопка — закрытие.
+        if (isInsideCloseButton(mouseX, mouseY)) {
+            closeButtonPress = 1f;
+            onClose();
+            return true;
+        }
+        // Outside-click закрывает — но границы берутся по ТЕКУЩЕЙ (анимированной) ширине панели,
+        // а не по полной. Иначе при сжатом виде кликать «снаружи» приходилось у самого края экрана.
+        if (!isInside(mouseX, mouseY, currentPanelXCache, panelY, currentPanelWCache, panelH)) {
             onClose();
             return true;
         }
@@ -993,16 +1047,46 @@ public class HistoryScreen extends Screen {
         }
         int titleRight = showBackArrow ? x + w - 24 : x + w - 2;
         graphics.enableScissor(x + 2, y + 1, titleRight, y + HEADER);
-        drawStringScaled(graphics, Component.literal(title), x + PADDING, y + 8, 0xFFFFFFFF); 
+        drawStringScaled(graphics, Component.literal(title), x + PADDING, y + 8, 0xFFFFFFFF);
         graphics.disableScissor();
         if (showBackArrow) {
             int arrowX = x + w - 20;
             boolean hovered = isInside(mouseX, mouseY, arrowX - 4, y + 4, 18, HEADER - 8);
-            if (!useSectionTex && hovered) {
-                graphics.fill(arrowX - 4, y + 4, arrowX + 14, y + HEADER - 4, PANEL_HOVER);
-                drawBorder(graphics, arrowX - 4, y + 4, 18, HEADER - 8, BORDER);
+            // Hover/press лерп — анимация ТОЛЬКО для back-arrow панели персонажей (известная по координате)
+            boolean isCharBack = (x == dialogueX);
+            float hoverProg, pressProg, revealProg;
+            if (isCharBack) {
+                backArrowHover = net.minecraft.util.Mth.lerp(0.20f, backArrowHover, hovered ? 1f : 0f);
+                backArrowPress = Math.max(0f, backArrowPress - 0.08f);
+                hoverProg = backArrowHover;
+                pressProg = backArrowPress;
+                // Стрелка появляется/исчезает синхронно с раскрытием панели деталей
+                revealProg = detailRevealProgress;
+            } else {
+                hoverProg = hovered ? 1f : 0f;
+                pressProg = 0f;
+                revealProg = 1f;
             }
-            drawStringScaled(graphics, Component.literal(BACK_ARROW), arrowX, y + 8, hovered ? TEXT : MUTED);
+            if (revealProg <= 0.01f) return; // полностью скрыта
+            if (!useSectionTex && hoverProg > 0.01f) {
+                int alpha = (int)(hoverProg * 0xFF);
+                int bg = (alpha << 24) | (PANEL_HOVER & 0x00FFFFFF);
+                graphics.fill(arrowX - 4, y + 4, arrowX + 14, y + HEADER - 4, bg);
+                drawBorder(graphics, arrowX - 4, y + 4, 18, HEADER - 8, lerpColor(0x00000000, BORDER, hoverProg));
+            }
+            int color = lerpColor(MUTED, TEXT, hoverProg);
+            // Reveal — слайд слева + scale из 0
+            float scale = 0.6f + 0.4f * revealProg;
+            float slideX = (1f - revealProg) * 6f; // въезжает справа
+            float press = 1.0f - pressProg * 0.10f;
+            graphics.pose().pushPose();
+            float cx = arrowX + 5;
+            float cy = y + HEADER / 2f;
+            graphics.pose().translate(cx + slideX, cy, 0);
+            graphics.pose().scale(scale * press, scale * press, 1f);
+            graphics.pose().translate(-cx, -cy, 0);
+            drawStringScaled(graphics, Component.literal(BACK_ARROW), arrowX, y + 8, color);
+            graphics.pose().popPose();
         }
     }
 
@@ -1089,6 +1173,46 @@ public class HistoryScreen extends Screen {
     }
     private int trackButtonWidth(QuestState quest, int maxWidth) { return maxWidth; }
     private boolean isInsideTrackButton(double mouseX, double mouseY, int x, int y, int width) { return isInside(mouseX, mouseY, x, y, width, QUEST_DETAIL_BUTTON_HEIGHT); }
+    private boolean isInsideCloseButton(double mouseX, double mouseY) {
+        return isInside(mouseX, mouseY, closeButtonX - 2, closeButtonY - 2, CLOSE_BUTTON_SIZE + 4, CLOSE_BUTTON_SIZE + 4);
+    }
+
+    /** Кнопка X в правом-верхнем углу окна с hover/press-анимацией. */
+    private void drawCloseButton(GuiGraphics graphics, int x, int y, float hover, float press) {
+        // Hover красит фон + текст в красный, press дает scale~0.92
+        int bgAlpha = (int) (hover * 0x88);
+        int textColor = lerpColor(0xFFAAAAAA, 0xFFFF5566, hover);
+        if (bgAlpha > 0) {
+            int bg = (bgAlpha << 24) | 0x441122;
+            graphics.fill(x - 2, y - 2, x + CLOSE_BUTTON_SIZE + 2, y + CLOSE_BUTTON_SIZE + 2, bg);
+            drawBorder(graphics, x - 2, y - 2, CLOSE_BUTTON_SIZE + 4, CLOSE_BUTTON_SIZE + 4, lerpColor(0x00000000, 0xFFFF5566, hover));
+        }
+        float scale = 1.0f - press * 0.08f;
+        graphics.pose().pushPose();
+        float cx = x + CLOSE_BUTTON_SIZE / 2f;
+        float cy = y + CLOSE_BUTTON_SIZE / 2f;
+        graphics.pose().translate(cx, cy, 0);
+        graphics.pose().scale(scale, scale, 1f);
+        graphics.pose().translate(-cx, -cy, 0);
+        // ✕ нарисованный как символ.
+        int textW = this.font.width(CLOSE_X);
+        int textY = y + (CLOSE_BUTTON_SIZE - this.font.lineHeight) / 2 + 1;
+        graphics.drawString(this.font, CLOSE_X, x + (CLOSE_BUTTON_SIZE - textW) / 2, textY, textColor, false);
+        graphics.pose().popPose();
+    }
+
+    /** Линейная интерполяция между двумя ARGB-цветами по t ∈ [0,1]. */
+    private static int lerpColor(int from, int to, float t) {
+        t = Math.max(0f, Math.min(1f, t));
+        int fa = (from >>> 24) & 0xFF, fr = (from >>> 16) & 0xFF, fg = (from >>> 8) & 0xFF, fb = from & 0xFF;
+        int ta = (to >>> 24) & 0xFF, tr = (to >>> 16) & 0xFF, tg = (to >>> 8) & 0xFF, tb = to & 0xFF;
+        int a = (int)(fa + (ta - fa) * t);
+        int r = (int)(fr + (tr - fr) * t);
+        int g = (int)(fg + (tg - fg) * t);
+        int b = (int)(fb + (tb - fb) * t);
+        return (a << 24) | (r << 16) | (g << 8) | b;
+    }
+
     private boolean isInsideCharacterBackButton(double mouseX, double mouseY) {
         if (!showingCharacterDetails) return false;
         int arrowX = dialogueX + dialogueW - 20;

@@ -65,12 +65,13 @@ public class DialogueSession {
         DialogueHistoryEntry existing = existingData.getHistoryEntry(tree.getId());
         String entityType = tree.getTarget().getEntityType();
         String characterInfo = tree.getCharacterInfo();
+        String avatar = tree.getAvatar() != null ? tree.getAvatar().toString() : null;
 
         if (existing != null) {
             this.historyEntry = new DialogueHistoryEntry(
                     existing.getDialogueId(), existing.getDisplayName(),
                     this.reputationId, this.factionLabel,
-                    entityType, characterInfo,
+                    entityType, characterInfo, avatar,
                     existing.getLines(), existing.getTimestamp()
             );
         } else {
@@ -78,7 +79,7 @@ public class DialogueSession {
             this.historyEntry = new DialogueHistoryEntry(
                     tree.getId(), resolvedName,
                     this.reputationId, this.factionLabel,
-                    entityType, characterInfo,
+                    entityType, characterInfo, avatar,
                     new ArrayList<>(), player.serverLevel().getGameTime()
             );
         }
