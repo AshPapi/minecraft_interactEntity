@@ -7,6 +7,7 @@ import net.ashpapi.interactentity.action.ActionRegistry;
 import net.ashpapi.interactentity.condition.ConditionRegistry;
 import net.ashpapi.interactentity.entity.ModEntities;
 import net.ashpapi.interactentity.network.ModNetwork;
+import net.ashpapi.interactentity.skin.SkinManager;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -41,5 +42,6 @@ public class InteractEntityMod {
         DialogueManager manager = new DialogueManager();
         DialogueManager.setInstance(manager);
         manager.loadAll();
+        SkinManager.loadAll(event.getServer());
     }
 }

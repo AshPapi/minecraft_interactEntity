@@ -106,6 +106,13 @@ public class ModNetwork {
                 .consumerMainThread(NpcSyncPacket::handle)
                 .add();
 
+        // S2C: dynamic NPC skins (PNG bytes from world folder)
+        CHANNEL.messageBuilder(SkinSyncPacket.class, packetId++, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(SkinSyncPacket::encode)
+                .decoder(SkinSyncPacket::new)
+                .consumerMainThread(SkinSyncPacket::handle)
+                .add();
+
         // S2C: reputation change notification
         CHANNEL.messageBuilder(ReputationToastPacket.class, packetId++, NetworkDirection.PLAY_TO_CLIENT)
                 .encoder(ReputationToastPacket::encode)

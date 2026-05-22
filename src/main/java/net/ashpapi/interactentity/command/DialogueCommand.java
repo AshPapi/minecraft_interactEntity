@@ -149,6 +149,11 @@ public class DialogueCommand {
         }
         SummonScheduler.clearAll();
         mgr.loadAll();
+        // Перечитать скины из <world>/interactentity/skins/ и разослать клиентам.
+        net.ashpapi.interactentity.skin.SkinManager.loadAll(server);
+        net.ashpapi.interactentity.network.SkinSyncPacket skinPacket =
+                new net.ashpapi.interactentity.network.SkinSyncPacket(
+                        net.ashpapi.interactentity.skin.SkinManager.snapshot());
         // Сбрасываем прогресс в обоих хранилищах
         DialogueSavedData data = DialogueDataManager.getGlobal(server.overworld());
         for (String id : mgr.getLoadedIds()) data.resetDialogue(id);
@@ -160,6 +165,7 @@ public class DialogueCommand {
                 pData.clearAllQuests();
             }
             ModNetwork.sendToPlayer(p, SyncProgressPacket.createFor(p));
+            ModNetwork.sendToPlayer(p, skinPacket);
         }
         int count = mgr.getLoadedIds().size();
         src.sendSuccess(() -> Component.literal("Reloaded " + count + " dialogue(s), progress reset"), true);

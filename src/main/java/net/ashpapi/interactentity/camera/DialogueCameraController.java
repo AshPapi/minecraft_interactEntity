@@ -41,7 +41,8 @@ public class DialogueCameraController {
 
     private static final List<KeyFrame> recording = new ArrayList<>();
     private static int sideStartIndex = 0;
-    private static int rewindIndex    = 0;
+    private static float rewindProgress = 0f;
+    private static long lastFrameTime = 0L;
 
     private static float startYaw, startPitch, targetYaw, targetPitch;
     private static Vec3  startPos = Vec3.ZERO, targetPos = Vec3.ZERO, controlPos = Vec3.ZERO;
@@ -103,6 +104,7 @@ public class DialogueCameraController {
             lastAppliedYaw   = savedPlayerYaw;
             lastAppliedPitch = savedPlayerPitch;
             active = true;
+            lastFrameTime = System.currentTimeMillis();
             // Если игрок в F5, оставляем его CameraType как есть, но анимируем камеру к глазам вручную.
             // Так не видно рывка F5 -> первое лицо -> F5.
             CameraType current = mc.options.getCameraType();
@@ -136,6 +138,7 @@ public class DialogueCameraController {
             lastAppliedYaw   = savedPlayerYaw;
             lastAppliedPitch = savedPlayerPitch;
             active = true;
+            lastFrameTime = System.currentTimeMillis();
         }
 
         sideStartIndex = recording.size();
@@ -164,13 +167,15 @@ public class DialogueCameraController {
         overridePos   = true;
         progress      = 0f;
         segmentActive = true;
+        lastFrameTime = System.currentTimeMillis();
     }
 
     public static void stopSide() {
         if (!active || mode == Mode.NPC) return;
         mode          = Mode.SIDE_REWIND;
         segmentActive = false;
-        rewindIndex   = recording.size() - 1;
+        rewindProgress = 0f;
+        lastFrameTime = System.currentTimeMillis();
     }
 
     public static void stop() {
@@ -210,6 +215,7 @@ public class DialogueCameraController {
         startPitch  = lastAppliedPitch;
         progress    = 0f;
         segmentActive = true;
+        lastFrameTime = System.currentTimeMillis();
         calcNpcTarget(mc);
 
         if (pendingFirstPersonStartPos != null && mc.player != null) {
@@ -317,7 +323,15 @@ public class DialogueCameraController {
 
         if (mode == Mode.NPC) calcNpcTarget(mc);
 
-        progress = Math.min(1f, progress + LERP_SPEED);
+        long now = System.currentTimeMillis();
+        if (lastFrameTime == 0L) lastFrameTime = now;
+        float deltaTime = (now - lastFrameTime) / 1000.0f;
+        lastFrameTime = now;
+
+        if (deltaTime > 0.1f) deltaTime = 0.05f; // защита от фризов
+
+        float durationSeconds = 0.6f; // Длительность перехода вперед в секундах (синхронизировано с возвратом)
+        progress = Math.min(1f, progress + deltaTime / durationSeconds);
         float t = easeInOut(progress);
 
         float curYaw   = lerpAngle(startYaw, targetYaw, t);
@@ -354,7 +368,42 @@ public class DialogueCameraController {
     }
 
     private static void doRewind(ViewportEvent.ComputeCameraAngles event, Camera camera, Minecraft mc) {
-        if (rewindIndex < sideStartIndex) {
+        long now = System.currentTimeMillis();
+        if (lastFrameTime == 0L) lastFrameTime = now;
+        float deltaTime = (now - lastFrameTime) / 1000.0f;
+        lastFrameTime = now;
+
+        if (deltaTime > 0.1f) deltaTime = 0.05f;
+
+        float durationSeconds = 0.6f; // Возврат чуть быстрее перелёта вперед
+        rewindProgress = Math.min(1f, rewindProgress + deltaTime / durationSeconds);
+        float t = easeInOut(rewindProgress);
+
+        int totalFrames = recording.size() - 1;
+        if (totalFrames <= 0) {
+            stop();
+            return;
+        }
+
+        int targetIndex = Math.max(0, sideStartIndex - 1);
+        int startIndex = totalFrames;
+        
+        int currentIndex = (int) Mth.lerp(t, startIndex, targetIndex);
+        currentIndex = Mth.clamp(currentIndex, targetIndex, totalFrames);
+
+        if (currentIndex < recording.size()) {
+            KeyFrame k = recording.get(currentIndex);
+            event.setYaw(k.yaw);
+            event.setPitch(k.pitch);
+            lastAppliedYaw   = k.yaw;
+            lastAppliedPitch = k.pitch;
+            if (k.pos != null) {
+                setCameraPos(camera, k.pos);
+                lastCamPos = k.pos;
+            }
+        }
+
+        if (rewindProgress >= 1f) {
             if (sideStartIndex > 0 && sideStartIndex <= recording.size()) {
                 KeyFrame npc = recording.get(sideStartIndex - 1);
                 event.setYaw(npc.yaw);
@@ -384,17 +433,6 @@ public class DialogueCameraController {
                 targetEntityId = pendingEntityId;
                 beginNpcSegment(mc);
             }
-            return;
-        }
-
-        KeyFrame k = recording.get(rewindIndex--);
-        event.setYaw(k.yaw);
-        event.setPitch(k.pitch);
-        lastAppliedYaw   = k.yaw;
-        lastAppliedPitch = k.pitch;
-        if (k.pos != null) {
-            setCameraPos(camera, k.pos);
-            lastCamPos = k.pos;
         }
     }
 
@@ -415,12 +453,8 @@ public class DialogueCameraController {
         if (active && mode == Mode.SIDE && segmentActive) {
             hiding = progress < 0.35f; // Скрываем в начале анимации "от лица"
         } else if (active && mode == Mode.SIDE_REWIND) {
-            int total = recording.size() - sideStartIndex;
-            if (total > 0) {
-                float rewindProgress = 1f - (float)(rewindIndex - sideStartIndex) / total;
-                // Скрываем в конце анимации возврата "в лицо"
-                hiding = savedCameraType == null && rewindProgress > 0.65f;
-            }
+            // Скрываем в конце анимации возврата "в лицо"
+            hiding = savedCameraType == null && rewindProgress > 0.65f;
         }
         
         // КРИТИЧЕСКИЙ ФИКС: Если мы НЕ в режиме SIDE/REWIND (уже вернулись в тело),

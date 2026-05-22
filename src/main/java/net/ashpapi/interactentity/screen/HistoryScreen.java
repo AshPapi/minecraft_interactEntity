@@ -43,7 +43,7 @@ public class HistoryScreen extends Screen {
     private static final ResourceLocation DEFAULT_SECTION_TEX = new ResourceLocation("interactentity", "textures/gui/journal_section.png");
     private static final ResourceLocation DEFAULT_SECTION_SOFT_TEX = new ResourceLocation("interactentity", "textures/gui/journal_section_soft.png");
 
-    private static final float TEXT_SCALE = 0.76f;
+    private static final float TEXT_SCALE = 0.72f;
     private static final int PADDING = 10;
     private static final int GAP = 8;
     private static final int WINDOW_HEADER = 30;
@@ -75,6 +75,10 @@ public class HistoryScreen extends Screen {
     private float expansionProgress = 0f;
     private float startExpansionValue = 0f;
     private long lastStateChangeTime = 0;
+    private long journalOpenStartTime = 0;
+    private boolean closingJournal = false;
+    private long journalCloseStartTime = 0;
+    private static final long JOURNAL_OPEN_DURATION = 300;
     private static final long ANIM_DURATION = 350; // Длительность анимации в мс (0.35 сек)
 
     private float detailRevealProgress = 0f;
@@ -129,6 +133,9 @@ public class HistoryScreen extends Screen {
 
     @Override
     protected void init() {
+        if (this.journalOpenStartTime == 0) {
+            this.journalOpenStartTime = net.minecraft.Util.getMillis();
+        }
         int maxW = Math.min(960, this.width - 44);
         int maxH = Math.min(520, this.height - 34);
         panelW = Math.max(340, maxW);
@@ -177,6 +184,14 @@ public class HistoryScreen extends Screen {
     }
 
     @Override
+    public void onClose() {
+        if (!closingJournal) {
+            closingJournal = true;
+            journalCloseStartTime = net.minecraft.Util.getMillis();
+        }
+    }
+
+    @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         clampScrollOffsets();
 
@@ -195,7 +210,37 @@ public class HistoryScreen extends Screen {
             expansionProgress = net.minecraft.util.Mth.lerp(ease, startExpansionValue, target);
         }
 
-        graphics.fill(0, 0, this.width, this.height, 0x7A05070D);
+        // Вычисляем прогресс анимации открытия/закрытия журнала
+        float openEase;
+        float openTimeFactor;
+        if (closingJournal) {
+            long elapsedClose = net.minecraft.Util.getMillis() - journalCloseStartTime;
+            float closeTimeFactor = net.minecraft.util.Mth.clamp((float) elapsedClose / JOURNAL_OPEN_DURATION, 0.0f, 1.0f);
+            openTimeFactor = 1.0f - closeTimeFactor;
+            // Использовать кубическое Ease-In для openTimeFactor (дает Ease-Out для закрытия в точку)
+            openEase = openTimeFactor * openTimeFactor * openTimeFactor;
+            
+            if (closeTimeFactor >= 1.0f) {
+                super.onClose();
+                return;
+            }
+        } else {
+            long elapsedOpen = net.minecraft.Util.getMillis() - journalOpenStartTime;
+            openTimeFactor = net.minecraft.util.Mth.clamp((float) elapsedOpen / JOURNAL_OPEN_DURATION, 0.0f, 1.0f);
+            openEase = 1.0f - (1.0f - openTimeFactor) * (1.0f - openTimeFactor) * (1.0f - openTimeFactor);
+        }
+
+        // 2. Затемнение заднего фона (Fade-in)
+        int bgAlpha = Math.round(openTimeFactor * 0x7A);
+        graphics.fill(0, 0, this.width, this.height, (bgAlpha << 24) | 0x05070D);
+
+        // Применяем масштабирование из центра экрана для всего содержимого
+        graphics.pose().pushPose();
+        float centerX = this.width / 2.0f;
+        float centerY = this.height / 2.0f;
+        graphics.pose().translate(centerX, centerY, 0);
+        graphics.pose().scale(openEase, openEase, 1.0f);
+        graphics.pose().translate(-centerX, -centerY, 0);
 
         // 2. Динамический расчет размеров
         int targetFullW = panelW;
@@ -238,6 +283,9 @@ public class HistoryScreen extends Screen {
         // 5. Панель персонажей (всегда видна)
         drawSection(graphics, dialogueX, dialogueY, dialogueW, dialogueH, tr("dialogues"), CYAN, showingCharacterDetails, mouseX, mouseY);
         if (showingCharacterDetails) {
+            if (detailRevealProgress < 0.99f) {
+                renderDialogueList(graphics, mouseX, mouseY);
+            }
             renderCharacterDetails(graphics, mouseX, mouseY);
             // Скроллбар деталей обрезаем той же анимированной маской что и контент.
             int dClipTop = dialogueY + HEADER + 5;
@@ -266,6 +314,7 @@ public class HistoryScreen extends Screen {
             
             graphics.disableScissor();
         }
+        graphics.pose().popPose();
     }
 
     /** Тик анимации раскрытия деталей квеста. */
@@ -321,12 +370,14 @@ public class HistoryScreen extends Screen {
         int clipTop = dialogueY + HEADER + 5;
         int clipBottom = dialogueY + dialogueH - 10;
 
-        // Имя + иконка + фон-строки рендерятся вне scissor.
-        // Тайминги разнесены: иконка/фон отрабатывают в первой четверти progress,
-        // имя движется в оставшихся 75% — чтобы не было визуального наложения.
-        int nameY = contentY + 6 - detailsScroll;
+        // Вычисляем начальное Y-положение в списке для выбранного персонажа
+        int startY = contentY - dialogueScroll + selectedDialogueIndex * ROW_HEIGHT;
+        // Плавно морфим Y заголовка от начального положения в списке до верха панели
+        int currentHeaderY = (int) net.minecraft.util.Mth.lerp(detailRevealProgress, startY, contentY - detailsScroll);
+
+        int nameY = currentHeaderY + 6;
         Component name = TextFormatter.format(entry.getDisplayName());
-        int listNameX = contentX + 21;
+        int listNameX = contentX + 23; // Исправлено: 23 вместо 21 для идеального совпадения со списком без прыжков
         int openNameX = contentX + 2;
 
         float iconAnim = net.minecraft.util.Mth.clamp((0.25f - detailRevealProgress) / 0.25f, 0f, 1f);
@@ -334,20 +385,24 @@ public class HistoryScreen extends Screen {
 
         int nameX = (int) net.minecraft.util.Mth.lerp(nameAnim, listNameX, openNameX);
         if (nameY + 10 > clipTop && nameY < clipBottom) {
-            drawStringScaled(graphics, name, nameX, nameY, GOLD);
+            boolean highlighted = (selectedDialogueIndex == keyboardListIndex);
+            int targetListColor = highlighted ? GOLD : TEXT;
+            int currentColor = lerpColor(targetListColor, GOLD, nameAnim);
+            drawStringScaled(graphics, name, nameX, nameY, currentColor);
         }
 
-        // Фон строки + золотая плашка слева (имитация выбранного entry в списке).
-        if (iconAnim > 0.02f) {
+        // Фон строки + золотая плашка слева (плавное затухание по всей длительности раскрытия)
+        float bgAlphaFactor = 1.0f - detailRevealProgress;
+        if (bgAlphaFactor > 0.01f) {
             int rowX = dialogueX + 4;
             int rowW = dialogueW - 8;
-            int rowY = contentY - detailsScroll;
+            int rowY = currentHeaderY;
             int rowH = ROW_HEIGHT - 2;
             if (rowY + rowH > clipTop && rowY < clipBottom) {
-                int bgAlpha = Math.round(0x55 * iconAnim);
+                int bgAlpha = Math.round(0x55 * bgAlphaFactor);
                 int bgColor = (bgAlpha << 24) | 0x425068;
                 graphics.fill(rowX, rowY, rowX + rowW, rowY + rowH, bgColor);
-                int stripAlpha = Math.round(((GOLD >>> 24) & 0xFF) * iconAnim);
+                int stripAlpha = Math.round(((GOLD >>> 24) & 0xFF) * bgAlphaFactor);
                 int stripColor = (stripAlpha << 24) | (GOLD & 0x00FFFFFF);
                 graphics.fill(rowX, rowY, rowX + 2, rowY + rowH, stripColor);
             }
@@ -357,70 +412,85 @@ public class HistoryScreen extends Screen {
         if (iconAnim > 0.02f) {
             int iconSize = 12;
             int iconLeftX = contentX + 5;
-            int iconY = contentY + (ROW_HEIGHT - 2 - iconSize) / 2 - detailsScroll;
+            int iconY = currentHeaderY + (ROW_HEIGHT - 2 - iconSize) / 2;
             int iconRevealW = Math.max(0, (int) Math.ceil(iconSize * iconAnim));
             int iconCenterX = iconLeftX + iconSize / 2;
             int iconRevealX = iconCenterX - iconRevealW / 2;
             if (iconRevealW > 0 && iconY + iconSize > clipTop && iconY < clipBottom) {
                 graphics.enableScissor(iconRevealX, iconY - 1, iconRevealX + iconRevealW, iconY + iconSize + 1);
-                drawAvatarHead(graphics, entry.getAvatar(), iconLeftX, iconY, iconSize);
+                drawAvatarHead(graphics, entry.getAvatar(), iconLeftX, iconY, iconSize, iconAnim);
                 graphics.disableScissor();
             }
         }
 
-        // Применяем анимацию "сверху-вниз" через Scissor для всего ОСТАЛЬНОГО контента
-        int animHeight = (int) ( (clipBottom - clipTop) * detailRevealProgress );
-        graphics.enableScissor(contentX, clipTop, contentX + contentW, clipTop + animHeight);
+        // Применяем scissor для остальных деталей, чтобы они не перекрывали движущийся заголовок
+        int detailsClipTop = Math.max(clipTop, currentHeaderY + ROW_HEIGHT - 2);
+        int animHeight = (int) ((clipBottom - detailsClipTop) * detailRevealProgress);
+        if (animHeight > 0) {
+            graphics.enableScissor(contentX, detailsClipTop, contentX + contentW, detailsClipTop + animHeight);
 
-        int y = nameY + 10;
+            // Плавно проявляем детали только когда аватарка скрылась
+            float detailsAlpha = net.minecraft.util.Mth.clamp((detailRevealProgress - 0.25f) / 0.75f, 0f, 1f);
+            if (detailsAlpha > 0.01f) {
+                int alphaInt = Math.round(detailsAlpha * 255);
+                int detailsColor = (alphaInt << 24) | 0x00FFFFFF;
+                int mutedColor = (alphaInt << 24) | (MUTED & 0x00FFFFFF);
 
-        // 2. Фракция (белый текст, '-' если пусто)
-        String faction = entry.getFactionLabel();
-        String fValue = (faction != null && !faction.isEmpty()) ? faction : "-";
-        String fLabel = tr("bestiary.faction") + ": " + fValue;
-        if (y + 10 > clipTop && y < clipBottom) drawStringScaled(graphics, Component.literal(fLabel), contentX + 2, y, 0xFFFFFFFF);
-        y += 10;
+                int y = nameY + 22;
 
-        // 3. 3D-модель.
-        if (entry.getEntityType() != null) {
-            LivingEntity dummy = getCachedEntity(entry.getEntityType());
-            if (dummy != null) {
-                int modelX = contentX + contentW / 2;
-                int modelY = y + 85;
-                int slideOffset = (int) (15 * (1.0f - detailRevealProgress));
-                if (modelY - 90 < clipBottom && modelY > clipTop) {
-                    InventoryScreen.renderEntityInInventoryFollowsMouse(graphics, modelX, modelY - slideOffset, 30, (float)modelX - mouseX, (float)modelY - 40 - mouseY, dummy);
+                // 2. Фракция (белый текст, '-' если пусто). Выравнивается по nameX для плавного выдвижения
+                String faction = entry.getFactionLabel();
+                String fValue = (faction != null && !faction.isEmpty()) ? faction : "-";
+                Component fComp = Component.literal(tr("bestiary.faction") + ": ").withStyle(net.minecraft.ChatFormatting.GRAY)
+                        .append(Component.literal(fValue).withStyle(net.minecraft.ChatFormatting.WHITE));
+                y = drawWrapped(graphics, fComp, nameX, y, contentW - 4, detailsColor, clipTop, clipBottom);
+
+                // 3. 3D-модель (показывается только когда аватарка уже скрылась)
+                if (entry.getEntityType() != null) {
+                    LivingEntity dummy = getCachedEntity(entry);
+                    if (dummy != null) {
+                        int modelX = contentX + contentW / 2;
+                        int modelY = y + 85;
+                        int slideOffset = (int) (15 * (1.0f - detailRevealProgress));
+                        if (modelY - 90 < clipBottom && modelY > clipTop) {
+                            InventoryScreen.renderEntityInInventoryFollowsMouse(graphics, modelX, modelY - slideOffset, 30, (float)modelX - mouseX, (float)modelY - 40 - mouseY, dummy);
+                        }
+                        y += 100;
+                    }
                 }
-                y += 100;
+
+                // 4. Отношение (в одну строку). Выравнивается по nameX для плавного выдвижения
+                if (entry.getReputationId() != null) {
+                    int rep = ClientProgressData.getReputation(entry.getReputationId());
+                    Component rLabel = Component.literal(tr("bestiary.relationship") + ": ").withStyle(net.minecraft.ChatFormatting.WHITE);
+                    Component rStatus = getReputationStatus(rep);
+                    Component combined = Component.literal("").append(rLabel).append(rStatus);
+
+                    if (y + 10 > clipTop && y < clipBottom) {
+                        drawStringScaled(graphics, combined, nameX, y, detailsColor);
+                    }
+                    y += 10;
+                }
+
+                // 5. Квесты. Выравнивается по nameX для плавного выдвижения
+                int completed = getCompletedQuestCount(entry);
+                String qLabel = tr("bestiary.quests") + ": " + completed;
+                if (y + 12 > clipTop && y < clipBottom) {
+                    drawStringScaled(graphics, Component.literal(qLabel), nameX, y, detailsColor);
+                }
+                y += 12;
+
+                // 6. Описание (Lore). Выравнивается по nameX для плавного выдвижения
+                String lore = entry.getCharacterInfo();
+                if (lore != null && !lore.isEmpty()) {
+                    Component loreComp = TextFormatter.format(lore);
+                    int loreRightInset = 14;
+                    drawWrapped(graphics, loreComp, nameX, y, contentW - loreRightInset, mutedColor, clipTop, clipBottom);
+                }
             }
+
+            graphics.disableScissor();
         }
-
-        // 4. Отношение (в одну строку)
-        if (entry.getReputationId() != null) {
-            int rep = ClientProgressData.getReputation(entry.getReputationId());
-            Component rLabel = Component.literal(tr("bestiary.relationship") + ": ").withStyle(net.minecraft.ChatFormatting.WHITE);
-            Component rStatus = getReputationStatus(rep);
-            Component combined = Component.literal("").append(rLabel).append(rStatus);
-
-            if (y + 10 > clipTop && y < clipBottom) drawStringScaled(graphics, combined, contentX + 2, y, -1);
-            y += 10;
-        }
-
-        // 5. Квесты
-        int completed = getCompletedQuestCount(entry);
-        String qLabel = tr("bestiary.quests") + ": " + completed;
-        if (y + 12 > clipTop && y < clipBottom) drawStringScaled(graphics, Component.literal(qLabel), contentX + 2, y, 0xFFFFFFFF);
-        y += 12;
-
-        // 6. Описание (Lore).
-        String lore = entry.getCharacterInfo();
-        if (lore != null && !lore.isEmpty()) {
-            Component loreComp = TextFormatter.format(lore);
-            int loreRightInset = 14;
-            drawWrapped(graphics, loreComp, contentX + 2, y, contentW - loreRightInset, MUTED, clipTop, clipBottom);
-        }
-
-        graphics.disableScissor();
     }
 
     private Component getReputationStatus(int value) {
@@ -445,24 +515,36 @@ public class HistoryScreen extends Screen {
         return count;
     }
 
-    private LivingEntity getCachedEntity(String typeId) {
-        return entityCache.computeIfAbsent(typeId, id -> {
+    private LivingEntity getCachedEntity(DialogueHistoryEntry entry) {
+        String typeId = entry.getEntityType();
+        String model = entry.getVisualModel() != null ? entry.getVisualModel() : "";
+        String texture = entry.getAvatar() != null ? entry.getAvatar() : "";
+        String cacheKey = typeId + "\0" + model + "\0" + texture;
+        return entityCache.computeIfAbsent(cacheKey, k -> {
             try {
-                Optional<EntityType<?>> type = ForgeRegistries.ENTITY_TYPES.getValue(new ResourceLocation(id)) != null 
-                        ? Optional.of(ForgeRegistries.ENTITY_TYPES.getValue(new ResourceLocation(id))) : Optional.empty();
-                
+                Optional<EntityType<?>> type = ForgeRegistries.ENTITY_TYPES.getValue(new ResourceLocation(typeId)) != null
+                        ? Optional.of(ForgeRegistries.ENTITY_TYPES.getValue(new ResourceLocation(typeId))) : Optional.empty();
                 if (type.isPresent() && Minecraft.getInstance().level != null) {
                     Entity entity = type.get().create(Minecraft.getInstance().level);
-                    if (entity instanceof LivingEntity living) return dummySetup(living);
+                    if (entity instanceof LivingEntity living) return dummySetup(living, entry);
                 }
             } catch (Exception ignored) {}
             return null;
         });
     }
 
-    private LivingEntity dummySetup(LivingEntity entity) {
+    private LivingEntity dummySetup(LivingEntity entity, DialogueHistoryEntry entry) {
         if (entity instanceof Mob mob) {
             mob.setNoAi(true);
+        }
+        if (entity instanceof net.ashpapi.interactentity.entity.CustomNpcEntity npc) {
+            if (entry.getVisualModel() != null && !entry.getVisualModel().isEmpty()) {
+                npc.setModelId(entry.getVisualModel());
+            }
+            // Используем avatar как текстуру (они всегда совпадают для custom_npc)
+            if (entry.getAvatar() != null && !entry.getAvatar().isEmpty()) {
+                npc.setTextureId(entry.getAvatar());
+            }
         }
         return entity;
     }
@@ -488,9 +570,24 @@ public class HistoryScreen extends Screen {
         }
         int highlightedIndex = hoverIndex >= 0 ? hoverIndex : keyboardListIndex;
 
+        float rowAlpha;
+        if (showingCharacterDetails) {
+            float invProgress = 1.0f - detailRevealProgress;
+            rowAlpha = invProgress * invProgress * invProgress;
+        } else {
+            rowAlpha = 1.0f;
+        }
+
         graphics.enableScissor(listX, listY, listX + listW, listY + listH);
         int y = listY - dialogueScroll;
         for (int i = 0; i < history.size(); i++) {
+            if (rowAlpha <= 0.001f) {
+                continue;
+            }
+            if (showingCharacterDetails && i == selectedDialogueIndex) {
+                continue; // Пропускаем, так как эта строка рендерится как морфящийся заголовок в деталях
+            }
+
             DialogueHistoryEntry entry = history.get(i);
             int rowY = y + i * ROW_HEIGHT;
             if (rowY + ROW_HEIGHT < listY || rowY > listY + listH) continue;
@@ -498,31 +595,73 @@ public class HistoryScreen extends Screen {
             boolean highlighted = i == highlightedIndex;
 
             if (!useSectionTex) {
-                int bg = highlighted ? 0x55425068 : 0;
-                if (bg != 0) graphics.fill(listX, rowY, listX + listW, rowY + ROW_HEIGHT - 2, bg);
-                graphics.fill(listX, rowY, listX + 2, rowY + ROW_HEIGHT - 2, highlighted ? GOLD : BORDER_SOFT);
+                if (highlighted) {
+                    boolean currentlyHovered = i == hoverIndex;
+                    int topCol = (Math.round(rowAlpha * (currentlyHovered ? 0x66 : 0x44)) << 24) | 0x425068;
+                    int botCol = (Math.round(rowAlpha * (currentlyHovered ? 0x33 : 0x22)) << 24) | 0x425068;
+                    graphics.fillGradient(listX, rowY, listX + listW, rowY + ROW_HEIGHT - 2, topCol, botCol);
+                    graphics.fill(listX, rowY, listX + 2, rowY + ROW_HEIGHT - 2, (Math.round(rowAlpha * 255) << 24) | (GOLD & 0x00FFFFFF));
+                } else {
+                    graphics.fill(listX, rowY, listX + 2, rowY + ROW_HEIGHT - 2, (Math.round(rowAlpha * 0x33) << 24) | (BORDER_SOFT & 0x00FFFFFF));
+                }
             }
+
+            boolean currentlyHovered = i == hoverIndex;
+            int offsetX = currentlyHovered ? 1 : 0;
+
+            com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+            com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, rowAlpha);
 
             // Иконка-голова из avatar-текстуры (область 8×8 от (8,8) — лицо в стандартном player-skin layout).
             int iconSize = 12;
-            int iconX = listX + 5;
+            int iconX = listX + 5 + offsetX;
             int iconY = rowY + (ROW_HEIGHT - 2 - iconSize) / 2;
-            drawAvatarHead(graphics, entry.getAvatar(), iconX, iconY, iconSize);
+            drawAvatarHead(graphics, entry.getAvatar(), iconX, iconY, iconSize, rowAlpha);
 
             Component label = TextFormatter.format(entry.getDisplayName());
-            drawStringScaled(graphics, label, listX + 7 + iconSize + 4, rowY + 6, highlighted ? GOLD : TEXT);
-        }        graphics.disableScissor();
+            boolean activeQuest = hasActiveQuest(entry);
+            int bookSize = 9;
+            int bookX = listX + listW - bookSize - 4;
+            int bookY = rowY + (ROW_HEIGHT - 2 - bookSize) / 2;
+
+            int nameLeft = listX + 7 + iconSize + 4 + offsetX;
+            int nameRight = activeQuest ? bookX - 4 : listX + listW - 4;
+
+            graphics.enableScissor(nameLeft, rowY - 2, nameRight, rowY + ROW_HEIGHT);
+            int nameColor = (Math.round(rowAlpha * 255) << 24) | ((highlighted ? GOLD : TEXT) & 0x00FFFFFF);
+            drawStringScaled(graphics, label, nameLeft, rowY + 6, nameColor);
+            graphics.disableScissor();
+
+            if (activeQuest) {
+                double time = net.minecraft.Util.getMillis() / 250.0;
+                float floatY = (float) Math.sin(time) * 0.7f;
+                
+                graphics.pose().pushPose();
+                graphics.pose().translate(0, floatY, 0);
+                drawQuestBookIcon(graphics, bookX, bookY, rowAlpha);
+                graphics.pose().popPose();
+            }
+
+            com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+        }
+        graphics.disableScissor();
     }
 
     /** Рисует квадратную иконку-голову из 64x64 player-skin текстуры (берёт face UV (8,8)→(16,16)). */
-    private void drawAvatarHead(GuiGraphics graphics, String avatarPath, int x, int y, int size) {
+    private void drawAvatarHead(GuiGraphics graphics, String avatarPath, int x, int y, int size, float alpha) {
         net.minecraft.resources.ResourceLocation tex = avatarPath != null && !avatarPath.isEmpty()
                 ? net.minecraft.resources.ResourceLocation.tryParse(avatarPath)
                 : null;
         if (tex == null) tex = new net.minecraft.resources.ResourceLocation("minecraft", "textures/entity/zombie/zombie.png");
         // Лёгкая рамка вокруг иконки для контраста.
-        graphics.fill(x - 1, y - 1, x + size + 1, y + size + 1, 0xFF1B1F2A);
+        int bgAlpha = Math.round(alpha * 255);
+        int bgColor = (bgAlpha << 24) | 0x1B1F2A;
+        graphics.fill(x - 1, y - 1, x + size + 1, y + size + 1, bgColor);
+        
+        com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+        com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, alpha);
         graphics.blit(tex, x, y, size, size, 8.0f, 8.0f, 8, 8, 64, 64);
+        com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     private void renderSelectedHistory(GuiGraphics graphics) {
@@ -648,19 +787,29 @@ public class HistoryScreen extends Screen {
         int color = statusColor(quest);
 
         if (!useSectionTex) {
-            int bg = hovered ? PANEL_HOVER : 0x66131620;
-            graphics.fill(x - 3, y - 2, x + width + 3, y + QUEST_ROW_HEIGHT - 3, bg);
-            if (hovered || tracked) drawBorder(graphics, x - 3, y - 2, width + 6, QUEST_ROW_HEIGHT - 1, tracked ? 0x6695C48A : BORDER_SOFT);
+            if (hovered) {
+                // Плавный градиент для наведения на квест
+                graphics.fillGradient(x - 3, y - 2, x + width + 3, y + QUEST_ROW_HEIGHT - 3, 0x66313A4D, 0x33313A4D);
+                drawBorder(graphics, x - 3, y - 2, width + 6, QUEST_ROW_HEIGHT - 1, tracked ? 0xAA95C48A : BORDER);
+            } else {
+                graphics.fill(x - 3, y - 2, x + width + 3, y + QUEST_ROW_HEIGHT - 3, 0x66131620);
+                if (tracked) {
+                    drawBorder(graphics, x - 3, y - 2, width + 6, QUEST_ROW_HEIGHT - 1, 0x6695C48A);
+                }
+            }
             graphics.fill(x - 3, y - 2, x, y + QUEST_ROW_HEIGHT - 3, color);
         }
 
-        int titleW = width - (tracked ? 22 : 8);
-        graphics.enableScissor(x + 5, y, x + 5 + titleW, y + QUEST_ROW_HEIGHT - 3);
-        drawStringScaled(graphics, TextFormatter.format(quest.getTitle()), x + 5, y + 4, color);
+        // Интерактивное смещение текста на 2 пикселя вправо при наведении
+        int offsetX = hovered ? 2 : 0;
+
+        int titleW = width - (tracked ? 22 : 8) - offsetX;
+        graphics.enableScissor(x + 5 + offsetX, y, x + 5 + offsetX + titleW, y + QUEST_ROW_HEIGHT - 3);
+        drawStringScaled(graphics, TextFormatter.format(quest.getTitle()), x + 5 + offsetX, y + 4, color);
         graphics.disableScissor();
         
         int statusCol = useSectionTex ? 0xFF202020 : MUTED;
-        drawStringScaled(graphics, Component.literal(statusText(quest)), x + 5, y + 15, statusCol);
+        drawStringScaled(graphics, Component.literal(statusText(quest)), x + 5 + offsetX, y + 15, statusCol);
         
         if (tracked && !useSectionTex) {
             graphics.fill(x + width - 12, y + 5, x + width - 8, y + 9, CYAN);
@@ -743,6 +892,9 @@ public class HistoryScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        long elapsedOpen = net.minecraft.Util.getMillis() - journalOpenStartTime;
+        if (elapsedOpen < JOURNAL_OPEN_DURATION) return false;
+
         if (button != 0) return super.mouseClicked(mouseX, mouseY, button);
 
         if (isInsideCloseButton(mouseX, mouseY)) {
@@ -802,7 +954,6 @@ public class HistoryScreen extends Screen {
                 if (selectedDialogueIndex >= 0 && selectedDialogueIndex != oldIndex) {
                     showingCharacterDetails = true;
                     closingCharacterDetails = false;
-                    dialogueScroll = 0;
                     detailsScroll = 0;
                     startExpansionValue = expansionProgress;
                     lastStateChangeTime = net.minecraft.Util.getMillis();
@@ -824,6 +975,9 @@ public class HistoryScreen extends Screen {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double deltaY) {
+        long elapsedOpen = net.minecraft.Util.getMillis() - journalOpenStartTime;
+        if (elapsedOpen < JOURNAL_OPEN_DURATION) return false;
+
         if (draggingScrollbar == 0) {
             dialogueScroll = handleScrollbarDrag(mouseY, dialogueY + HEADER + 5, dialogueH - HEADER - 10, getDialogueContentHeight());
             return true;
@@ -939,6 +1093,9 @@ public class HistoryScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+        long elapsedOpen = net.minecraft.Util.getMillis() - journalOpenStartTime;
+        if (elapsedOpen < JOURNAL_OPEN_DURATION) return false;
+
         int amount = (int) (delta * 18);
         if (isInside(mouseX, mouseY, dialogueX, dialogueY, dialogueW, dialogueH)) {
             if (showingCharacterDetails) {
@@ -961,6 +1118,9 @@ public class HistoryScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        long elapsedOpen = net.minecraft.Util.getMillis() - journalOpenStartTime;
+        if (elapsedOpen < JOURNAL_OPEN_DURATION) return false;
+
         if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
             if (showingCharacterDetails && !closingCharacterDetails) {
                 closingCharacterDetails = true;
@@ -1004,7 +1164,6 @@ public class HistoryScreen extends Screen {
                     questScroll = 0;
                     showingCharacterDetails = true;
                     closingCharacterDetails = false;
-                    dialogueScroll = 0;
                     detailsScroll = 0;
                     startExpansionValue = expansionProgress;
                     lastStateChangeTime = net.minecraft.Util.getMillis();
@@ -1048,6 +1207,34 @@ public class HistoryScreen extends Screen {
         }
         result.sort(Comparator.comparing(QuestState::getStatus).thenComparing(QuestState::getTitle));
         return result;
+    }
+
+    private boolean hasActiveQuest(DialogueHistoryEntry dialogue) {
+        for (QuestState quest : ClientProgressData.getAllQuests().values()) {
+            if (belongsToDialogue(quest, dialogue) && "active".equals(quest.getStatus())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void drawQuestBookIcon(GuiGraphics graphics, int x, int y, float alpha) {
+        int cover = lerpColor(0x003A5F2D, 0xFF3A5F2D, alpha);
+        int spine = lerpColor(0x00000000, GOLD, alpha);
+        int pages = lerpColor(0x00F4F4E6, 0xFFF4F4E6, alpha);
+        int separator = lerpColor(0x003A5F2D, 0xFF3A5F2D, alpha);
+        int bookmark = lerpColor(0x00000000, RED, alpha);
+
+        // Обложка (лесной зеленый цвет)
+        graphics.fill(x, y + 1, x + 9, y + 8, cover);
+        // Корешок книги (золотой цвет)
+        graphics.fill(x, y + 1, x + 2, y + 8, spine);
+        // Страницы (мягкий кремово-белый цвет)
+        graphics.fill(x + 2, y + 2, x + 8, y + 7, pages);
+        // Разделитель страниц по центру (эффект раскрытой книги)
+        graphics.fill(x + 4, y + 2, x + 5, y + 7, separator);
+        // Закладка-ленточка (красный цвет)
+        graphics.fill(x + 6, y + 5, x + 7, y + 9, bookmark);
     }
 
     private boolean belongsToDialogue(QuestState quest, DialogueHistoryEntry dialogue) {
@@ -1307,17 +1494,33 @@ public class HistoryScreen extends Screen {
     }
 
     private void drawStringScaled(GuiGraphics graphics, Component text, int x, int y, int color) {
+        float alpha = ((color >> 24) & 0xFF) / 255.0f;
+        
+        com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+        com.mojang.blaze3d.systems.RenderSystem.defaultBlendFunc();
+        com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, alpha);
+        
         graphics.pose().pushPose();
         graphics.pose().scale(TEXT_SCALE, TEXT_SCALE, 1.0f);
         graphics.drawString(this.font, text, Math.round(x / TEXT_SCALE), Math.round(y / TEXT_SCALE), color, false);
         graphics.pose().popPose();
+        
+        com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     private void drawStringScaled(GuiGraphics graphics, FormattedCharSequence text, int x, int y, int color) {
+        float alpha = ((color >> 24) & 0xFF) / 255.0f;
+        
+        com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+        com.mojang.blaze3d.systems.RenderSystem.defaultBlendFunc();
+        com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, alpha);
+        
         graphics.pose().pushPose();
         graphics.pose().scale(TEXT_SCALE, TEXT_SCALE, 1.0f);
         graphics.drawString(this.font, text, Math.round(x / TEXT_SCALE), Math.round(y / TEXT_SCALE), color, false);
         graphics.pose().popPose();
+        
+        com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
     }
 
     private int unscaledWidth(int width) { return Math.max(1, Math.round(width / TEXT_SCALE)); }
@@ -1338,15 +1541,33 @@ public class HistoryScreen extends Screen {
         int bg = hovered ? PANEL_HOVER : 0x771A1E2B;
         int border = tracked ? GREEN : (hovered ? TEXT : BORDER);
         if (y + QUEST_DETAIL_BUTTON_HEIGHT > clipTop && y < clipBottom) {
+            graphics.pose().pushPose();
+            if (hovered) {
+                float scale = 1.02f;
+                float cx = x + width / 2.0f;
+                float cy = y + QUEST_DETAIL_BUTTON_HEIGHT / 2.0f;
+                graphics.pose().translate(cx, cy, 0);
+                graphics.pose().scale(scale, scale, 1.0f);
+                graphics.pose().translate(-cx, -cy, 0);
+            }
+
             graphics.fill(x, y, x + width, y + QUEST_DETAIL_BUTTON_HEIGHT, bg);
             drawBorder(graphics, x, y, width, QUEST_DETAIL_BUTTON_HEIGHT, border);
+
+            if (hovered) {
+                int glowCol = tracked ? (0x5500FF00 & 0x00FFFFFF) | 0x44000000 : 0x33FFFFFF;
+                drawBorder(graphics, x - 1, y - 1, width + 2, QUEST_DETAIL_BUTTON_HEIGHT + 2, glowCol);
+            }
+
             int boxSize = 10, boxX = x + 6, boxY = y + (QUEST_DETAIL_BUTTON_HEIGHT - boxSize) / 2;
             graphics.fill(boxX, boxY, boxX + boxSize, boxY + boxSize, 0x66000000);
             drawBorder(graphics, boxX, boxY, boxSize, boxSize, border);
             if (tracked) drawCheckMark(graphics, boxX + 2, boxY + 2, GREEN);
             String label = trackLabel(quest);
             int labelX = boxX + boxSize + 6, labelY = y + (QUEST_DETAIL_BUTTON_HEIGHT - lineHeight()) / 2 + 1;
-            drawStringScaled(graphics, Component.literal(label), labelX, labelY, hovered ? 0xFFFFFF : (tracked ? GREEN : MUTED));
+            drawStringScaled(graphics, Component.literal(label), labelX, labelY, hovered ? 0xFFFFFFFF : (tracked ? GREEN : MUTED));
+
+            graphics.pose().popPose();
         }
     }
     private void drawCheckMark(GuiGraphics graphics, int x, int y, int color) {

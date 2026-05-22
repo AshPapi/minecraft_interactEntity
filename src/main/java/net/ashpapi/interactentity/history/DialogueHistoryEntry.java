@@ -16,10 +16,11 @@ public class DialogueHistoryEntry {
     private final String entityType;
     private final String characterInfo;
     private final String avatar;
+    private final String visualModel;
     private final List<HistoryLine> lines;
     private long timestamp;
 
-    public DialogueHistoryEntry(String dialogueId, String displayName, String reputationId, String factionLabel, String entityType, String characterInfo, String avatar, List<HistoryLine> lines, long timestamp) {
+    public DialogueHistoryEntry(String dialogueId, String displayName, String reputationId, String factionLabel, String entityType, String characterInfo, String avatar, String visualModel, List<HistoryLine> lines, long timestamp) {
         this.dialogueId = dialogueId;
         this.displayName = displayName;
         this.reputationId = reputationId;
@@ -27,13 +28,14 @@ public class DialogueHistoryEntry {
         this.entityType = entityType;
         this.characterInfo = characterInfo;
         this.avatar = avatar;
+        this.visualModel = visualModel;
         this.lines = new ArrayList<>(lines);
         this.timestamp = timestamp;
     }
 
-    /** Backwards-compat constructor without avatar (delegates with null). */
-    public DialogueHistoryEntry(String dialogueId, String displayName, String reputationId, String factionLabel, String entityType, String characterInfo, List<HistoryLine> lines, long timestamp) {
-        this(dialogueId, displayName, reputationId, factionLabel, entityType, characterInfo, null, lines, timestamp);
+    /** Backwards-compat constructor without visualModel (delegates with null). */
+    public DialogueHistoryEntry(String dialogueId, String displayName, String reputationId, String factionLabel, String entityType, String characterInfo, String avatar, List<HistoryLine> lines, long timestamp) {
+        this(dialogueId, displayName, reputationId, factionLabel, entityType, characterInfo, avatar, null, lines, timestamp);
     }
 
     public String getDialogueId() { return dialogueId; }
@@ -43,6 +45,7 @@ public class DialogueHistoryEntry {
     public String getEntityType() { return entityType; }
     public String getCharacterInfo() { return characterInfo; }
     public String getAvatar() { return avatar; }
+    public String getVisualModel() { return visualModel; }
     public List<HistoryLine> getLines() { return Collections.unmodifiableList(lines); }
     public long getTimestamp() { return timestamp; }
 
@@ -89,6 +92,7 @@ public class DialogueHistoryEntry {
         if (entityType != null) tag.putString("entityType", entityType);
         if (characterInfo != null) tag.putString("characterInfo", characterInfo);
         if (avatar != null) tag.putString("avatar", avatar);
+        if (visualModel != null) tag.putString("visualModel", visualModel);
         tag.putLong("timestamp", timestamp);
 
         ListTag linesTag = new ListTag();
@@ -114,6 +118,7 @@ public class DialogueHistoryEntry {
         String entityType = tag.contains("entityType") ? tag.getString("entityType") : null;
         String characterInfo = tag.contains("characterInfo") ? tag.getString("characterInfo") : null;
         String avatar = tag.contains("avatar") ? tag.getString("avatar") : null;
+        String visualModel = tag.contains("visualModel") ? tag.getString("visualModel") : null;
         
         // Backwards compatibility for old saves
         if (reputationId == null && tag.contains("factionId")) {
@@ -131,6 +136,6 @@ public class DialogueHistoryEntry {
             lines.add(HistoryLine.load(linesTag.getCompound(i)));
         }
 
-        return new DialogueHistoryEntry(dialogueId, displayName, reputationId, factionLabel, entityType, characterInfo, avatar, lines, timestamp);
+        return new DialogueHistoryEntry(dialogueId, displayName, reputationId, factionLabel, entityType, characterInfo, avatar, visualModel, lines, timestamp);
     }
 }

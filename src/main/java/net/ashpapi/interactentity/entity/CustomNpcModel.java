@@ -69,30 +69,44 @@ public class CustomNpcModel extends GeoModel<CustomNpcEntity> {
 
         EntityModelData entityData = animationState.getData(DataTickets.ENTITY_MODEL_DATA);
         
-        // 1. Плавное слежение головой (ванильная логика)
+        // 1. Плавное слежение головой (ванильная логика с LERP сглаживанием во время переходов эмоций)
         if (head != null) {
             float headPitch = Mth.clamp(entityData.headPitch(), -45, 45) * ((float) Math.PI / 180F);
             float headYaw = Mth.wrapDegrees(entityData.netHeadYaw()) * ((float) Math.PI / 180F);
 
-            if (animatable.hasActiveEmote()) {
+            float weight = animatable.getLookWeight();
+            if (weight > 0.0f) {
+                if (neck != null) {
+                    neck.updateRotation(neck.getRotX(), headYaw * 0.25f * weight, neck.getRotZ());
+                }
+                
+                // Целевые углы слежения за игроком
+                float targetRotX = headPitch;
+                float targetRotY = headYaw * 0.75f;
+
+                // Плавно интерполируем от позы, созданной анимацией GeckoLib (head.getRotX() / getRotY()),
+                // к целевым углам слежения в зависимости от weight перехода.
+                head.updateRotation(
+                    Mth.lerp(weight, head.getRotX(), targetRotX),
+                    Mth.lerp(weight, head.getRotY(), targetRotY),
+                    head.getRotZ()
+                );
+            } else {
+                // Во время активной эмоции голова на 100% управляется GeckoLib,
+                // а шея имеет минимальный поворот в сторону игрока для живости взгляда
                 if (neck != null) {
                     neck.updateRotation(neck.getRotX(), headYaw * 0.15f, neck.getRotZ());
                 }
-            } else {
-                if (neck != null) {
-                    neck.updateRotation(neck.getRotX(), headYaw * 0.25f, neck.getRotZ());
-                }
-                head.updateRotation(headPitch, headYaw * 0.75f, head.getRotZ());
             }
         }
 
         // 2. МЯГКОЕ ДЫХАНИЕ (Процедурное)
-        // Добавляем микро-движение грудной клетки, чтобы NPC казался живым
-        if (chest != null) {
+        // Не применяем во время эмота — иначе скейлинг chest перебивает анимацию
+        if (chest != null && !animatable.hasActiveEmote()) {
             float cumulativeTick = animatable.tickCount + animationState.getPartialTick();
             // Очень медленный цикл: ~4 секунды на один вдох-выдох
             float breathing = (float) Math.sin(cumulativeTick * 0.04f);
-            
+
             // Масштабируем только по Y и Z на 1% (почти незаметно, но оживляет модель)
             chest.setScaleY(1.0f + breathing * 0.01f);
             chest.setScaleZ(1.0f + breathing * 0.005f);

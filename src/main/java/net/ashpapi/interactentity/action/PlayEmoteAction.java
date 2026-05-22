@@ -87,29 +87,32 @@ public class PlayEmoteAction implements DialogueAction {
 
     private static int defaultDuration(String emote) {
         String normalized = normalizeEmote(emote);
+        // Длительности соответствуют animation_length из custom_npc_default.animation.json
+        // Небольшой запас (+0.1–0.2 сек) даёт анимации доиграть до конца перед возвратом в idle
         return (int) (switch (normalized) {
-            case "wave" -> 1.25f;
-            case "handshake" -> 1.0f;
-            case "nod" -> 0.7f;
-            case "shake_head", "no" -> 0.85f;
-            case "happy" -> 1.1f;
-            case "shrug" -> 1.0f;
-            case "point" -> 1.0f;
-            case "crossed_arms" -> 1.1f;
-            case "please" -> 1.5f;
-            case "celebrate" -> 1.2f;
-            case "think" -> 1.1f;
-            case "facepalm" -> 1.05f;
-            case "bow" -> 1.2f;
-            case "surprised" -> 0.9f;
-            case "dismiss" -> 1.0f;
-            case "clap" -> 1.15f;
-            case "laugh" -> 1.15f;
-            case "yawn" -> 1.55f;
-            case "beckon" -> 1.1f;
-            case "scared" -> 1.15f;
-            case "confused" -> 1.25f;
-            default -> 0.05f;
+            case "wave"         -> 1.55f;  // animation_length: 1.45
+            case "handshake"    -> 1.55f;  // animation_length: 1.4
+            case "nod"          -> 1.35f;  // animation_length: 1.2
+            case "shake_head", "no" -> 1.65f; // animation_length: 1.5
+            case "happy"        -> 1.25f;  // animation_length: 1.1
+            case "shrug"        -> 1.15f;  // animation_length: 1.0
+            case "point"        -> 2.05f;  // animation_length: 1.9
+            case "crossed_arms" -> 3.15f;  // animation_length: 3.0
+            case "please"       -> 2.85f;  // animation_length: 2.7
+            case "celebrate"    -> 1.35f;  // animation_length: 1.2
+            case "think"        -> 2.05f;  // animation_length: 1.9
+            case "facepalm"     -> 2.15f;  // animation_length: 2.0
+            case "bow"          -> 1.95f;  // animation_length: 1.8
+            case "six_seven"    -> 2.55f;  // animation_length: 2.4
+            case "surprised"    -> 0.9f;
+            case "dismiss"      -> 1.0f;
+            case "clap"         -> 1.15f;
+            case "laugh"        -> 1.15f;
+            case "yawn"         -> 1.55f;
+            case "beckon"       -> 1.1f;
+            case "scared"       -> 1.15f;
+            case "confused"     -> 1.25f;
+            default             -> 1.0f;   // был 0.05 — анимация вообще не успевала сыграть
         } * 20);
     }
 }

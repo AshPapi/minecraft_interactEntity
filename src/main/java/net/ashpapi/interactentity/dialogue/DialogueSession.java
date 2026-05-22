@@ -1,5 +1,6 @@
 package net.ashpapi.interactentity.dialogue;
 
+import com.google.gson.JsonObject;
 import net.ashpapi.interactentity.InteractEntityMod;
 import net.ashpapi.interactentity.action.ActionRegistry;
 import net.ashpapi.interactentity.condition.ConditionRegistry;
@@ -39,6 +40,9 @@ public class DialogueSession {
 
     private boolean completed = false;
     private long nodeEnterGameTime = 0;
+    
+    private int preStartTicks = 15; // 15 тиков на плавный поворот NPC к игроку перед экшнами
+    private boolean started = false;
 
     private String reputationId;
     private String factionLabel;
@@ -66,12 +70,14 @@ public class DialogueSession {
         String entityType = tree.getTarget().getEntityType();
         String characterInfo = tree.getCharacterInfo();
         String avatar = tree.getAvatar() != null ? tree.getAvatar().toString() : null;
+        JsonObject vc = tree.getVisualConfig();
+        String visualModel = (vc != null && vc.has("model")) ? vc.get("model").getAsString() : null;
 
         if (existing != null) {
             this.historyEntry = new DialogueHistoryEntry(
                     existing.getDialogueId(), existing.getDisplayName(),
                     this.reputationId, this.factionLabel,
-                    entityType, characterInfo, avatar,
+                    entityType, characterInfo, avatar, visualModel,
                     existing.getLines(), existing.getTimestamp()
             );
         } else {
@@ -79,7 +85,7 @@ public class DialogueSession {
             this.historyEntry = new DialogueHistoryEntry(
                     tree.getId(), resolvedName,
                     this.reputationId, this.factionLabel,
-                    entityType, characterInfo, avatar,
+                    entityType, characterInfo, avatar, visualModel,
                     new ArrayList<>(), player.serverLevel().getGameTime()
             );
         }
@@ -99,13 +105,21 @@ public class DialogueSession {
         entity.setInvulnerable(true);
 
         if (entity instanceof Mob mob) {
-            // КРИТИЧЕСКИЙ ФИКС: НЕ отключаем AI (setNoAi), чтобы тело могло вращаться.
-            // Вместо этого просто останавливаем навигацию.
             mob.getNavigation().stop();
             mob.setTarget(null);
 
             // Каждый тик плавно поворачиваем моба к игроку
             facePlayer(mob);
+        }
+
+        // Фаза плавного разворота к игроку перед экшнами
+        if (!started && preStartTicks > 0) {
+            preStartTicks--;
+            if (preStartTicks == 0) {
+                started = true;
+                executeStartNodeActions();
+            }
+            return; // Пока поворачиваемся, не обрабатываем остальную логику
         }
 
         // Auto-advance for timed linear nodes
@@ -126,24 +140,46 @@ public class DialogueSession {
             if (mob instanceof net.minecraft.world.entity.monster.Monster) {
                 mob.setLastHurtByMob(null);
             }
-            // Сразу повернуть к игроку при начале диалога
+            // Полностью отключаем AI на время диалога, чтобы он не конфликтовал с поворотом
+            mob.setNoAi(true);
+            // Сразу повернуть к игроку при начале диалога (первая доводка на 15%)
             facePlayer(mob);
         }
     }
 
     private void facePlayer(Mob mob) {
-        // ОПТИМИЗАЦИЯ: используем встроенную систему LookControl для плавности
-        // Это убирает "дерганье" головы, так как Майнкрафт сам интерполирует поворот
-        mob.getLookControl().setLookAt(player, 60.0f, 60.0f);
+        // Вычисляем угол поворота (Yaw) к игроку
+        double dx = player.getX() - mob.getX();
+        double dz = player.getZ() - mob.getZ();
+        float targetYaw = (float) (Mth.atan2(dz, dx) * (180.0D / Math.PI)) - 90.0f;
+        targetYaw = Mth.wrapDegrees(targetYaw);
+
+        // Мягко интерполируем текущий угол моба к целевому (15% сближения за тик)
+        float newYaw = Mth.rotLerp(0.15f, mob.getYRot(), targetYaw);
         
-        // Дополнительно синхронизируем тело, если разница углов слишком велика
-        // Но делаем это мягко, не перебивая LookControl
-        mob.yBodyRot = mob.yHeadRot;
+        // Принудительно устанавливаем и синхронизируем все углы вращения тела и головы
+        // Не перезаписываем yRotO вручную, чтобы движок Minecraft мог плавно интерполировать на клиенте
+        mob.setYRot(newYaw);
+        mob.yBodyRot = newYaw;
+        mob.yHeadRot = newYaw;
+
+        // Вычисляем угол наклона головы (Pitch) к уровню глаз игрока
+        double dy = player.getEyeY() - mob.getEyeY();
+        double distance = Mth.sqrt((float) (dx * dx + dz * dz));
+        float targetPitch = (float) (-(Mth.atan2(dy, distance) * (180.0D / Math.PI)));
+        targetPitch = Mth.clamp(targetPitch, -40.0f, 40.0f);
+        
+        float newPitch = Mth.lerp(0.15f, mob.getXRot(), targetPitch);
+        mob.setXRot(newPitch);
     }
 
     private void unfreezeEntity() {
         entity.setInvulnerable(entityWasInvulnerable);
         entity.getPersistentData().remove("Invulnerable");
+        if (entity instanceof Mob mob) {
+            // Восстанавливаем исходное состояние AI
+            mob.setNoAi(entityWasNoAI);
+        }
     }
 
     public void sendCurrentNode() {
@@ -169,8 +205,12 @@ public class DialogueSession {
             historyEntry.addLine(new HistoryLine(resolvedDisplayName, resolvedNodeText));
             data.addHistory(historyEntry);
 
-            if (!node.getActions().isEmpty() && markActionPoint(data, "node:" + currentNodeId)) {
-                ActionRegistry.executeActions(node.getActions(), player, entity);
+            if (!started && preStartTicks > 0) {
+                // Если мы еще поворачиваемся, откладываем экшены до завершения поворота
+            } else {
+                if (!node.getActions().isEmpty() && markActionPoint(data, "node:" + currentNodeId)) {
+                    ActionRegistry.executeActions(node.getActions(), player, entity);
+                }
             }
             // Если action заменил сессию (summon_npc+start_dialogue, force_dialogue) — не продолжаем
             if (ACTIVE_SESSIONS.get(player.getUUID()) != this) return;
@@ -246,6 +286,17 @@ public class DialogueSession {
         ));
     }
 
+    private void executeStartNodeActions() {
+        DialogueNode node = tree.getNode(currentNodeId);
+        if (node != null) {
+            DialogueSavedData data = getData();
+            if (!node.getActions().isEmpty() && markActionPoint(data, "node:" + currentNodeId)) {
+                ActionRegistry.executeActions(node.getActions(), player, entity);
+            }
+            ModNetwork.sendToPlayer(player, SyncProgressPacket.createFor(player));
+        }
+    }
+
     public static void startSession(ServerPlayer player, LivingEntity entity, DialogueTree tree) {
         if (isEntityBusy(entity)) return; // моб уже занят другим игроком
         clearNotification(player, tree.getId());
@@ -254,6 +305,10 @@ public class DialogueSession {
         PlayerProtectionHandler.protect(player);
         net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
                 new net.ashpapi.interactentity.api.DialogueStartEvent(player, entity, tree.getId(), session.currentNodeId));
+        
+        if (session.preStartTicks <= 0) {
+            session.started = true;
+        }
         session.sendCurrentNode();
     }
 
@@ -283,6 +338,10 @@ public class DialogueSession {
         PlayerProtectionHandler.protect(player);
         net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
                 new net.ashpapi.interactentity.api.DialogueStartEvent(player, entity, tree.getId(), session.currentNodeId));
+        
+        if (session.preStartTicks <= 0) {
+            session.started = true;
+        }
         session.sendCurrentNode();
     }
 

@@ -83,7 +83,7 @@ public class QuestHudOverlay {
         for (int i = 0; i < count; i++) {
             QuestState quest = trackedQuests.get(i);
             totalContentH += 10; // Заголовок
-            totalContentH += quest.getObjectives().size() * 8 + 2; // Цели
+            totalContentH += quest.getObjectives().size() * 10 + 2; // Цели
             if (i < count - 1) totalContentH += 4; // Зазор между квестами
         }
         
@@ -118,14 +118,14 @@ public class QuestHudOverlay {
                 }
             }
 
-            y += 10;
+            y += 12;
             for (String obj : quest.getObjectives()) {
                 Component objComp = TextFormatter.format(objectiveMarker(obj) + " " + QuestState.objectiveText(obj));
                 int objW = font.width(objComp);
                 int color = QuestState.isObjectiveCompleted(obj) ? 0x88CC88 : 0xCCCCCC;
                 int objX = bgX + (bgWidth - objW) / 2;
                 graphics.drawString(font, objComp, objX, y, color, false);
-                y += 8;
+                y += 10;
             }
             y += 4;
         }

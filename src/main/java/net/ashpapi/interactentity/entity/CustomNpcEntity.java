@@ -38,6 +38,10 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
     private long lastEmoteUntil = -1L;
+    /** Тик (tickCount) когда пришёл новый эмот — используется для settle-паузы. */
+    private long emoteStartTickCount = -1L;
+    /** Сколько тиков ждать в idle прежде чем запустить эмот (время «вставания в позу»). */
+    private static final int EMOTE_SETTLE_TICKS = 5;
 
     private static final RawAnimation IDLE_ANIM = RawAnimation.begin().thenLoop("animation.custom_npc.idle");
     private static final RawAnimation WALK_ANIM = RawAnimation.begin().thenLoop("animation.custom_npc.walk");
@@ -127,12 +131,24 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
         this.entityData.set(EMOTE_UNTIL, 0L);
     }
 
+    private float lookWeight = 1.0f;
+
     @Override
     public void tick() {
         super.tick();
         if (!getEmote().isEmpty() && this.level().getGameTime() >= this.entityData.get(EMOTE_UNTIL)) {
             clearEmote();
         }
+
+        if (hasActiveEmote()) {
+            this.lookWeight = Math.max(0.0f, this.lookWeight - 0.1f);
+        } else {
+            this.lookWeight = Math.min(1.0f, this.lookWeight + 0.1f);
+        }
+    }
+
+    public float getLookWeight() {
+        return this.lookWeight;
     }
 
     // === Кастомные модель и текстура ===
@@ -170,10 +186,15 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
 
     public ResourceLocation getTextureLocation() {
         String tex = getTextureId();
-        if (tex != null && !tex.isEmpty()) {
-            return new ResourceLocation(tex);
+        if (tex == null || tex.isEmpty()) {
+            return new ResourceLocation("interactentity", "textures/entity/custom_npc_default.png");
         }
-        return new ResourceLocation("interactentity", "textures/entity/custom_npc_default.png");
+        // Простое имя ("harold") → ищем как динамический скин из <world>/interactentity/skins/.
+        // Тот же ResourceLocation также служит fallback-путём для ресурспака.
+        if (!tex.contains(":") && !tex.contains("/")) {
+            return new ResourceLocation("interactentity", "textures/entity/skins/" + tex + ".png");
+        }
+        return new ResourceLocation(tex);
     }
 
     public ResourceLocation getModelLocation() {
@@ -189,6 +210,13 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         // Контроллер 1: Базовые движения (ходьба/idle)
         controllers.add(new AnimationController<>(this, "base", 10, state -> {
+            // Во время диалога NPC заморожен — форсируем IDLE,
+            // иначе крошечное Y-движение (гравитация на неровном рельефе)
+            // даёт ненулевой limbSwingAmount и вызывает рывки между IDLE и WALK.
+            if (net.ashpapi.interactentity.dialogue.DialogueSession.isEntityBusy(this)) {
+                state.getController().setAnimationSpeed(1.0f);
+                return state.setAndContinue(IDLE_ANIM);
+            }
             if (state.isMoving() && this.hurtTime == 0) {
                 // Ускорили анимацию ног (x2.2), чтобы убрать эффект "замедленной съемки"
                 state.getController().setAnimationSpeed(state.getLimbSwingAmount() * 2.2f);
@@ -199,20 +227,29 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
         }));
 
         // Контроллер 2: Эмоции и жесты
-        controllers.add(new AnimationController<>(this, "emote", 15, state -> {
+        // Transition = 10 тиков: GeckoLib плавно интерполирует кости из idle в начало эмота.
+        controllers.add(new AnimationController<>(this, "emote", 10, state -> {
+            long emoteUntil = this.entityData.get(EMOTE_UNTIL);
+            if (emoteUntil != lastEmoteUntil) {
+                // Новый эмот — запускаем отсчёт settle-паузы.
+                // НЕ вызываем forceAnimationReset: он мешает transition-блендингу GeckoLib.
+                lastEmoteUntil = emoteUntil;
+                emoteStartTickCount = this.tickCount;
+            }
+
             if (this.hasActiveEmote()) {
                 String emote = normalizeEmote(this.getEmote());
                 RawAnimation emoteAnimation = getEmoteAnimation(emote);
                 if (emoteAnimation != null) {
-                    long emoteUntil = this.entityData.get(EMOTE_UNTIL);
-                    if (emoteUntil != lastEmoteUntil) {
-                        state.getController().forceAnimationReset();
-                        lastEmoteUntil = emoteUntil;
+                    // Settle-пауза: даём base-контроллеру вернуть NPC в idle
+                    if (this.tickCount - emoteStartTickCount < EMOTE_SETTLE_TICKS) {
+                        return PlayState.CONTINUE;
                     }
+                    // Settle закончился — GeckoLib плавно блендит из текущей позы (idle) в эмот
                     return state.setAndContinue(emoteAnimation);
                 }
             }
-            return PlayState.CONTINUE; 
+            return PlayState.CONTINUE;
         }));
     }
 
