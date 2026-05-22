@@ -12,8 +12,23 @@ A mod for Minecraft Forge 1.20.1. Lets you build full-featured dialogues with mo
 
 > [🇷🇺 Перейти к русской версии](#русский)
 
-
 Complete reference + tutorial for the **InteractEntity** mod: JSON dialogue format, quests, reputation, NPCs, skins, journal, emotes, KubeJS integration and more. Verified against code in `src/main/java/net/ashpapi/interactentity/`
+
+> [!TIP]
+> ### 💡 Too lazy to read? Let AI write the JSON files for you!
+> You don't have to study the entire guide! You can let an AI (like Gemini or ChatGPT) write fully working JSON dialogue files for you.
+> 
+> Simply **upload or copy this entire `README.md` file** to your AI assistant, and copy-paste the prompt below:
+> 
+> ```
+> You are an expert Minecraft quest writer. Using the attached documentation for the "InteractEntity" mod, generate a fully working branching dialogue in the specified JSON format.
+> 
+> Story details: [Describe your story/quest here. E.g., "A blacksmith named Borgin wants 10 iron ingots. If player brings them, remove iron, reward with a diamond, give +20 guild reputation, and spawn a sage NPC in front of the player. Otherwise tell him to come back later."]
+> 
+> Output ONLY the clean, valid JSON matching the spec. Double-check for trailing commas and correct action/condition types.
+> ```
+> 
+> Once generated, paste the JSON into your dialogue file inside the world, run `/dialogue reload` in-game, and test it!
 
 ---
 
@@ -1812,8 +1827,23 @@ If something doesn't work — check the server log, look for `[InteractEntity]`,
 
 > [🇬🇧 Switch to English](#english)
 
-
 Полный справочник + туториал по моду **InteractEntity**: JSON-формат диалогов, квесты, репутация, NPC, скины, журнал, эмоции, KubeJS-интеграция и всё остальное. Сверено с кодом в `src/main/java/net/ashpapi/interactentity/`.
+
+> [!TIP]
+> ### 💡 Лень читать? Пусть JSON-файлы напишет нейросеть!
+> Вам не обязательно изучать всё руководство целиком! Вы можете поручить создание готовых JSON-файлов диалогов нейросети (например, Gemini или ChatGPT).
+> 
+> Просто **загрузите или скопируйте весь этот файл `README.md`** вашему ИИ-ассистенту и отправьте следующий промпт:
+> 
+> ```
+> Ты — профессиональный сценарист квестов в Minecraft. Используя прикреплённое руководство по моду "InteractEntity", напиши полностью рабочий ветвящийся диалог в указанном JSON-формате.
+> 
+> Сюжет квеста: [Опишите здесь свой сюжет своими словами. Например: "Кузнец по имени Боргин просит принести ему 10 железных слитков. Если игрок приносит их, забрать железо, выдать в награду алмаз, дать +20 репутации гильдии кузнецов и заспавнить NPC Старца перед игроком. Иначе сказать, чтобы приходил позже."]
+> 
+> Выдай строго готовый и чистый JSON, соответствующий спецификации. Внимательно проверь синтаксис (запятые) и правильность типов действий (actions) и условий (conditions).
+> ```
+> 
+> Скопируйте полученный JSON в файл вашего диалога в папке мира, напишите в игре `/dialogue reload` — и всё готово к тестированию!
 
 **Авторитет:** этот документ > `README.md` при расхождениях.
 
