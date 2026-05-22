@@ -67,6 +67,8 @@ public class HistoryScreen extends Screen {
     private int questX, questY, questW, questH;
 
     private int selectedDialogueIndex = -1;
+    /** Sticky визуальное выделение строки списка (клик / стрелки / close-анимация). */
+    private int keyboardListIndex = -1;
     private String selectedQuestId = null;
     private boolean showingCharacterDetails = false;
     
@@ -82,6 +84,14 @@ public class HistoryScreen extends Screen {
     private long lastDetailChangeTime = 0;
     private static final long DETAIL_ANIM_DURATION = 400;
 
+    // Анимация раскрытия деталей квеста (0 = список, 1 = детали выбранного).
+    private float questRevealProgress = 0f;
+    private float startQuestRevealValue = 0f;
+    private float targetQuestReveal = 0f;
+    private boolean closingQuestDetails = false;
+    private long lastQuestRevealChangeTime = 0;
+    private static final long QUEST_ANIM_DURATION = 400;
+
     private int dialogueScroll = 0;
     private int historyScroll = 0;
     private int questScroll = 0;
@@ -93,11 +103,12 @@ public class HistoryScreen extends Screen {
     private float backArrowHover = 0f;
     private float closeButtonPress = 0f;
     private float backArrowPress = 0f;
+    private float questBackArrowHover = 0f;
+    private float questBackArrowPress = 0f;
 
-    // Геометрия кнопки X (вычисляется в render() и используется в hit-тесте)
+    // Координаты X-кнопки, обновляются в render() и читаются hit-тестом.
     private int closeButtonX = 0, closeButtonY = 0;
-    // Текущая (анимированная) геометрия панели — нужна mouseClicked'у чтобы корректно
-    // определять «клик за пределами окна» именно по видимым границам, а не по полному размеру.
+    // Текущая анимированная геометрия панели — используется в mouseClicked для outside-hit.
     private int currentPanelXCache = 0;
     private int currentPanelWCache = 0;
     private static final int CLOSE_BUTTON_SIZE = 14;
@@ -169,9 +180,8 @@ public class HistoryScreen extends Screen {
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
         clampScrollOffsets();
 
-        // Прокручиваем reveal-анимацию ДО branch-выбора, чтобы close-завершение
-        // переключило showingCharacterDetails в том же кадре (иначе один frame пустой).
         updateDetailRevealAnimation();
+        updateQuestRevealAnimation();
 
         // 1. Плавная интерполяция по времени (Time-based LERP)
         if (lastStateChangeTime > 0) {
@@ -211,8 +221,7 @@ public class HistoryScreen extends Screen {
             graphics.fill(currentPanelX + 1, panelY + WINDOW_HEADER - 1, currentPanelX + currentPanelW - 1, panelY + WINDOW_HEADER, BORDER);
         }
 
-        // 4. Заголовок (всегда рисуем, с обрезкой по текущей ширине)
-        // Резервируем место справа под X-кнопку — заголовок не должен под неё заезжать
+        // 4. Заголовок (всегда рисуем, с обрезкой по текущей ширине).
         int titleClipRight = currentPanelX + currentPanelW - 4 - CLOSE_BUTTON_SIZE - 6;
         graphics.enableScissor(currentPanelX + 4, panelY + 4, titleClipRight, panelY + WINDOW_HEADER - 3);
         drawStringScaled(graphics, Component.literal(tr("journal_title")), currentPanelX + 14, panelY + 11, 0xFFFFFFFF);
@@ -222,7 +231,6 @@ public class HistoryScreen extends Screen {
         closeButtonX = currentPanelX + currentPanelW - CLOSE_BUTTON_SIZE - 6;
         closeButtonY = panelY + (WINDOW_HEADER - CLOSE_BUTTON_SIZE) / 2;
         boolean closeHovered = isInsideCloseButton(mouseX, mouseY);
-        // Плавный лерп hover/press к таргетам каждый кадр.
         closeButtonHover = net.minecraft.util.Mth.lerp(0.20f, closeButtonHover, closeHovered ? 1f : 0f);
         closeButtonPress = Math.max(0f, closeButtonPress - 0.08f);
         drawCloseButton(graphics, closeButtonX, closeButtonY, closeButtonHover, closeButtonPress);
@@ -231,7 +239,13 @@ public class HistoryScreen extends Screen {
         drawSection(graphics, dialogueX, dialogueY, dialogueW, dialogueH, tr("dialogues"), CYAN, showingCharacterDetails, mouseX, mouseY);
         if (showingCharacterDetails) {
             renderCharacterDetails(graphics, mouseX, mouseY);
-            drawScrollbar(graphics, dialogueX + dialogueW - 6, dialogueY + HEADER + 5, dialogueH - HEADER - 10, getDetailsContentHeight(), detailsScroll);
+            // Скроллбар деталей обрезаем той же анимированной маской что и контент.
+            int dClipTop = dialogueY + HEADER + 5;
+            int dClipBottom = dialogueY + dialogueH - 10;
+            int dAnimH = (int) ((dClipBottom - dClipTop) * detailRevealProgress);
+            graphics.enableScissor(dialogueX, dClipTop, dialogueX + dialogueW, dClipTop + dAnimH);
+            drawScrollbar(graphics, dialogueX + dialogueW - 6, dClipTop, dialogueH - HEADER - 10, getDetailsContentHeight(), detailsScroll);
+            graphics.disableScissor();
         } else {
             renderDialogueList(graphics, mouseX, mouseY);
             drawScrollbar(graphics, dialogueX + dialogueW - 6, dialogueY + HEADER + 5, dialogueH - HEADER - 10, getDialogueContentHeight(), dialogueScroll);
@@ -254,9 +268,25 @@ public class HistoryScreen extends Screen {
         }
     }
 
-    /** Прокручивает таймер reveal-анимации. Вызывать ОДИН раз в начале render(),
-     *  до выбора ветки renderCharacterDetails / renderDialogueList — чтобы переключение
-     *  state в момент завершения close-анимации происходило в том же кадре. */
+    /** Тик анимации раскрытия деталей квеста. */
+    private void updateQuestRevealAnimation() {
+        if (lastQuestRevealChangeTime > 0) {
+            long elapsed = net.minecraft.Util.getMillis() - lastQuestRevealChangeTime;
+            float t = net.minecraft.util.Mth.clamp((float)elapsed / QUEST_ANIM_DURATION, 0.0f, 1.0f);
+            float ease = 1.0f - (1.0f - t) * (1.0f - t);
+            questRevealProgress = net.minecraft.util.Mth.lerp(ease, startQuestRevealValue, targetQuestReveal);
+            if (t >= 1.0f) {
+                questRevealProgress = targetQuestReveal;
+                lastQuestRevealChangeTime = 0;
+                if (closingQuestDetails) {
+                    selectedQuestId = null;
+                    closingQuestDetails = false;
+                }
+            }
+        }
+    }
+
+    /** Тик reveal-анимации деталей. Вызывается в начале render() до выбора ветки рендера. */
     private void updateDetailRevealAnimation() {
         if (lastDetailChangeTime > 0) {
             long elapsed = net.minecraft.Util.getMillis() - lastDetailChangeTime;
@@ -291,17 +321,51 @@ public class HistoryScreen extends Screen {
         int clipTop = dialogueY + HEADER + 5;
         int clipBottom = dialogueY + dialogueH - 10;
 
-        // 1. Имя — рендерим ДО scissor, чтобы оно не клиппалось во время close-анимации
-        // и было видно непрерывно (его положение совпадает с позицией строки в списке).
-        // Лерп X из позиции списка (после иконки головы) к левому краю (contentX+2 как у «Фракция»).
+        // Имя + иконка + фон-строки рендерятся вне scissor.
+        // Тайминги разнесены: иконка/фон отрабатывают в первой четверти progress,
+        // имя движется в оставшихся 75% — чтобы не было визуального наложения.
         int nameY = contentY + 6 - detailsScroll;
         Component name = TextFormatter.format(entry.getDisplayName());
-        // listX = dialogueX + 4 = contentX. Иконка: listX+5, размер 12, gap 4 → текст начинается с listX+21.
         int listNameX = contentX + 21;
         int openNameX = contentX + 2;
-        int nameX = (int) net.minecraft.util.Mth.lerp(detailRevealProgress, listNameX, openNameX);
+
+        float iconAnim = net.minecraft.util.Mth.clamp((0.25f - detailRevealProgress) / 0.25f, 0f, 1f);
+        float nameAnim = net.minecraft.util.Mth.clamp((detailRevealProgress - 0.25f) / 0.75f, 0f, 1f);
+
+        int nameX = (int) net.minecraft.util.Mth.lerp(nameAnim, listNameX, openNameX);
         if (nameY + 10 > clipTop && nameY < clipBottom) {
             drawStringScaled(graphics, name, nameX, nameY, GOLD);
+        }
+
+        // Фон строки + золотая плашка слева (имитация выбранного entry в списке).
+        if (iconAnim > 0.02f) {
+            int rowX = dialogueX + 4;
+            int rowW = dialogueW - 8;
+            int rowY = contentY - detailsScroll;
+            int rowH = ROW_HEIGHT - 2;
+            if (rowY + rowH > clipTop && rowY < clipBottom) {
+                int bgAlpha = Math.round(0x55 * iconAnim);
+                int bgColor = (bgAlpha << 24) | 0x425068;
+                graphics.fill(rowX, rowY, rowX + rowW, rowY + rowH, bgColor);
+                int stripAlpha = Math.round(((GOLD >>> 24) & 0xFF) * iconAnim);
+                int stripColor = (stripAlpha << 24) | (GOLD & 0x00FFFFFF);
+                graphics.fill(rowX, rowY, rowX + 2, rowY + rowH, stripColor);
+            }
+        }
+
+        // Иконка раскрывается «столбцами» от центра, ширина scissor по iconAnim.
+        if (iconAnim > 0.02f) {
+            int iconSize = 12;
+            int iconLeftX = contentX + 5;
+            int iconY = contentY + (ROW_HEIGHT - 2 - iconSize) / 2 - detailsScroll;
+            int iconRevealW = Math.max(0, (int) Math.ceil(iconSize * iconAnim));
+            int iconCenterX = iconLeftX + iconSize / 2;
+            int iconRevealX = iconCenterX - iconRevealW / 2;
+            if (iconRevealW > 0 && iconY + iconSize > clipTop && iconY < clipBottom) {
+                graphics.enableScissor(iconRevealX, iconY - 1, iconRevealX + iconRevealW, iconY + iconSize + 1);
+                drawAvatarHead(graphics, entry.getAvatar(), iconLeftX, iconY, iconSize);
+                graphics.disableScissor();
+            }
         }
 
         // Применяем анимацию "сверху-вниз" через Scissor для всего ОСТАЛЬНОГО контента
@@ -317,13 +381,12 @@ public class HistoryScreen extends Screen {
         if (y + 10 > clipTop && y < clipBottom) drawStringScaled(graphics, Component.literal(fLabel), contentX + 2, y, 0xFFFFFFFF);
         y += 10;
 
-        // 3. Отрисовка 3D модели
+        // 3. 3D-модель.
         if (entry.getEntityType() != null) {
             LivingEntity dummy = getCachedEntity(entry.getEntityType());
             if (dummy != null) {
                 int modelX = contentX + contentW / 2;
                 int modelY = y + 85;
-
                 int slideOffset = (int) (15 * (1.0f - detailRevealProgress));
                 if (modelY - 90 < clipBottom && modelY > clipTop) {
                     InventoryScreen.renderEntityInInventoryFollowsMouse(graphics, modelX, modelY - slideOffset, 30, (float)modelX - mouseX, (float)modelY - 40 - mouseY, dummy);
@@ -349,7 +412,7 @@ public class HistoryScreen extends Screen {
         if (y + 12 > clipTop && y < clipBottom) drawStringScaled(graphics, Component.literal(qLabel), contentX + 2, y, 0xFFFFFFFF);
         y += 12;
 
-        // 6. Описание (Lore) — сужаем правый край (rightInset) чтобы текст не упирался в границу
+        // 6. Описание (Lore).
         String lore = entry.getCharacterInfo();
         if (lore != null && !lore.isEmpty()) {
             Component loreComp = TextFormatter.format(lore);
@@ -416,6 +479,15 @@ public class HistoryScreen extends Screen {
             return;
         }
 
+        // Hover приоритетнее sticky-selection: только одна строка может быть «активной».
+        int hoverIndex = -1;
+        int yPre = listY - dialogueScroll;
+        for (int i = 0; i < history.size(); i++) {
+            int rowY = yPre + i * ROW_HEIGHT;
+            if (isInside(mouseX, mouseY, listX, rowY, listW, ROW_HEIGHT)) { hoverIndex = i; break; }
+        }
+        int highlightedIndex = hoverIndex >= 0 ? hoverIndex : keyboardListIndex;
+
         graphics.enableScissor(listX, listY, listX + listW, listY + listH);
         int y = listY - dialogueScroll;
         for (int i = 0; i < history.size(); i++) {
@@ -423,13 +495,12 @@ public class HistoryScreen extends Screen {
             int rowY = y + i * ROW_HEIGHT;
             if (rowY + ROW_HEIGHT < listY || rowY > listY + listH) continue;
 
-            boolean selected = i == selectedDialogueIndex;
-            boolean hovered = isInside(mouseX, mouseY, listX, rowY, listW, ROW_HEIGHT);
+            boolean highlighted = i == highlightedIndex;
 
             if (!useSectionTex) {
-                int bg = selected ? 0x55425068 : hovered ? 0x33313A4D : 0;
+                int bg = highlighted ? 0x55425068 : 0;
                 if (bg != 0) graphics.fill(listX, rowY, listX + listW, rowY + ROW_HEIGHT - 2, bg);
-                graphics.fill(listX, rowY, listX + 2, rowY + ROW_HEIGHT - 2, selected ? GOLD : BORDER_SOFT);
+                graphics.fill(listX, rowY, listX + 2, rowY + ROW_HEIGHT - 2, highlighted ? GOLD : BORDER_SOFT);
             }
 
             // Иконка-голова из avatar-текстуры (область 8×8 от (8,8) — лицо в стандартном player-skin layout).
@@ -439,7 +510,7 @@ public class HistoryScreen extends Screen {
             drawAvatarHead(graphics, entry.getAvatar(), iconX, iconY, iconSize);
 
             Component label = TextFormatter.format(entry.getDisplayName());
-            drawStringScaled(graphics, label, listX + 7 + iconSize + 4, rowY + 6, selected ? GOLD : TEXT);
+            drawStringScaled(graphics, label, listX + 7 + iconSize + 4, rowY + 6, highlighted ? GOLD : TEXT);
         }        graphics.disableScissor();
     }
 
@@ -544,11 +615,19 @@ public class HistoryScreen extends Screen {
             return;
         }
 
+        // Та же логика что у персонажей: при выбранном/закрывающемся квесте рендерим детали
+        // со шторкой сверху-вниз; иначе — список (без анимации).
         QuestState selectedQuest = getSelectedQuest(quests);
-        if (selectedQuest != null) {
-            graphics.enableScissor(questX + 1, clipTop, questX + questW - 1, clipBottom);
-            renderQuestDetails(graphics, selectedQuest, contentX, contentY - questScroll, contentW, clipTop, clipBottom, mouseX, mouseY);
-            graphics.disableScissor();
+        int totalH = clipBottom - clipTop;
+        boolean detailsState = selectedQuest != null || closingQuestDetails;
+        if (detailsState) {
+            int animH = (int) (totalH * questRevealProgress);
+            QuestState toRender = selectedQuest != null ? selectedQuest : getSelectedQuest(quests);
+            if (toRender != null && animH > 0) {
+                graphics.enableScissor(questX + 1, clipTop, questX + questW - 1, clipTop + animH);
+                renderQuestDetails(graphics, toRender, contentX, contentY - questScroll, contentW, clipTop, clipBottom, mouseX, mouseY);
+                graphics.disableScissor();
+            }
             return;
         }
 
@@ -620,8 +699,8 @@ public class HistoryScreen extends Screen {
             curY += 13;
             for (String objective : quest.getObjectives()) {
                 String objectiveText = QuestState.objectiveText(objective);
-                int markerX = x + OBJECTIVE_ACCENT_WIDTH + OBJECTIVE_MARKER_GAP;
-                int textX = x + objectiveTextOffset();
+                int markerX = x + OBJECTIVE_ACCENT_WIDTH + OBJECTIVE_MARKER_GAP - 2;
+                int textX = x + objectiveTextOffset() - 1;
                 int textWidth = objectiveTextWidth(width);
                 Component objectiveComponent = TextFormatter.format(objectiveText);
                 int textH = wrappedHeight(objectiveComponent, textWidth);
@@ -666,14 +745,12 @@ public class HistoryScreen extends Screen {
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (button != 0) return super.mouseClicked(mouseX, mouseY, button);
 
-        // X-кнопка — закрытие.
         if (isInsideCloseButton(mouseX, mouseY)) {
             closeButtonPress = 1f;
             onClose();
             return true;
         }
-        // Outside-click закрывает — но границы берутся по ТЕКУЩЕЙ (анимированной) ширине панели,
-        // а не по полной. Иначе при сжатом виде кликать «снаружи» приходилось у самого края экрана.
+        // Outside-click закрывает по текущей анимированной геометрии панели.
         if (!isInside(mouseX, mouseY, currentPanelXCache, panelY, currentPanelWCache, panelH)) {
             onClose();
             return true;
@@ -694,25 +771,33 @@ public class HistoryScreen extends Screen {
         }
 
         if (isInsideQuestBackButton(mouseX, mouseY)) {
-            selectedQuestId = null;
-            questScroll = 0;
+            startQuestCloseAnim();
             return true;
         }
 
         if (isInsideCharacterBackButton(mouseX, mouseY)) {
-            // Запускаем close-анимацию (снизу вверх). selectedDialogueIndex обнулится когда анимация закончится.
+            backArrowHover = 0f;
+            backArrowPress = 1f;
             closingCharacterDetails = true;
             startExpansionValue = expansionProgress;
             lastStateChangeTime = net.minecraft.Util.getMillis();
             startDetailRevealValue = detailRevealProgress;
             targetDetailReveal = 0f;
             lastDetailChangeTime = net.minecraft.Util.getMillis();
+            if (selectedQuestId != null && !closingQuestDetails) {
+                startQuestCloseAnim();
+            }
             return true;
         }
 
         if (isInside(mouseX, mouseY, dialogueX, dialogueY + HEADER, dialogueW, dialogueH - HEADER)) {
             if (!showingCharacterDetails) {
                 int oldIndex = selectedDialogueIndex;
+                int clickedIndex = hitTestDialogueList(mouseY);
+                if (clickedIndex < 0) {
+                    keyboardListIndex = -1;
+                    return true;
+                }
                 selectDialogueAt(mouseY);
                 if (selectedDialogueIndex >= 0 && selectedDialogueIndex != oldIndex) {
                     showingCharacterDetails = true;
@@ -771,6 +856,15 @@ public class HistoryScreen extends Screen {
         return super.mouseReleased(mouseX, mouseY, button);
     }
 
+    /** Возвращает индекс entry под курсором в списке персонажей, или -1 если клик мимо. */
+    private int hitTestDialogueList(double mouseY) {
+        List<DialogueHistoryEntry> history = ClientProgressData.getHistory();
+        int listY = dialogueY + HEADER + 6;
+        int index = ((int) mouseY - listY + dialogueScroll) / ROW_HEIGHT;
+        if (index < 0 || index >= history.size()) return -1;
+        return index;
+    }
+
     private void selectDialogueAt(double mouseY) {
         List<DialogueHistoryEntry> history = ClientProgressData.getHistory();
         int listY = dialogueY + HEADER + 6;
@@ -778,7 +872,11 @@ public class HistoryScreen extends Screen {
         if (index < 0 || index >= history.size()) return;
 
         selectedDialogueIndex = index;
+        keyboardListIndex = index;
         selectedQuestId = null;
+        questRevealProgress = 0f;
+        closingQuestDetails = false;
+        lastQuestRevealChangeTime = 0;
         historyScroll = 0;
         questScroll = 0;
     }
@@ -795,8 +893,7 @@ public class HistoryScreen extends Screen {
 
         if (selectedQuest != null) {
             if (isInsideQuestBackButton(mouseX, mouseY)) {
-                selectedQuestId = null;
-                questScroll = 0;
+                startQuestCloseAnim();
                 return;
             }
 
@@ -817,10 +914,27 @@ public class HistoryScreen extends Screen {
             if (isInside(mouseX, mouseY, contentX - 3, rowY - 2, contentW + 6, QUEST_ROW_HEIGHT - 2)) {
                 selectedQuestId = quest.getId();
                 questScroll = 0;
+                startQuestOpenAnim();
                 return;
             }
             rowY += QUEST_ROW_HEIGHT;
         }
+    }
+
+    private void startQuestOpenAnim() {
+        closingQuestDetails = false;
+        startQuestRevealValue = questRevealProgress;
+        targetQuestReveal = 1f;
+        lastQuestRevealChangeTime = net.minecraft.Util.getMillis();
+    }
+
+    private void startQuestCloseAnim() {
+        closingQuestDetails = true;
+        startQuestRevealValue = questRevealProgress;
+        targetQuestReveal = 0f;
+        lastQuestRevealChangeTime = net.minecraft.Util.getMillis();
+        questBackArrowHover = 0f;
+        questBackArrowPress = 1f;
     }
 
     @Override
@@ -855,6 +969,9 @@ public class HistoryScreen extends Screen {
                 startDetailRevealValue = detailRevealProgress;
                 targetDetailReveal = 0f;
                 lastDetailChangeTime = net.minecraft.Util.getMillis();
+                if (selectedQuestId != null && !closingQuestDetails) {
+                    startQuestCloseAnim();
+                }
                 return true;
             }
             onClose();
@@ -864,7 +981,52 @@ public class HistoryScreen extends Screen {
             onClose();
             return true;
         }
+        // Навигация по списку персонажей стрелками и Enter (только когда список видим).
+        if (!showingCharacterDetails) {
+            List<DialogueHistoryEntry> history = ClientProgressData.getHistory();
+            if (history.isEmpty()) return super.keyPressed(keyCode, scanCode, modifiers);
+            if (keyCode == GLFW.GLFW_KEY_DOWN || keyCode == GLFW.GLFW_KEY_UP) {
+                int delta = keyCode == GLFW.GLFW_KEY_DOWN ? 1 : -1;
+                int next = keyboardListIndex < 0 ? (delta > 0 ? 0 : history.size() - 1) : keyboardListIndex + delta;
+                next = net.minecraft.util.Mth.clamp(next, 0, history.size() - 1);
+                keyboardListIndex = next;
+                ensureKeyboardSelectionVisible();
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+                if (keyboardListIndex >= 0 && keyboardListIndex < history.size()) {
+                    selectedDialogueIndex = keyboardListIndex;
+                    selectedQuestId = null;
+                    questRevealProgress = 0f;
+                    closingQuestDetails = false;
+                    lastQuestRevealChangeTime = 0;
+                    historyScroll = 0;
+                    questScroll = 0;
+                    showingCharacterDetails = true;
+                    closingCharacterDetails = false;
+                    dialogueScroll = 0;
+                    detailsScroll = 0;
+                    startExpansionValue = expansionProgress;
+                    lastStateChangeTime = net.minecraft.Util.getMillis();
+                    startDetailRevealValue = 0f;
+                    targetDetailReveal = 1f;
+                    lastDetailChangeTime = net.minecraft.Util.getMillis();
+                    return true;
+                }
+            }
+        }
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    /** Скроллит список так, чтобы строка с keyboardListIndex была видна. */
+    private void ensureKeyboardSelectionVisible() {
+        if (keyboardListIndex < 0) return;
+        int listH = dialogueH - HEADER - 10;
+        int rowTop = keyboardListIndex * ROW_HEIGHT;
+        int rowBottom = rowTop + ROW_HEIGHT;
+        if (rowTop < dialogueScroll) dialogueScroll = rowTop;
+        else if (rowBottom > dialogueScroll + listH) dialogueScroll = rowBottom - listH;
+        dialogueScroll = Math.max(0, dialogueScroll);
     }
 
     private boolean textureExists(net.minecraft.resources.ResourceLocation location) {
@@ -1050,42 +1212,66 @@ public class HistoryScreen extends Screen {
         drawStringScaled(graphics, Component.literal(title), x + PADDING, y + 8, 0xFFFFFFFF);
         graphics.disableScissor();
         if (showBackArrow) {
-            int arrowX = x + w - 20;
-            boolean hovered = isInside(mouseX, mouseY, arrowX - 4, y + 4, 18, HEADER - 8);
-            // Hover/press лерп — анимация ТОЛЬКО для back-arrow панели персонажей (известная по координате)
+            // Квадратная зона кнопки.
+            int btnX = x + w - 22;
+            int btnY = y + 4;
+            int btnW = 18;
+            int btnH = HEADER - 8;
+            boolean hovered = isInside(mouseX, mouseY, btnX, btnY, btnW, btnH);
+
+            // Hover/press лерп только для back-arrow панели персонажей (зависит от detailRevealProgress).
             boolean isCharBack = (x == dialogueX);
+            boolean isQuestBack = (x == questX);
             float hoverProg, pressProg, revealProg;
             if (isCharBack) {
                 backArrowHover = net.minecraft.util.Mth.lerp(0.20f, backArrowHover, hovered ? 1f : 0f);
                 backArrowPress = Math.max(0f, backArrowPress - 0.08f);
                 hoverProg = backArrowHover;
                 pressProg = backArrowPress;
-                // Стрелка появляется/исчезает синхронно с раскрытием панели деталей
                 revealProg = detailRevealProgress;
+            } else if (isQuestBack) {
+                questBackArrowHover = net.minecraft.util.Mth.lerp(0.20f, questBackArrowHover, hovered ? 1f : 0f);
+                questBackArrowPress = Math.max(0f, questBackArrowPress - 0.08f);
+                hoverProg = questBackArrowHover;
+                pressProg = questBackArrowPress;
+                revealProg = questRevealProgress;
             } else {
                 hoverProg = hovered ? 1f : 0f;
                 pressProg = 0f;
                 revealProg = 1f;
             }
-            if (revealProg <= 0.01f) return; // полностью скрыта
+            if (revealProg <= 0.05f) return;
+
+            // Hover-фон с alpha-лерпом (без резких прыжков при появлении).
             if (!useSectionTex && hoverProg > 0.01f) {
-                int alpha = (int)(hoverProg * 0xFF);
+                int alpha = (int)(hoverProg * revealProg * 0xFF);
                 int bg = (alpha << 24) | (PANEL_HOVER & 0x00FFFFFF);
-                graphics.fill(arrowX - 4, y + 4, arrowX + 14, y + HEADER - 4, bg);
-                drawBorder(graphics, arrowX - 4, y + 4, 18, HEADER - 8, lerpColor(0x00000000, BORDER, hoverProg));
+                graphics.fill(btnX, btnY, btnX + btnW, btnY + btnH, bg);
+                drawBorder(graphics, btnX, btnY, btnW, btnH, lerpColor(0x00000000, BORDER, hoverProg * revealProg));
             }
+
+            // Цвет стрелки с alpha-fade по revealProg — основа аккуратной анимации появления/ухода.
             int color = lerpColor(MUTED, TEXT, hoverProg);
-            // Reveal — слайд слева + scale из 0
-            float scale = 0.6f + 0.4f * revealProg;
-            float slideX = (1f - revealProg) * 6f; // въезжает справа
-            float press = 1.0f - pressProg * 0.10f;
+            int textAlpha = Math.max(0, Math.min(255, (int)(revealProg * 255)));
+            color = (color & 0x00FFFFFF) | (textAlpha << 24);
+
+            // Центрируем символ внутри кнопки. Глифы шрифта MC имеют 1px правое поле
+            // и 1px нижний отступ → компенсируем +1px по X и +1px по Y вручную,
+            // иначе визуально стрелка чуть левее и выше центра.
+            int arrowTextW = (int) Math.ceil(this.font.width(BACK_ARROW) * TEXT_SCALE);
+            int arrowTextH = (int) Math.ceil(this.font.lineHeight * TEXT_SCALE);
+            int arrowDrawX = btnX + (btnW - arrowTextW) / 2 + 1;
+            int arrowDrawY = btnY + (btnH - arrowTextH) / 2 + 1;
+
+            // Press — лёгкий scale 0.92 относительно центра кнопки.
+            float press = 1.0f - pressProg * 0.08f;
             graphics.pose().pushPose();
-            float cx = arrowX + 5;
-            float cy = y + HEADER / 2f;
-            graphics.pose().translate(cx + slideX, cy, 0);
-            graphics.pose().scale(scale * press, scale * press, 1f);
+            float cx = btnX + btnW / 2f;
+            float cy = btnY + btnH / 2f;
+            graphics.pose().translate(cx, cy, 0);
+            graphics.pose().scale(press, press, 1f);
             graphics.pose().translate(-cx, -cy, 0);
-            drawStringScaled(graphics, Component.literal(BACK_ARROW), arrowX, y + 8, color);
+            drawStringScaled(graphics, Component.literal(BACK_ARROW), arrowDrawX, arrowDrawY, color);
             graphics.pose().popPose();
         }
     }
@@ -1215,11 +1401,15 @@ public class HistoryScreen extends Screen {
 
     private boolean isInsideCharacterBackButton(double mouseX, double mouseY) {
         if (!showingCharacterDetails) return false;
-        int arrowX = dialogueX + dialogueW - 20;
-        return isInside(mouseX, mouseY, arrowX - 4, dialogueY + 4, 18, HEADER - 8);
+        if (closingCharacterDetails) return false;
+        if (detailRevealProgress < 0.5f) return false;
+        int btnX = dialogueX + dialogueW - 22;
+        return isInside(mouseX, mouseY, btnX, dialogueY + 4, 18, HEADER - 8);
     }
     private boolean isInsideQuestBackButton(double mouseX, double mouseY) {
         if (selectedQuestId == null) return false;
+        if (closingQuestDetails) return false;
+        if (questRevealProgress < 0.5f) return false;
         int arrowX = questX + questW - 20;
         return isInside(mouseX, mouseY, arrowX - 4, questY + 4, 18, HEADER - 8);
     }
