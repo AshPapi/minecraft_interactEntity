@@ -77,6 +77,51 @@ public class DialogueScreen extends Screen {
     private int totalDialogueChars = 0;
     private int typewriterTickCounter = 0;
 
+    // История диалога в текущей сессии
+    public static class SessionHistoryLine {
+        public final String speaker;
+        public final String text;
+        public final boolean isPlayer;
+
+        public SessionHistoryLine(String speaker, String text, boolean isPlayer) {
+            this.speaker = speaker;
+            this.text = text;
+            this.isPlayer = isPlayer;
+        }
+    }
+
+    public static class CachedHistoryItem {
+        public final SessionHistoryLine line;
+        public final List<FormattedCharSequence> splitLines;
+        public final int height;
+        public final Component formattedSpeaker;
+
+        public CachedHistoryItem(SessionHistoryLine line, List<FormattedCharSequence> splitLines, int height, Component formattedSpeaker) {
+            this.line = line;
+            this.splitLines = splitLines;
+            this.height = height;
+            this.formattedSpeaker = formattedSpeaker;
+        }
+    }
+
+    private final List<CachedHistoryItem> cachedHistoryItems = new ArrayList<>();
+    private int cachedHistoryTotalHeight = 0;
+    private final List<SessionHistoryLine> sessionHistory = new ArrayList<>();
+    private boolean showingHistoryOverlay = false;
+    private float historyOverlayProgress = 0.0f;
+    private float historyOverlayStartValue = 0.0f;
+    private float historyOverlayTarget = 0.0f;
+    private long historyOverlayAnimStart = 0L;
+    private static final long HISTORY_OVERLAY_ANIM_MS = 280L;
+    private int historyScroll = 0;
+    private float bookOpenProgress = 0.0f;
+    private float bookOpenStartValue = 0.0f;
+    private float bookOpenTarget = 0.0f;
+    private long bookOpenAnimStart = 0L;
+    private static final long BOOK_OPEN_ANIM_MS = 220L;
+    private boolean bookHovered = false;
+    private boolean lastBookTargetOpen = false;
+
     private static final int YOU_COLOR = 0xFF88DDFF;
 
     private static final int OPT_PADDING_H = 10;
@@ -102,6 +147,48 @@ public class DialogueScreen extends Screen {
     private List<FormattedCharSequence> cachedFullLines = new ArrayList<>();
     private int cachedTextAreaWidth = -1;
     private String lastDialogueText = "";
+    private final List<Component> cachedOptionComps = new ArrayList<>();
+    private final List<List<FormattedCharSequence>> cachedOptionLines = new ArrayList<>();
+    private int cachedOptionPanelW = 0;
+    private int cachedOptionAvailW = -1;
+    private Component cachedNameComp = null;
+    private Component cachedVisibleTextComp = null;
+    private int cachedVisibleDialogueChars = -1;
+    private List<FormattedCharSequence> cachedTextLines = new ArrayList<>();
+    private int cachedTextLinesWidth = -1;
+    private int cachedTextLinesVisibleChars = -1;
+
+    private void toggleHistoryOverlay() {
+        showingHistoryOverlay = !showingHistoryOverlay;
+        historyOverlayStartValue = historyOverlayProgress;
+        historyOverlayTarget = showingHistoryOverlay ? 1.0f : 0.0f;
+        historyOverlayAnimStart = net.minecraft.Util.getMillis();
+    }
+
+    private void rebuildHistoryCache() {
+        if (this.width <= 0) {
+            return;
+        }
+        cachedHistoryItems.clear();
+        cachedHistoryTotalHeight = 0;
+        
+        int effectivePanelW = Math.min(PANEL_WIDTH, this.width - 40);
+        int textAvailW = effectivePanelW - PADDING * 2 - 14;
+        int scaledTextWidth = Math.max(1, (int)(textAvailW / TEXT_SCALE));
+
+        List<SessionHistoryLine> historyList;
+        synchronized (sessionHistory) {
+            historyList = new ArrayList<>(sessionHistory);
+        }
+
+        for (SessionHistoryLine line : historyList) {
+            List<FormattedCharSequence> splitLines = this.font.split(TextFormatter.format(line.text), scaledTextWidth);
+            int height = LINE_HEIGHT + splitLines.size() * (LINE_HEIGHT + LINE_SPACING) + 12 + 6;
+            Component speakerComp = TextFormatter.format(line.speaker);
+            cachedHistoryItems.add(new CachedHistoryItem(line, splitLines, height, speakerComp));
+            cachedHistoryTotalHeight += height;
+        }
+    }
 
     public void setFactionInfo(@Nullable String factionId, int reputation) {
         this.factionId = factionId;
@@ -126,7 +213,13 @@ public class DialogueScreen extends Screen {
         this.avatarTexture = avatarTexture;
         this.background = background;
         this.optionsBackground = optionsBackground;
+        this.cachedNameComp = TextFormatter.format(displayName);
+        this.cachedOptionAvailW = -1;
+        synchronized (sessionHistory) {
+            this.sessionHistory.add(new SessionHistoryLine(displayName, text, false));
+        }
         resetTypewriter();
+        rebuildHistoryCache();
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null) mc.player.stopUsingItem();
@@ -139,6 +232,10 @@ public class DialogueScreen extends Screen {
         this.useDefaultOptionsTex = textureExists(DEFAULT_OPTIONS);
         this.useDefaultOptionsHoverTex = textureExists(DEFAULT_OPTIONS_HOVER);
         this.cachedTextAreaWidth = -1; // Сброс кэша текста при ресайзе
+        this.cachedOptionAvailW = -1;
+        this.cachedVisibleDialogueChars = -1;
+        this.cachedTextLinesWidth = -1;
+        rebuildHistoryCache();
     }
 
     @Override
@@ -159,6 +256,8 @@ public class DialogueScreen extends Screen {
         } else {
             typewriterTickCounter = 0;
         }
+
+        // Анимации оверлея и книжки — time-based ease-out, обновляются в render() по реальному времени.
     }
 
     @Override
@@ -167,13 +266,18 @@ public class DialogueScreen extends Screen {
         panelW = effectivePanelW;
         panelX = (this.width - panelW) / 2;
 
-        Component nameComp = TextFormatter.format(displayName);
+        Component nameComp = cachedNameComp != null ? cachedNameComp : TextFormatter.format(displayName);
         Component fullTextComp = TextFormatter.format(dialogueText);
-        Component visibleTextComp = TextFormatter.format(getVisibleDialogueText());
+        
+        if (visibleDialogueChars != cachedVisibleDialogueChars || cachedVisibleTextComp == null) {
+            cachedVisibleTextComp = TextFormatter.format(getVisibleDialogueText());
+            cachedVisibleDialogueChars = visibleDialogueChars;
+        }
+        Component visibleTextComp = cachedVisibleTextComp;
 
         int textStartX = panelX + PADDING + HEAD_SIZE + 8;
         int textAreaWidth = panelW - PADDING * 2 - HEAD_SIZE - 8;
-        int scaledTextWidth = (int)(textAreaWidth / TEXT_SCALE);
+        int scaledTextWidth = Math.max(1, (int)(textAreaWidth / TEXT_SCALE));
 
         // ОПТИМИЗАЦИЯ: Кэшируем разбиение полного текста
         if (scaledTextWidth != cachedTextAreaWidth || !dialogueText.equals(lastDialogueText)) {
@@ -182,7 +286,12 @@ public class DialogueScreen extends Screen {
             lastDialogueText = dialogueText;
         }
 
-        List<FormattedCharSequence> textLines = this.font.split(visibleTextComp, scaledTextWidth);
+        if (scaledTextWidth != cachedTextLinesWidth || visibleDialogueChars != cachedTextLinesVisibleChars || cachedTextLines.isEmpty()) {
+            cachedTextLines = this.font.split(visibleTextComp, scaledTextWidth);
+            cachedTextLinesWidth = scaledTextWidth;
+            cachedTextLinesVisibleChars = visibleDialogueChars;
+        }
+        List<FormattedCharSequence> textLines = cachedTextLines;
 
         optionHitboxes.clear();
 
@@ -288,13 +397,45 @@ public class DialogueScreen extends Screen {
                         .append(Component.literal(String.valueOf(reputation)).withStyle(net.minecraft.network.chat.Style.EMPTY.withColor(repColor)));
                 
                 int factionWidth = (int)(this.font.width(factionText) * TEXT_SCALE);
-                drawStringScaled(graphics, factionText, panelX + panelW - PADDING - factionWidth, panelY + PADDING, 0xFFFFFFFF);
+                drawStringScaled(graphics, factionText, panelX + panelW - 24 - factionWidth, panelY + 5, 0xFFFFFFFF);
             }
+
+            // Кнопка-книжка истории в самом углу
+            int bookX = panelX + panelW - 16;
+            int bookY = panelY + 4;
+            bookHovered = mouseX >= bookX - 2 && mouseX <= bookX + 14 && mouseY >= bookY && mouseY <= bookY + 12;
+            boolean bookTarget = showingHistoryOverlay || bookHovered;
+            if (bookTarget != lastBookTargetOpen) {
+                bookOpenStartValue = bookOpenProgress;
+                bookOpenTarget = bookTarget ? 1.0f : 0.0f;
+                bookOpenAnimStart = net.minecraft.Util.getMillis();
+                lastBookTargetOpen = bookTarget;
+            }
+            if (bookOpenAnimStart > 0L) {
+                long be = net.minecraft.Util.getMillis() - bookOpenAnimStart;
+                float bt = Mth.clamp((float) be / BOOK_OPEN_ANIM_MS, 0f, 1f);
+                float bEase = 1f - (1f - bt) * (1f - bt);
+                bookOpenProgress = Mth.lerp(bEase, bookOpenStartValue, bookOpenTarget);
+                if (bt >= 1f) { bookOpenProgress = bookOpenTarget; bookOpenAnimStart = 0L; }
+            }
+            drawVectorBook(graphics, bookX, bookY, bookOpenProgress, bookHovered);
         }
 
         // Render choice options as top-left panels
         if (renderingInlineOptions) {
             renderOptionPanels(graphics, mouseX, mouseY);
+        }
+
+        // Time-based ease-out для оверлея истории.
+        if (historyOverlayAnimStart > 0L) {
+            long he = net.minecraft.Util.getMillis() - historyOverlayAnimStart;
+            float ht = Mth.clamp((float) he / HISTORY_OVERLAY_ANIM_MS, 0f, 1f);
+            float hEase = 1f - (1f - ht) * (1f - ht);
+            historyOverlayProgress = Mth.lerp(hEase, historyOverlayStartValue, historyOverlayTarget);
+            if (ht >= 1f) { historyOverlayProgress = historyOverlayTarget; historyOverlayAnimStart = 0L; }
+        }
+        if (historyOverlayProgress > 0.01f) {
+            renderHistoryOverlay(graphics, historyOverlayProgress);
         }
     }
 
@@ -303,24 +444,28 @@ public class DialogueScreen extends Screen {
         int optPanelY = 8;
         int numWidth = this.font.width("5. ");
         int maxPanelW = Math.min(this.width / 2 - 16, 200);
-        int textAvailW = maxPanelW - OPT_PADDING_H * 2 - numWidth;
+        int textAvailW = Math.max(1, maxPanelW - OPT_PADDING_H * 2 - numWidth);
 
-        List<Component> optionComps = new ArrayList<>();
-        List<List<FormattedCharSequence>> optionLines = new ArrayList<>();
-        int panelW = 0;
-        for (String opt : optionTexts) {
-            Component c = TextFormatter.format(opt);
-            optionComps.add(c);
-            List<FormattedCharSequence> lines = this.font.split(c, textAvailW);
-            optionLines.add(lines);
-            int lineW = lines.stream().mapToInt(this.font::width).max().orElse(0);
-            panelW = Math.max(panelW, numWidth + lineW + OPT_PADDING_H * 2);
+        if (textAvailW != cachedOptionAvailW) {
+            cachedOptionComps.clear();
+            cachedOptionLines.clear();
+            int panelW = 0;
+            for (String opt : optionTexts) {
+                Component c = TextFormatter.format(opt);
+                cachedOptionComps.add(c);
+                List<FormattedCharSequence> lines = this.font.split(c, textAvailW);
+                cachedOptionLines.add(lines);
+                int lineW = lines.stream().mapToInt(this.font::width).max().orElse(0);
+                panelW = Math.max(panelW, numWidth + lineW + OPT_PADDING_H * 2);
+            }
+            cachedOptionPanelW = Math.min(panelW, maxPanelW);
+            cachedOptionAvailW = textAvailW;
         }
-        panelW = Math.min(panelW, maxPanelW);
 
+        int panelW = cachedOptionPanelW;
         int curY = optPanelY;
-        for (int i = 0; i < optionComps.size(); i++) {
-            List<FormattedCharSequence> lines = optionLines.get(i);
+        for (int i = 0; i < cachedOptionComps.size(); i++) {
+            List<FormattedCharSequence> lines = cachedOptionLines.get(i);
             int panelH = lines.size() * (LINE_HEIGHT + LINE_SPACING) + OPT_PADDING_V * 2;
             boolean hovered = mouseMoved && (i == hoveredOption);
 
@@ -423,6 +568,17 @@ public class DialogueScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (button == 0) {
+            int bookX = panelX + panelW - 16;
+            int bookY = panelY + 4;
+            if (mouseX >= bookX - 2 && mouseX <= bookX + 14 && mouseY >= bookY && mouseY <= bookY + 12) {
+                toggleHistoryOverlay();
+                minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                        net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
+                return true;
+            }
+        }
+
         if (ignoreNextClick && button == 1) {
             ignoreNextClick = false;
             return true;
@@ -473,16 +629,39 @@ public class DialogueScreen extends Screen {
         return false;
     }
 
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+        if (showingHistoryOverlay && historyOverlayProgress > 0.5f) {
+            int amount = (int) (delta * 14);
+            historyScroll = Math.max(0, historyScroll - amount);
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, delta);
+    }
+
     private void selectOption(int filteredIndex) {
         playerResponseText = optionTexts.get(filteredIndex);
         pendingOptionRawIndex = optionIndices.get(filteredIndex);
         showingOptions = false;
         showingPlayerResponse = true;
         DialogueCameraController.stopSide();
+        
+        String youLabel = net.minecraft.client.resources.language.I18n.get("gui.interactentity.dialogue.you");
+        synchronized (sessionHistory) {
+            this.sessionHistory.add(new SessionHistoryLine(youLabel, playerResponseText, true));
+        }
+        rebuildHistoryCache();
     }
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (keyCode == 72) { // Клавиша H
+            toggleHistoryOverlay();
+            minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                    net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
+            return true;
+        }
+
         if (showingPlayerResponse && (keyCode == 257 || keyCode == 335 || keyCode == 32)) {
             ModNetwork.sendToServer(new SelectOptionPacket(nodeId, pendingOptionRawIndex));
             showingPlayerResponse = false;
@@ -518,6 +697,12 @@ public class DialogueScreen extends Screen {
             }
         }
         if (keyCode == 256) {
+            if (showingHistoryOverlay) {
+                toggleHistoryOverlay();
+                minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                        net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
+                return true;
+            }
             onClose();
             return true;
         }
@@ -560,6 +745,11 @@ public class DialogueScreen extends Screen {
         this.avatarTexture = avatarTexture;
         this.background = background;
         this.optionsBackground = optionsBackground;
+        this.cachedNameComp = TextFormatter.format(displayName);
+        this.cachedOptionAvailW = -1;
+        synchronized (sessionHistory) {
+            this.sessionHistory.add(new SessionHistoryLine(displayName, text, false));
+        }
         this.hoveredOption = -1;
         this.mouseMoved = false;
         this.firstOpen = false;
@@ -568,6 +758,7 @@ public class DialogueScreen extends Screen {
         this.showingPlayerResponse = false;
         this.pendingOptionRawIndex = -1;
         resetTypewriter();
+        rebuildHistoryCache();
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null) mc.player.stopUsingItem();
@@ -581,6 +772,10 @@ public class DialogueScreen extends Screen {
         this.totalDialogueChars = countVisibleChars(this.dialogueText);
         this.visibleDialogueChars = 0;
         this.typewriterTickCounter = 0;
+        this.cachedVisibleTextComp = null;
+        this.cachedVisibleDialogueChars = -1;
+        this.cachedTextLinesWidth = -1;
+        this.cachedTextLinesVisibleChars = -1;
     }
 
     private boolean isDialogueFullyVisible() {
@@ -663,6 +858,151 @@ public class DialogueScreen extends Screen {
             }
         }
         return true;
+    }
+
+    private void drawVectorBook(GuiGraphics graphics, int x, int y, float openProgress, boolean hovered) {
+        int coverColor = hovered ? 0xFFC93B3B : 0xFF9E2A2B;
+        int goldColor = 0xFFE5B842;
+        int pageColor = 0xFFF5E6C8;
+        int lineColor = 0xFF6E5D4F;
+
+        if (openProgress < 0.05f) {
+            // Закрытая книга (ширина 10, высота 12)
+            // Корешок (золотой)
+            graphics.fill(x, y, x + 2, y + 12, goldColor);
+            // Обложка (красная)
+            graphics.fill(x + 2, y, x + 10, y + 12, coverColor);
+            // Золотая застежка посередине
+            graphics.fill(x + 8, y + 5, x + 10, y + 7, goldColor);
+            // Срез страниц (кремовый) справа
+            graphics.fill(x + 10, y + 1, x + 11, y + 11, pageColor);
+            // Срез страниц снизу
+            graphics.fill(x + 2, y + 11, x + 10, y + 12, pageColor);
+        } else {
+            // Плавно приоткрывающаяся / раскрытая книга
+            int wLeft = (int) (8 * openProgress);
+            int wRight = 8;
+            int centerX = x + 6;
+
+            // Левая обложка (красная)
+            if (wLeft > 0) {
+                graphics.fill(centerX - wLeft, y, centerX, y + 12, coverColor);
+            }
+            // Правая обложка (красная)
+            graphics.fill(centerX, y, centerX + wRight, y + 12, coverColor);
+
+            // Корешок по центру (золотой)
+            graphics.fill(centerX - 1, y, centerX + 1, y + 12, goldColor);
+
+            // Левая страница (кремовая)
+            if (wLeft > 2) {
+                int pageLeft = centerX - wLeft + 1;
+                int pageRight = centerX - 1;
+                graphics.fill(pageLeft, y + 1, pageRight, y + 11, pageColor);
+
+                // Строчки текста (коричневые)
+                if (openProgress > 0.7f) {
+                    graphics.fill(pageLeft + 1, y + 3, pageRight - 1, y + 4, lineColor);
+                    graphics.fill(pageLeft + 1, y + 5, pageRight - 1, y + 6, lineColor);
+                    graphics.fill(pageLeft + 1, y + 7, pageRight - 1, y + 8, lineColor);
+                    graphics.fill(pageLeft + 1, y + 9, pageRight - 2, y + 10, lineColor);
+                }
+            }
+
+            // Правая страница (кремовая)
+            if (wRight > 2) {
+                int pageLeft = centerX + 1;
+                int pageRight = centerX + wRight - 1;
+                graphics.fill(pageLeft, y + 1, pageRight, y + 11, pageColor);
+
+                // Строчки текста (коричневые)
+                if (openProgress > 0.7f) {
+                    graphics.fill(pageLeft + 1, y + 3, pageRight - 1, y + 4, lineColor);
+                    graphics.fill(pageLeft + 1, y + 5, pageRight - 2, y + 6, lineColor);
+                    graphics.fill(pageLeft + 1, y + 7, pageRight - 1, y + 8, lineColor);
+                    graphics.fill(pageLeft + 1, y + 9, pageRight - 1, y + 10, lineColor);
+                }
+            }
+        }
+    }
+
+    private void renderHistoryOverlay(GuiGraphics graphics, float progress) {
+        int historyH = 140;
+        int currentHistoryH = (int)(historyH * progress);
+        int historyY = panelY - currentHistoryH - 2;
+        
+        // Рисуем тень/задний фон
+        graphics.fill(panelX + 2, historyY + 2, panelX + panelW + 2, historyY + currentHistoryH + 2, SHADOW_COLOR);
+        
+        int alpha = (int)(0xCC * progress);
+        int topColor = (alpha << 24) | (BG_COLOR_TOP & 0x00FFFFFF);
+        int bottomColor = (alpha << 24) | (BG_COLOR_BOTTOM & 0x00FFFFFF);
+        int borderColor = ((int)(0x66 * progress) << 24) | (BORDER_COLOR & 0x00FFFFFF);
+
+        graphics.fillGradient(panelX, historyY, panelX + panelW, historyY + currentHistoryH, topColor, bottomColor);
+        graphics.fill(panelX, historyY, panelX + panelW, historyY + 1, borderColor);
+        graphics.fill(panelX, historyY + currentHistoryH - 1, panelX + panelW, historyY + currentHistoryH, borderColor);
+        graphics.fill(panelX, historyY, panelX + 1, historyY + currentHistoryH, borderColor);
+        graphics.fill(panelX + panelW - 1, historyY, panelX + panelW, historyY + currentHistoryH, borderColor);
+
+        // Заголовок рисуем ВНЕ scissor контента, чтобы прокручиваемый текст не накладывался на него.
+        int titleY = historyY + 6;
+        String historyTitle = net.minecraft.client.resources.language.I18n.get("gui.interactentity.journal.current_dialogue");
+        drawStringScaled(graphics, Component.literal(historyTitle), panelX + PADDING, titleY, NAME_COLOR);
+
+        int listY = historyY + 18;
+        int staticListH = 116;
+
+        // Scissor только под область списка — заголовок остаётся «зафиксированным».
+        int scissorBottom = Math.min(listY + staticListH, historyY + currentHistoryH - 1);
+        if (scissorBottom <= listY) {
+            return;
+        }
+        graphics.enableScissor(panelX + 1, listY, panelX + panelW - 1, scissorBottom);
+        
+        // Ограничиваем скролл истории по статическим границам
+        int maxHistoryScroll = Math.max(0, cachedHistoryTotalHeight - staticListH);
+        if (historyScroll > maxHistoryScroll) {
+            historyScroll = maxHistoryScroll;
+        }
+        
+        int curHistoryY = listY - historyScroll;
+        for (CachedHistoryItem item : cachedHistoryItems) {
+            int color = item.line.isPlayer ? YOU_COLOR : NAME_COLOR;
+            int itemH = item.height;
+            
+            if (curHistoryY + itemH - 6 >= listY && curHistoryY < listY + staticListH) {
+                // Рисуем полупрозрачную подложку блока
+                graphics.fill(panelX + PADDING, curHistoryY, panelX + panelW - PADDING, curHistoryY + itemH - 6, 0x18FFFFFF);
+                
+                // Рисуем вертикальную полоску-акцент слева
+                int accentColor = item.line.isPlayer ? 0xFF88DDFF : 0xFFFFCC44;
+                graphics.fill(panelX + PADDING, curHistoryY, panelX + PADDING + 2, curHistoryY + itemH - 6, accentColor);
+                
+                // Рисуем имя спикера с форматированием
+                drawStringScaled(graphics, item.formattedSpeaker, panelX + PADDING + 8, curHistoryY + 5, color);
+                int textLineY = curHistoryY + LINE_HEIGHT + 8;
+                
+                // Рисуем текст реплики
+                for (FormattedCharSequence seq : item.splitLines) {
+                    drawStringScaled(graphics, seq, panelX + PADDING + 8, textLineY, TEXT_COLOR);
+                    textLineY += LINE_HEIGHT + LINE_SPACING;
+                }
+            }
+            curHistoryY += itemH;
+        }
+        
+        // Отрисовка скроллбара по статическим границам
+        if (cachedHistoryTotalHeight > staticListH) {
+            int scrollbarX = panelX + panelW - 5;
+            int thumbH = Math.max(12, (int) ((float) staticListH / cachedHistoryTotalHeight * staticListH));
+            int thumbY = listY + (int) ((float) historyScroll / maxHistoryScroll * (staticListH - thumbH));
+            
+            graphics.fill(scrollbarX, listY, scrollbarX + 2, listY + staticListH, 0x33000000);
+            graphics.fill(scrollbarX, thumbY, scrollbarX + 2, thumbY + thumbH, 0x88FFFFFF);
+        }
+        
+        graphics.disableScissor();
     }
 
     private static class OptionHitbox {
