@@ -12,7 +12,7 @@ A mod for Minecraft Forge 1.20.1. Lets you build full-featured dialogues with mo
 
 > [🇷🇺 Перейти к русской версии](#русский)
 
-Complete reference + tutorial for the **InteractEntity** mod: JSON dialogue format, quests, reputation, NPCs, skins, journal, emotes, KubeJS integration and more. Verified against code in `src/main/java/net/ashpapi/interactentity/`
+Complete reference + tutorial for the **InteractEntity** mod: JSON dialogue format, quests, reputation, NPCs, skins, journal, emotes, KubeJS integration and more.
 
 > [!TIP]
 > ### 💡 Too lazy to read? Let AI write the JSON files for you!
@@ -1827,7 +1827,7 @@ If something doesn't work — check the server log, look for `[InteractEntity]`,
 
 > [🇬🇧 Switch to English](#english)
 
-Полный справочник + туториал по моду **InteractEntity**: JSON-формат диалогов, квесты, репутация, NPC, скины, журнал, эмоции, KubeJS-интеграция и всё остальное. Сверено с кодом в `src/main/java/net/ashpapi/interactentity/`.
+Полный справочник + туториал по моду **InteractEntity**: JSON-формат диалогов, квесты, репутация, NPC, скины, журнал, эмоции, KubeJS-интеграция и всё остальное.
 
 > [!TIP]
 > ### 💡 Лень читать? Пусть JSON-файлы напишет нейросеть!
@@ -1844,8 +1844,6 @@ If something doesn't work — check the server log, look for `[InteractEntity]`,
 > ```
 > 
 > Скопируйте полученный JSON в файл вашего диалога в папке мира, напишите в игре `/dialogue reload` — и всё готово к тестированию!
-
-**Авторитет:** этот документ > `README.md` при расхождениях.
 
 ---
 
@@ -3496,6 +3494,18 @@ public static void onQuestStart(QuestStartEvent event) {
       "text": "Жду тебя.",
       "next": null
     },
+    "check_iron": {
+      "text": "Уже принёс железо?",
+      "options": [
+        {
+          "text": "Да, держи 10 слитков",
+          "condition": { "type": "has_item", "item": "minecraft:iron_ingot", "count": 10 },
+          "lock_reason": "Нужно 10 железа",
+          "next": "give_key"
+        },
+        { "text": "Ещё нет", "next": null }
+      ]
+    },
     "give_key": {
       "text": "Отлично! Держи ключ.",
       "actions": [
@@ -3522,22 +3532,6 @@ public static void onQuestStart(QuestStartEvent event) {
       }
     ]
   }
-}
-```
-
-Узел `check_iron` (добавь к `nodes`):
-```json
-"check_iron": {
-  "text": "Уже принёс железо?",
-  "options": [
-    {
-      "text": "Да, держи 10 слитков",
-      "condition": { "type": "has_item", "item": "minecraft:iron_ingot", "count": 10 },
-      "lock_reason": "Нужно 10 железа",
-      "next": "give_key"
-    },
-    { "text": "Ещё нет", "next": null }
-  ]
 }
 ```
 
