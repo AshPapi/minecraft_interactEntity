@@ -332,7 +332,7 @@ Top-level массив. Запускает диалог с **уже сущест
 
 Работают только на `interactentity:custom_npc`. Доступные ключи (сверено с `CustomNpcEntity.java`):
 
-`beckon`, `bow`, `celebrate`, `clap`, `confused`, `crossed_arms`, `dismiss`, `facepalm`, `handshake`, `happy`, `laugh`, `no` (= shake_head), `nod`, `please`, `point`, `scared`, `shake_head`, `shrug`, `surprised`, `think`, `wave`, `yawn`
+`beckon`, `bow`, `celebrate`, `clap`, `confused`, `crossed_arms`, `dismiss`, `facepalm`, `handshake`, `happy`, `laugh`, `no` (= shake_head), `nod`, `please`, `point`, `scared`, `shake_head`, `shrug`, `six_seven`, `surprised`, `think`, `wave`, `yawn`
 
 Удалены: `angry`, `sad`, `salute`.
 

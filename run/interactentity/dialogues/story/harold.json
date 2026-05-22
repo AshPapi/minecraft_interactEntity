@@ -1,0 +1,206 @@
+{
+  "target": {
+    "name": "Гарольд",
+    "tag": "story_harold",
+    "entity_type": "interactentity:custom_npc"
+  },
+  "display_name": "&6[&eГарольд&6]",
+  "character_info": "Охотник-отшельник. Живёт в лесной избушке, прикормил пару лис.",
+  "avatar": "interactentity:textures/entity/harold.png",
+  "scope": "per_player",
+  "entry": "start",
+
+  "visual": {
+    "model": "interactentity:geo/custom_npc_default.geo.json",
+    "texture": "interactentity:textures/entity/harold.png",
+    "scale": 1.05
+  },
+
+  "summon": {
+    "entity": "interactentity:custom_npc",
+    "custom_name": "Гарольд",
+    "tags": ["story_harold"],
+    "spawn_position": "behind_player",
+    "trigger": { "type": "after_dialogue", "dialogue_id": "story/elsa", "delay": 200 }
+  },
+
+  "on_revisit": {
+    "default_start_node": "hub_idle",
+    "conditions": [
+      {
+        "condition": { "type": "visited_node", "dialogue": "story/harold", "node": "give_amulet" },
+        "start_node": "hub_after_amulet"
+      },
+      {
+        "condition": { "type": "quest_status", "quest_id": "harold_bread", "status": "active" },
+        "start_node": "offer_bread"
+      },
+      {
+        "condition": { "type": "quest_status", "quest_id": "lost_amulet", "status": "active" },
+        "start_node": "ask_quest"
+      }
+    ]
+  },
+
+  "nodes": {
+
+    "start": {
+      "text": "&fХм. Чужак. &7*оглядывает с ног до головы* &fЧто тебе надо в моём лесу, {player}?",
+      "actions": [
+        { "type": "play_emote", "emote": "crossed_arms", "duration_ticks": 60 }
+      ],
+      "options": [
+        { "text": "&aМеня Эльза прислала. Про часы спросить.",
+          "next": "knows_elsa",
+          "condition": { "type": "quest_status", "quest_id": "lost_amulet", "status": "active" }
+        },
+        { "text": "&7Просто мимо проходил.", "next": "neutral" },
+        { "text": "&7Извини за беспокойство.", "next": null }
+      ]
+    },
+
+    "neutral": {
+      "text": "&fНу мимо так мимо. Лес большой, не заблудись.",
+      "next": null,
+      "actions": [
+        { "type": "play_emote", "emote": "shrug", "duration_ticks": 25 }
+      ]
+    },
+
+    "ask_quest": {
+      "text": "&fВернулся? Значит, не отпустила тебя травница.",
+      "actions": [
+        { "type": "play_emote", "emote": "nod", "duration_ticks": 25 }
+      ],
+      "options": [
+        { "text": "&aОна про часы спрашивала.", "next": "knows_elsa" },
+        { "text": "&7Просто заглянул.", "next": "neutral" }
+      ]
+    },
+
+    "knows_elsa": {
+      "text": "&fЭльза, значит... &7*чешет бороду* &fСтарые карманные часы на цепочке? С трещинкой на стекле?",
+      "next": "confirm_amulet",
+      "actions": [
+        { "type": "complete_objective", "quest_id": "lost_amulet", "objective_number": 1 },
+        { "type": "play_emote", "emote": "think", "duration_ticks": 40 }
+      ]
+    },
+
+    "confirm_amulet": {
+      "text": "&fЛисичка моя, Рыжуха, принесла утром. Я уж гадал — чьё. Думал, в деревню отнести, да некогда.",
+      "next": "offer_amulet",
+      "actions": [
+        { "type": "play_emote", "emote": "think", "duration_ticks": 35 }
+      ]
+    },
+
+    "offer_amulet": {
+      "text": "&fРаз ты от Эльзы — забирай. Только... &7*прищуривается* &fс пустыми руками не отпущу. Принеси мне &6хлеба&f кусок — лису угостить.",
+      "actions": [
+        { "type": "play_emote", "emote": "crossed_arms", "duration_ticks": 40 }
+      ],
+      "options": [
+        { "text": "&7Хорошо, принесу.", "next": "come_back" },
+        { "text": "&cА если силой?", "next": "threat" }
+      ]
+    },
+
+    "come_back": {
+      "text": "&fДавай. Я никуда не денусь. &7*кивает на лес*",
+      "next": null,
+      "actions": [
+        { "type": "play_emote", "emote": "nod", "duration_ticks": 20 },
+        { "type": "start_quest", "quest": {
+            "id": "harold_bread",
+            "title": "Хлеб для Рыжухи",
+            "description": "Гарольд просит принести хлеба для своей лисы Рыжухи — только тогда он отдаст найденные часы.",
+            "objectives": ["Принести Гарольду 1 хлеб"]
+          }
+        }
+      ]
+    },
+
+    "threat": {
+      "text": "&7*Гарольд кладёт ладонь на топор* &fПопробуй. Только потом не жалуйся.",
+      "next": null,
+      "actions": [
+        { "type": "play_emote", "emote": "crossed_arms", "duration_ticks": 50 }
+      ]
+    },
+
+    "offer_bread": {
+      "text": "&fА, вернулся. &7*смотрит с прищуром* &fХлеб принёс?",
+      "actions": [
+        { "type": "play_emote", "emote": "crossed_arms", "duration_ticks": 30 }
+      ],
+      "options": [
+        { "text": "&aДержи, как обещал.",
+          "next": "give_amulet",
+          "condition": { "type": "has_item", "item": "minecraft:bread", "count": 1 },
+          "lock_reason": "&8(нужен 1× хлеб)"
+        },
+        { "text": "&7Ещё не нашёл.", "next": "wait_more" },
+        { "text": "&cМожет, обойдёмся без хлеба?", "next": "threat" }
+      ]
+    },
+
+    "wait_more": {
+      "text": "&fНе спеши. Рыжуха подождёт, и я подожду.",
+      "next": null,
+      "actions": [
+        { "type": "play_emote", "emote": "shrug", "duration_ticks": 25 }
+      ]
+    },
+
+    "give_amulet": {
+      "text": "&fВот, держи часы. Рыжуха, иди сюда, угощу... &7*бросает хлеб лисе* &fПередавай Эльзе привет.",
+      "next": "farewell",
+      "actions": [
+        { "type": "remove_item", "item": "minecraft:bread", "count": 1 },
+        { "type": "complete_quest", "quest_id": "harold_bread" },
+        { "type": "give_item", "item": "minecraft:clock", "count": 1 },
+        { "type": "play_emote", "emote": "handshake", "duration_ticks": 35 },
+        { "type": "play_sound", "sound": "minecraft:entity.fox.ambient", "volume": 1.0, "pitch": 1.0 }
+      ]
+    },
+
+    "farewell": {
+      "text": "&fИ это... скажи, чтоб мёда в следующий раз прислала. Уважаю её настойки.",
+      "next": null,
+      "actions": [
+        { "type": "play_emote", "emote": "shrug", "duration_ticks": 30 }
+      ]
+    },
+
+    "hub_idle": {
+      "text": "&fСнова ты. Чего надо?",
+      "actions": [
+        { "type": "play_emote", "emote": "crossed_arms", "duration_ticks": 30 }
+      ],
+      "options": [
+        { "text": "&7Расскажи про лес.", "next": "lore" },
+        { "text": "&7Пока.", "next": null }
+      ]
+    },
+
+    "hub_after_amulet": {
+      "text": "&fОтнёс часы травнице? Доброе дело сделал.",
+      "actions": [
+        { "type": "play_emote", "emote": "nod", "duration_ticks": 25 }
+      ],
+      "options": [
+        { "text": "&7Расскажи про лес.", "next": "lore" },
+        { "text": "&7Пока.", "next": null }
+      ]
+    },
+
+    "lore": {
+      "text": "&fЯ тут двадцать зим живу. До меня — отец. До отца — дед. Лес нас кормит, мы его не трогаем без нужды. Вот и весь сказ.",
+      "next": null,
+      "actions": [
+        { "type": "play_emote", "emote": "shrug", "duration_ticks": 40 }
+      ]
+    }
+  }
+}

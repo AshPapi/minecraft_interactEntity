@@ -1,0 +1,159 @@
+{
+  "target": {
+    "name": "Эльза",
+    "tag": "story_elsa",
+    "entity_type": "interactentity:custom_npc"
+  },
+  "display_name": "&d[&5Эльза&d]",
+  "character_info": "Травница из деревни. Собирает редкие коренья и варит мази.",
+  "avatar": "interactentity:textures/entity/elsa.png",
+  "scope": "per_player",
+  "entry": "start",
+
+  "visual": {
+    "model": "interactentity:geo/custom_npc_slim.geo.json",
+    "texture": "interactentity:textures/entity/elsa.png",
+    "scale": 1.0
+  },
+
+  "summon": {
+    "entity": "interactentity:custom_npc",
+    "custom_name": "Эльза",
+    "tags": ["story_elsa"],
+    "spawn_position": "behind_player",
+    "trigger": { "type": "on_join", "delay": 60 }
+  },
+
+  "on_revisit": {
+    "default_start_node": "hub_idle",
+    "conditions": [
+      {
+        "condition": { "type": "quest_status", "quest_id": "lost_amulet", "status": "completed" },
+        "text": "&7Эльза тепло улыбается тебе. &dСпасибо, что выручил, {player}."
+      },
+      {
+        "condition": { "type": "has_item", "item": "minecraft:clock", "count": 1 },
+        "start_node": "return_with_amulet"
+      },
+      {
+        "condition": { "type": "quest_status", "quest_id": "lost_amulet", "status": "active" },
+        "start_node": "hub_active"
+      }
+    ]
+  },
+
+  "nodes": {
+
+    "start": {
+      "text": "&fО, путник! Слава богам, хоть кто-то забрёл. У меня беда, {player}...",
+      "next": "explain",
+      "actions": [
+        { "type": "play_emote", "emote": "wave", "duration_ticks": 30 },
+        { "type": "play_sound", "sound": "minecraft:entity.villager.ambient", "volume": 1.0, "pitch": 1.1 }
+      ]
+    },
+
+    "explain": {
+      "text": "&fМои &dкарманные часы&f пропали. Утром оставила на пеньке — отвлеклась на грядку, оборачиваюсь — нету. И лисьи следы рядом...",
+      "next": "ask_help",
+      "actions": [
+        { "type": "play_emote", "emote": "facepalm", "duration_ticks": 45 }
+      ]
+    },
+
+    "ask_help": {
+      "text": "&fВ той стороне леса живёт охотник &6Гарольд&f. Лисы часто к нему таскают всякое — может, видел мои часы. Поможешь?",
+      "actions": [
+        { "type": "play_emote", "emote": "please", "duration_ticks": 60 }
+      ],
+      "options": [
+        { "text": "&aКонечно, найду Гарольда.", "next": "accept",
+          "actions": [
+            { "type": "start_quest", "quest": {
+              "id": "lost_amulet",
+              "title": "Пропавший амулет",
+              "description": "Эльза потеряла карманные часы. Возможно, их утащила лиса к охотнику Гарольду.",
+              "objectives": [
+                "Найти Гарольда и расспросить",
+                "Вернуть часы Эльзе"
+              ]
+            }},
+            { "type": "play_emote", "emote": "happy", "duration_ticks": 30 }
+          ]
+        },
+        { "text": "&7Сейчас не до этого.", "next": "refuse",
+          "actions": [
+            { "type": "play_emote", "emote": "shrug", "duration_ticks": 25 }
+          ]
+        }
+      ]
+    },
+
+    "accept": {
+      "text": "&dСпасибо! Гарольд живёт в лесу — найдёшь по дыму над избушкой. Он бывает грубоват, но не злой.",
+      "actions": [
+        { "type": "play_emote", "emote": "bow", "duration_ticks": 40 }
+      ]
+    },
+
+    "refuse": {
+      "text": "&7Понимаю... Если передумаешь — я тут."
+    },
+
+    "hub_idle": {
+      "text": "&fСнова ты, {player}. Травки или поболтать?",
+      "actions": [
+        { "type": "play_emote", "emote": "nod", "duration_ticks": 25 }
+      ],
+      "options": [
+        { "text": "&7Расскажи о себе.", "next": "lore" },
+        { "text": "&7Уйти.", "next": null }
+      ]
+    },
+
+    "hub_active": {
+      "text": "&fНу как, нашёл Гарольда? Амулет у него?",
+      "options": [
+        { "text": "&7Ещё ищу.", "next": null },
+        { "text": "&7Расскажи о себе.", "next": "lore" }
+      ]
+    },
+
+    "return_with_amulet": {
+      "text": "&dОй! Мои часы! Где ты их нашёл, {player}?!",
+      "next": "thanks",
+      "actions": [
+        { "type": "play_emote", "emote": "celebrate", "duration_ticks": 40 }
+      ]
+    },
+
+    "thanks": {
+      "text": "&fГарольд, значит... Передай ему банку мёда от меня в следующий раз. А тебе — вот, держи.",
+      "next": "reward",
+      "actions": [
+        { "type": "remove_item", "item": "minecraft:clock", "count": 1 },
+        { "type": "complete_objective", "quest_id": "lost_amulet", "objective_number": 2 },
+        { "type": "complete_quest", "quest_id": "lost_amulet" },
+        { "type": "give_item", "item": "minecraft:emerald", "count": 4 },
+        { "type": "give_item", "item": "minecraft:golden_apple", "count": 1 },
+        { "type": "give_effect", "effect": "minecraft:regeneration", "duration": 200, "amplifier": 1 },
+        { "type": "play_sound", "sound": "minecraft:entity.villager.celebrate", "volume": 1.0, "pitch": 1.2 }
+      ]
+    },
+
+    "reward": {
+      "text": "&e4 изумруда и яблочко в дорогу. Заходи ещё, путник.",
+      "actions": [
+        { "type": "play_emote", "emote": "bow", "duration_ticks": 45 }
+      ]
+    },
+
+    "lore": {
+      "text": "&7*Эльза взвешивает в руках два пучка трав, прикидывая, какой лучше* &fРодилась здесь же, в деревне. Мать научила меня травам, бабка — заговорам. А часы — её, бабкины. Потому и переживаю.",
+      "next": null,
+      "actions": [
+        { "type": "play_emote", "emote": "six_seven", "duration_ticks": 50 }
+      ]
+    }
+  }
+}
