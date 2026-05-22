@@ -54,16 +54,7 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
     private static final RawAnimation THINK_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.think");
     private static final RawAnimation FACEPALM_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.facepalm");
     private static final RawAnimation BOW_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.bow");
-    private static final RawAnimation SURPRISED_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.surprised");
-    private static final RawAnimation DISMISS_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.dismiss");
-    private static final RawAnimation CLAP_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.clap");
-    private static final RawAnimation LAUGH_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.laugh");
-    private static final RawAnimation YAWN_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.yawn");
-    private static final RawAnimation BECKON_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.beckon");
-    private static final RawAnimation SCARED_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.scared");
-    private static final RawAnimation CONFUSED_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.confused");
-
-    private static final RawAnimation BLINK_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.blink");
+    private static final RawAnimation SIX_SEVEN_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.six_seven");
 
     // Кастомная модель и текстура задаются через NBT
     private static final String MODEL_KEY = "InteractEntity_Model";
@@ -241,14 +232,7 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
             case "think" -> THINK_ANIM;
             case "facepalm" -> FACEPALM_ANIM;
             case "bow" -> BOW_ANIM;
-            case "surprised" -> SURPRISED_ANIM;
-            case "dismiss" -> DISMISS_ANIM;
-            case "clap" -> CLAP_ANIM;
-            case "laugh" -> LAUGH_ANIM;
-            case "yawn" -> YAWN_ANIM;
-            case "beckon" -> BECKON_ANIM;
-            case "scared" -> SCARED_ANIM;
-            case "confused" -> CONFUSED_ANIM;
+            case "six_seven", "67" -> SIX_SEVEN_ANIM;
             default -> null;
         };
     }
