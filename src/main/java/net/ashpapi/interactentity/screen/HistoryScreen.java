@@ -376,7 +376,7 @@ public class HistoryScreen extends Screen {
         int currentHeaderY = (int) net.minecraft.util.Mth.lerp(detailRevealProgress, startY, contentY - detailsScroll);
 
         int nameY = currentHeaderY + 6;
-        Component name = TextFormatter.format(entry.getDisplayName());
+        Component name = TextFormatter.format(resolveText(entry.getDisplayName()));
         int listNameX = contentX + 23; // Исправлено: 23 вместо 21 для идеального совпадения со списком без прыжков
         int openNameX = contentX + 2;
 
@@ -439,7 +439,7 @@ public class HistoryScreen extends Screen {
                 int y = nameY + 22;
 
                 // 2. Фракция (белый текст, '-' если пусто). Выравнивается по nameX для плавного выдвижения
-                String faction = entry.getFactionLabel();
+                String faction = resolveText(entry.getFactionLabel());
                 String fValue = (faction != null && !faction.isEmpty()) ? faction : "-";
                 Component fComp = Component.literal(tr("bestiary.faction") + ": ").withStyle(net.minecraft.ChatFormatting.GRAY)
                         .append(Component.literal(fValue).withStyle(net.minecraft.ChatFormatting.WHITE));
@@ -481,7 +481,7 @@ public class HistoryScreen extends Screen {
                 y += 12;
 
                 // 6. Описание (Lore). Выравнивается по nameX для плавного выдвижения
-                String lore = entry.getCharacterInfo();
+                String lore = resolveText(entry.getCharacterInfo());
                 if (lore != null && !lore.isEmpty()) {
                     Component loreComp = TextFormatter.format(lore);
                     int loreRightInset = 14;
@@ -618,7 +618,7 @@ public class HistoryScreen extends Screen {
             int iconY = rowY + (ROW_HEIGHT - 2 - iconSize) / 2;
             drawAvatarHead(graphics, entry.getAvatar(), iconX, iconY, iconSize, rowAlpha);
 
-            Component label = TextFormatter.format(entry.getDisplayName());
+            Component label = TextFormatter.format(resolveText(entry.getDisplayName()));
             boolean activeQuest = hasActiveQuest(entry);
             int bookSize = 9;
             int bookX = listX + listW - bookSize - 4;
@@ -707,7 +707,7 @@ public class HistoryScreen extends Screen {
             }
             
             List<FormattedCharSequence> lines = historyLinesCache.computeIfAbsent(line, l -> {
-                Component textComp = TextFormatter.format(speakerLabel(l) + "&r: " + l.getText());
+                Component textComp = TextFormatter.format(speakerLabel(l) + "&r: " + resolveText(l.getText()));
                 return this.font.split(textComp, unscaledWidth(textAvailW));
             });
 
@@ -1341,7 +1341,7 @@ public class HistoryScreen extends Screen {
     }
 
     private int historyLineHeight(HistoryLine line, int width) {
-        Component text = TextFormatter.format(speakerLabel(line) + "&r: " + line.getText());
+        Component text = TextFormatter.format(speakerLabel(line) + "&r: " + resolveText(line.getText()));
         return wrappedHeight(text, width - HISTORY_ACCENT_WIDTH - 8) + HISTORY_ACCENT_PAD * 2;
     }
 
@@ -1349,9 +1349,22 @@ public class HistoryScreen extends Screen {
         return this.font.split(text, unscaledWidth(width)).size() * lineHeight();
     }
 
+    private String getClientLanguage() {
+        try {
+            return net.minecraft.client.Minecraft.getInstance().getLanguageManager().getSelected();
+        } catch (Exception e) {
+            return "en_us";
+        }
+    }
+
+    private String resolveText(String raw) {
+        return net.ashpapi.interactentity.formatting.TranslationResolver.resolve(
+                net.ashpapi.interactentity.formatting.TranslationResolver.parseSafe(raw), getClientLanguage());
+    }
+
     private String speakerLabel(HistoryLine line) {
         if ("player".equals(line.getSpeaker())) return net.minecraft.client.resources.language.I18n.get("gui.interactentity.dialogue.you");
-        return line.getSpeaker();
+        return resolveText(line.getSpeaker());
     }
 
     private String trackLabel(QuestState quest) {

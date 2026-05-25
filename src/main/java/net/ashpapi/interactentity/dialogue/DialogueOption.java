@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class DialogueOption {
-    private final String text;
+    private final com.google.gson.JsonElement text;
     @Nullable
     private final String nextNodeId;
     @Nullable
@@ -17,10 +17,10 @@ public class DialogueOption {
     private final List<JsonObject> actions;
     private final boolean locked;
     @Nullable
-    private final String lockReason;
+    private final com.google.gson.JsonElement lockReason;
 
-    public DialogueOption(String text, @Nullable String nextNodeId, @Nullable JsonObject condition,
-                          List<JsonObject> actions, boolean locked, @Nullable String lockReason) {
+    public DialogueOption(com.google.gson.JsonElement text, @Nullable String nextNodeId, @Nullable JsonObject condition,
+                          List<JsonObject> actions, boolean locked, @Nullable com.google.gson.JsonElement lockReason) {
         this.text = text;
         this.nextNodeId = nextNodeId;
         this.condition = condition;
@@ -29,15 +29,22 @@ public class DialogueOption {
         this.lockReason = lockReason;
     }
 
-    public String getText() { return text; }
+    public String getText(String lang) { return net.ashpapi.interactentity.formatting.TranslationResolver.resolve(text, lang); }
+    public String getText() { return getText("en_us"); }
+    public com.google.gson.JsonElement getTextElement() { return text; }
     @Nullable public String getNextNodeId() { return nextNodeId; }
     @Nullable public JsonObject getCondition() { return condition; }
     public List<JsonObject> getActions() { return actions; }
     public boolean isLocked() { return locked; }
-    @Nullable public String getLockReason() { return lockReason; }
+    @Nullable public String getLockReason(String lang) {
+        if (lockReason == null) return null;
+        return net.ashpapi.interactentity.formatting.TranslationResolver.resolve(lockReason, lang);
+    }
+    @Nullable public String getLockReason() { return getLockReason("en_us"); }
+    @Nullable public com.google.gson.JsonElement getLockReasonElement() { return lockReason; }
 
     public static DialogueOption fromJson(JsonObject json) {
-        String text = json.get("text").getAsString();
+        com.google.gson.JsonElement text = json.get("text");
         String next = json.has("next") && !json.get("next").isJsonNull() ? json.get("next").getAsString() : null;
         JsonObject condition = json.has("condition") ? json.getAsJsonObject("condition") : null;
 
@@ -50,7 +57,7 @@ public class DialogueOption {
         }
 
         boolean locked = json.has("locked") && json.get("locked").getAsBoolean();
-        String lockReason = json.has("lock_reason") ? json.get("lock_reason").getAsString() : null;
+        com.google.gson.JsonElement lockReason = json.has("lock_reason") ? json.get("lock_reason") : null;
 
         return new DialogueOption(text, next, condition, actions, locked, lockReason);
     }

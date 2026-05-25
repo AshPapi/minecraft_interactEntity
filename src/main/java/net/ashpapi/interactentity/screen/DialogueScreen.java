@@ -56,6 +56,11 @@ public class DialogueScreen extends Screen {
     private List<Integer> optionIndices;
     private List<Boolean> optionLocked;
     private List<String> optionLockReasons;
+    private String rawDisplayName;
+    private String rawDialogueText;
+    private List<String> rawOptionTexts;
+    private List<String> rawOptionLockReasons;
+    private String lastResolvedLang = "";
     @Nullable private ResourceLocation avatarTexture;
     @Nullable private String factionId;
     private int reputation;
@@ -179,10 +184,16 @@ public class DialogueScreen extends Screen {
             historyList = new ArrayList<>(sessionHistory);
         }
 
+        String lang = getClientLanguage();
         for (SessionHistoryLine line : historyList) {
-            List<FormattedCharSequence> splitLines = this.font.split(TextFormatter.format(line.text), scaledTextWidth);
+            String translatedSpeaker = net.ashpapi.interactentity.formatting.TranslationResolver.resolve(
+                    net.ashpapi.interactentity.formatting.TranslationResolver.parseSafe(line.speaker), lang);
+            String translatedText = net.ashpapi.interactentity.formatting.TranslationResolver.resolve(
+                    net.ashpapi.interactentity.formatting.TranslationResolver.parseSafe(line.text), lang);
+
+            List<FormattedCharSequence> splitLines = this.font.split(TextFormatter.format(translatedText), scaledTextWidth);
             int height = LINE_HEIGHT + splitLines.size() * (LINE_HEIGHT + LINE_SPACING) + 12 + 6;
-            Component speakerComp = TextFormatter.format(line.speaker);
+            Component speakerComp = TextFormatter.format(translatedSpeaker);
             cachedHistoryItems.add(new CachedHistoryItem(line, splitLines, height, speakerComp));
             cachedHistoryTotalHeight += height;
         }
@@ -203,13 +214,15 @@ public class DialogueScreen extends Screen {
         this.displayName = displayName;
         this.dialogueText = text;
         this.nodeType = nodeType;
-        this.optionTexts = new ArrayList<>(optionTexts);
+        this.rawOptionTexts = new ArrayList<>(optionTexts);
         this.optionIndices = new ArrayList<>(optionIndices);
         this.optionLocked = new ArrayList<>(optionLocked);
-        this.optionLockReasons = new ArrayList<>(optionLockReasons);
+        this.rawOptionLockReasons = new ArrayList<>(optionLockReasons);
         this.avatarTexture = avatarTexture;
-        this.cachedNameComp = TextFormatter.format(displayName);
-        this.cachedOptionAvailW = -1;
+        this.rawDisplayName = displayName;
+        this.rawDialogueText = text;
+        this.lastResolvedLang = "";
+        resolveAllTexts();
         synchronized (sessionHistory) {
             this.sessionHistory.add(new SessionHistoryLine(displayName, text, false));
         }
@@ -230,6 +243,8 @@ public class DialogueScreen extends Screen {
         this.cachedOptionAvailW = -1;
         this.cachedVisibleDialogueChars = -1;
         this.cachedTextLinesWidth = -1;
+        this.lastResolvedLang = "";
+        resolveAllTexts();
         rebuildHistoryCache();
     }
 
@@ -257,6 +272,7 @@ public class DialogueScreen extends Screen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        resolveAllTexts();
         if (net.ashpapi.interactentity.camera.DialogueCameraController.isTransitioningFromThirdPerson()) {
             return;
         }
@@ -735,16 +751,16 @@ public class DialogueScreen extends Screen {
                                List<Boolean> optionLocked, List<String> optionLockReasons,
                                @Nullable ResourceLocation avatarTexture) {
         this.nodeId = nodeId;
-        this.displayName = displayName;
-        this.dialogueText = text;
+        this.rawDisplayName = displayName;
+        this.rawDialogueText = text;
         this.nodeType = nodeType;
-        this.optionTexts = new ArrayList<>(optionTexts);
+        this.rawOptionTexts = new ArrayList<>(optionTexts);
         this.optionIndices = new ArrayList<>(optionIndices);
         this.optionLocked = new ArrayList<>(optionLocked);
-        this.optionLockReasons = new ArrayList<>(optionLockReasons);
+        this.rawOptionLockReasons = new ArrayList<>(optionLockReasons);
         this.avatarTexture = avatarTexture;
-        this.cachedNameComp = TextFormatter.format(displayName);
-        this.cachedOptionAvailW = -1;
+        this.lastResolvedLang = "";
+        resolveAllTexts();
         synchronized (sessionHistory) {
             this.sessionHistory.add(new SessionHistoryLine(displayName, text, false));
         }
@@ -760,6 +776,49 @@ public class DialogueScreen extends Screen {
 
         Minecraft mc = Minecraft.getInstance();
         if (mc.player != null) mc.player.stopUsingItem();
+    }
+
+    private String getClientLanguage() {
+        try {
+            return Minecraft.getInstance().getLanguageManager().getSelected();
+        } catch (Exception e) {
+            return "en_us";
+        }
+    }
+
+    private void resolveAllTexts() {
+        String lang = getClientLanguage();
+        if (lang.equals(lastResolvedLang)) {
+            return;
+        }
+        lastResolvedLang = lang;
+
+        this.displayName = net.ashpapi.interactentity.formatting.TranslationResolver.resolve(
+                net.ashpapi.interactentity.formatting.TranslationResolver.parseSafe(rawDisplayName), lang);
+        this.dialogueText = net.ashpapi.interactentity.formatting.TranslationResolver.resolve(
+                net.ashpapi.interactentity.formatting.TranslationResolver.parseSafe(rawDialogueText), lang);
+
+        this.optionTexts = new ArrayList<>();
+        if (rawOptionTexts != null) {
+            for (String opt : rawOptionTexts) {
+                this.optionTexts.add(net.ashpapi.interactentity.formatting.TranslationResolver.resolve(
+                        net.ashpapi.interactentity.formatting.TranslationResolver.parseSafe(opt), lang));
+            }
+        }
+
+        this.optionLockReasons = new ArrayList<>();
+        if (rawOptionLockReasons != null) {
+            for (String reason : rawOptionLockReasons) {
+                this.optionLockReasons.add(net.ashpapi.interactentity.formatting.TranslationResolver.resolve(
+                        net.ashpapi.interactentity.formatting.TranslationResolver.parseSafe(reason), lang));
+            }
+        }
+
+        this.cachedNameComp = TextFormatter.format(displayName);
+        this.cachedOptionAvailW = -1;
+        this.cachedTextAreaWidth = -1;
+        this.resetTypewriter();
+        rebuildHistoryCache();
     }
 
     private boolean isOptionLocked(int index) {

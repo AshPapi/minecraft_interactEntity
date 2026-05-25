@@ -16,7 +16,7 @@ public class DialogueTree {
     private final String id;
     private final String scope;
     private final DialogueTarget target;
-    private final String displayName;
+    private final com.google.gson.JsonElement displayName;
     private final String entryNodeId;
     private final Map<String, DialogueNode> nodes;
     @Nullable private final RevisitConfig revisitConfig;
@@ -32,7 +32,7 @@ public class DialogueTree {
     private final boolean repeatable;
     @Nullable private final List<NpcRoutine> routines;
 
-    public DialogueTree(String id, String scope, DialogueTarget target, String displayName, String entryNodeId,
+    public DialogueTree(String id, String scope, DialogueTarget target, com.google.gson.JsonElement displayName, String entryNodeId,
                         Map<String, DialogueNode> nodes, @Nullable RevisitConfig revisitConfig,
                         @Nullable JsonObject summonConfig, @Nullable JsonObject startTrigger,
                         List<JsonObject> triggers,
@@ -63,7 +63,9 @@ public class DialogueTree {
     public String getId() { return id; }
     public String getScope() { return scope; }
     public DialogueTarget getTarget() { return target; }
-    public String getDisplayName() { return displayName; }
+    public String getDisplayName(String lang) { return net.ashpapi.interactentity.formatting.TranslationResolver.resolve(displayName, lang); }
+    public String getDisplayName() { return getDisplayName("en_us"); }
+    public com.google.gson.JsonElement getDisplayNameElement() { return displayName; }
     public String getEntryNodeId() { return entryNodeId; }
     @Nullable public DialogueNode getNode(String id) { return nodes.get(id); }
     public DialogueNode getEntryNode() { return nodes.get(entryNodeId); }
@@ -84,7 +86,7 @@ public class DialogueTree {
     public static DialogueTree fromJson(String id, JsonObject json) {
         DialogueTarget target = DialogueTarget.fromJson(json.getAsJsonObject("target"));
         String scope = json.has("scope") ? json.get("scope").getAsString() : "global";
-        String displayName = json.has("display_name") ? json.get("display_name").getAsString() : target.getName();
+        com.google.gson.JsonElement displayName = json.has("display_name") ? json.get("display_name") : new com.google.gson.JsonPrimitive(target.getName());
         String entry = json.get("entry").getAsString();
 
         Map<String, DialogueNode> nodes = new HashMap<>();

@@ -12,8 +12,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 public class DialogueNode {
     private final String id;
-    private final String text;
-    private final List<String> randomTexts;
+    private final com.google.gson.JsonElement text;
+    private final List<com.google.gson.JsonElement> randomTexts;
     @Nullable
     private final String nextNodeId;
     private final List<DialogueOption> options;
@@ -23,7 +23,7 @@ public class DialogueNode {
     private final float cameraYawOffset;
     private final float cameraPitchOffset;
 
-    public DialogueNode(String id, String text, List<String> randomTexts, @Nullable String nextNodeId,
+    public DialogueNode(String id, com.google.gson.JsonElement text, List<com.google.gson.JsonElement> randomTexts, @Nullable String nextNodeId,
                         List<DialogueOption> options, List<JsonObject> actions, int autoNextTicks,
                         String cameraMode, float cameraYawOffset, float cameraPitchOffset) {
         this.id = id;
@@ -43,7 +43,17 @@ public class DialogueNode {
     public float getCameraPitchOffset() { return cameraPitchOffset; }
 
     public String getId() { return id; }
+    public String getText(String lang) {
+        if (randomTexts != null && !randomTexts.isEmpty()) {
+            com.google.gson.JsonElement el = randomTexts.get(ThreadLocalRandom.current().nextInt(randomTexts.size()));
+            return net.ashpapi.interactentity.formatting.TranslationResolver.resolve(el, lang);
+        }
+        return net.ashpapi.interactentity.formatting.TranslationResolver.resolve(text, lang);
+    }
     public String getText() {
+        return getText("en_us");
+    }
+    public com.google.gson.JsonElement getTextElement() {
         if (randomTexts != null && !randomTexts.isEmpty()) {
             return randomTexts.get(ThreadLocalRandom.current().nextInt(randomTexts.size()));
         }
@@ -59,13 +69,13 @@ public class DialogueNode {
     public boolean isEnd() { return nextNodeId == null && options.isEmpty(); }
 
     public static DialogueNode fromJson(String id, JsonObject json) {
-        String text = json.has("text") ? json.get("text").getAsString() : "";
+        com.google.gson.JsonElement text = json.has("text") ? json.get("text") : new com.google.gson.JsonPrimitive("");
 
-        List<String> randomTexts = null;
+        List<com.google.gson.JsonElement> randomTexts = null;
         if (json.has("random_text")) {
             randomTexts = new ArrayList<>();
             JsonArray arr = json.getAsJsonArray("random_text");
-            for (JsonElement el : arr) randomTexts.add(el.getAsString());
+            for (JsonElement el : arr) randomTexts.add(el);
         }
 
         String next = json.has("next") && !json.get("next").isJsonNull() ? json.get("next").getAsString() : null;

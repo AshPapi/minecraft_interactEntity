@@ -62,6 +62,7 @@ Complete reference + tutorial for the **InteractEntity** mod: JSON dialogue form
 26. [Companions and NPC home](#26-companions)
 27. [Scope — global vs per_player](#27-scope)
 28. [Placeholders](#28-placeholders)
+28a. [Multilingual Dialogues in JSON](#28a-multilingual-dialogues-in-json)
 29. [Text formatting](#29-formatting)
 30. [Commands](#30-commands)
 31. [Keybinds](#31-keybinds)
@@ -1359,6 +1360,83 @@ Super handy for lively lines: "Hi, Steve!" instead of a generic "Hi, traveler".
 
 ---
 
+## 28a. Multilingual Dialogues in JSON
+
+By default, writing a dialogue with plain text strings forces a single language on all players. To make your dialogues accessible worldwide, **InteractEntity** supports fully dynamic multilingual dialogue content directly inside the JSON files. 
+
+For any user-facing text field (including `display_name` in the root, `text` in nodes, elements of the `random_text` array, option `text`, and option `lock_reason`), you can provide a **JSON object mapping locale codes** to their respective translations instead of a simple string.
+
+### How it works
+1. When a player opens a dialogue, the mod detects their active client language (e.g., `en_us`, `ru_ru`, `fr_fr`, `de_de`, `es_es`, `zh_cn`, etc.).
+2. The mod looks up the matching locale key in your translation object.
+3. **Fallback mechanism**: If the player's language is not defined in the object, the mod falls back to `en_us`. If `en_us` is also missing, the mod uses the first available language key defined in the object.
+4. Standard **placeholders** (like `{player}`) and **formatting codes** (like `&6` or HEX colors) are fully supported and resolved on the chosen translation string dynamically, ensuring a polished, zero-mixture localized experience.
+
+### JSON Example
+
+Instead of a plain string:
+```json
+"text": "Hello, &e{player}&r! Do you want a diamond?"
+```
+
+You can write:
+```json
+"text": {
+  "en_us": "Hello, &e{player}&r! Do you want a diamond?",
+  "ru_ru": "Привет, &e{player}&r! Хочешь алмаз?",
+  "fr_fr": "Bonjour, &e{player}&r ! Tu veux un diamant ?",
+  "de_de": "Hallo, &e{player}&r! Möchtest du einen Diamanten?",
+  "es_es": "¡Hola, &e{player}&r! ¿Quieres un diamante?",
+  "zh_cn": "你好，&e{player}&r！你想要一颗钻石吗？"
+}
+```
+
+### Full Node Example
+
+Here is how a complete node looks with multilingual support:
+
+```json
+"nodes": {
+  "start": {
+    "text": {
+      "en_us": "Welcome! I have a quest for you.",
+      "ru_ru": "Добро пожаловать! У меня есть квест для тебя.",
+      "fr_fr": "Bienvenue ! J'ai une quête pour toi.",
+      "de_de": "Willkommen! Ich habe eine Quest für dich."
+    },
+    "options": [
+      {
+        "text": {
+          "en_us": "Sure, let's do it!",
+          "ru_ru": "Конечно, давай!",
+          "fr_fr": "Bien sûr, c'est parti !",
+          "de_de": "Klar, legen wir los!"
+        },
+        "next": "accept_quest"
+      },
+      {
+        "text": {
+          "en_us": "Not now (Requires 10 reputation)",
+          "ru_ru": "Не сейчас (Требуется 10 репутации)"
+        },
+        "condition": {
+          "type": "reputation",
+          "id": "village",
+          "min": 10
+        },
+        "lock_reason": {
+          "en_us": "You must be trusted in the village.",
+          "ru_ru": "Вам должны доверять в деревне."
+        },
+        "next": "refuse_quest"
+      }
+    ]
+  }
+}
+```
+
+---
+
 ## 29. Text formatting
 
 Inside any string you can color and style text. Standard Minecraft codes work (use `&` instead of `§`), plus a HEX color extension. Codes can be combined — `&l&c` is bold red.
@@ -2056,6 +2134,7 @@ If something doesn't work — check the server log, look for `[InteractEntity]`,
 26. [Компаньоны и дом NPC](#26-компаньоны-и-дом-npc)
 27. [Scope — global vs per_player](#27-scope)
 28. [Плейсхолдеры](#28-плейсхолдеры)
+28a. [Мультиязычные диалоги в JSON](#28a-мультиязычные-диалоги-в-json)
 29. [Форматирование текста](#29-форматирование-текста)
 30. [Команды](#30-команды)
 31. [Клавиши](#31-клавиши)
@@ -3402,6 +3481,83 @@ Action в одном scope может ссылаться на квест из д
 
 ```json
 "text": "Привет, &e{player}&r! У тебя {reputation:village} очков и {var:trust} доверия."
+```
+
+---
+
+## 28a. Мультиязычные диалоги в JSON
+
+По умолчанию, если писать диалоги обычными строками, все игроки будут видеть текст на одном языке. Чтобы сделать ваши диалоги доступными для игроков со всего мира, **InteractEntity** поддерживает полностью динамическую локализацию прямо внутри JSON-файлов.
+
+Для любого текстового поля, отображаемого игроку (включая `display_name` в корне диалога, `text` в узлах, элементы массива `random_text`, тексты кнопок `text` в опциях и причины блокировки `lock_reason` в опциях), вместо простой строки вы можете указать **JSON-объект с кодами языков (локалей)** и соответствующими переводами.
+
+### Как это работает
+1. Когда игрок начинает диалог, мод автоматически определяет активный язык его клиента (например, `en_us`, `ru_ru`, `fr_fr`, `de_de`, `es_es`, `zh_cn` и т.д.).
+2. Мод ищет соответствующий ключ локали в вашем объекте перевода.
+3. **Механизм fallback (отката)**: Если язык игрока не найден в объекте, мод попробует использовать английский (`en_us`). Если и `en_us` отсутствует, будет взят первый доступный перевод из объекта.
+4. Все **плейсхолдеры** (например `{player}`) и **коды форматирования** (такие как `&e` или HEX-цвета) полноценно поддерживаются и подставляются в выбранную строку перевода "на лету", гарантируя отсутствие смеси языков.
+
+### Пример JSON
+
+Вместо простой строки:
+```json
+"text": "Привет, &e{player}&r! Хочешь алмаз?"
+```
+
+Вы можете написать:
+```json
+"text": {
+  "en_us": "Hello, &e{player}&r! Do you want a diamond?",
+  "ru_ru": "Привет, &e{player}&r! Хочешь алмаз?",
+  "fr_fr": "Bonjour, &e{player}&r ! Tu veux un diamant ?",
+  "de_de": "Hallo, &e{player}&r! Möchtest du einen Diamanten?",
+  "es_es": "¡Hola, &e{player}&r! ¿Quieres un diamante?",
+  "zh_cn": "你好，&e{player}&r！你想要一颗钻石吗？"
+}
+```
+
+### Пример полного узла
+
+Вот как выглядит узел диалога с поддержкой мультиязычности:
+
+```json
+"nodes": {
+  "start": {
+    "text": {
+      "en_us": "Welcome! I have a quest for you.",
+      "ru_ru": "Добро пожаловать! У меня есть квест для тебя.",
+      "fr_fr": "Bienvenue ! J'ai une quête pour toi.",
+      "de_de": "Willkommen! Ich habe eine Quest für dich."
+    },
+    "options": [
+      {
+        "text": {
+          "en_us": "Sure, let's do it!",
+          "ru_ru": "Конечно, давай!",
+          "fr_fr": "Bien sûr, c'est parti !",
+          "de_de": "Klar, legen wir los!"
+        },
+        "next": "accept_quest"
+      },
+      {
+        "text": {
+          "en_us": "Not now (Requires 10 reputation)",
+          "ru_ru": "Не сейчас (Требуется 10 репутации)"
+        },
+        "condition": {
+          "type": "reputation",
+          "id": "village",
+          "min": 10
+        },
+        "lock_reason": {
+          "en_us": "You must be trusted in the village.",
+          "ru_ru": "Вам должны доверять в деревне."
+        },
+        "next": "refuse_quest"
+      }
+    ]
+  }
+}
 ```
 
 ---

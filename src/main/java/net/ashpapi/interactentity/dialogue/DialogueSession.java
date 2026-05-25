@@ -81,7 +81,9 @@ public class DialogueSession {
                     existing.getLines(), existing.getTimestamp()
             );
         } else {
-            String resolvedName = net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(tree.getDisplayName(), player, entity);
+            com.google.gson.JsonElement rawDisplayNameElement = tree.getDisplayNameElement();
+            com.google.gson.JsonElement resolvedDisplayNameElement = net.ashpapi.interactentity.formatting.PlaceholderResolver.resolveJson(rawDisplayNameElement, player, entity);
+            String resolvedName = resolvedDisplayNameElement.toString();
             this.historyEntry = new DialogueHistoryEntry(
                     tree.getId(), resolvedName,
                     this.reputationId, this.factionLabel,
@@ -191,7 +193,10 @@ public class DialogueSession {
             endSession(player);
             return;
         }
-        String nodeText = node.getText();
+        com.google.gson.JsonElement rawTextElement = node.getTextElement();
+        com.google.gson.JsonElement resolvedTextElement = net.ashpapi.interactentity.formatting.PlaceholderResolver.resolveJson(rawTextElement, player, entity);
+        com.google.gson.JsonElement rawDisplayNameElement = tree.getDisplayNameElement();
+        com.google.gson.JsonElement resolvedDisplayNameElement = net.ashpapi.interactentity.formatting.PlaceholderResolver.resolveJson(rawDisplayNameElement, player, entity);
 
         nodeEnterGameTime = player.serverLevel().getGameTime();
 
@@ -200,9 +205,7 @@ public class DialogueSession {
         data.visit(tree.getId(), currentNodeId);
 
         if (firstVisit) {
-            String resolvedDisplayName = net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(tree.getDisplayName(), player, entity);
-            String resolvedNodeText = net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(nodeText, player, entity);
-            historyEntry.addLine(new HistoryLine(resolvedDisplayName, resolvedNodeText));
+            historyEntry.addLine(new HistoryLine(resolvedDisplayNameElement.toString(), resolvedTextElement.toString()));
             data.addHistory(historyEntry);
 
             if (!started && preStartTicks > 0) {
@@ -227,12 +230,12 @@ public class DialogueSession {
             DialogueOption option = node.getOptions().get(i);
             boolean conditionMet = ConditionRegistry.check(option.getCondition(), player, entity);
             boolean locked = !conditionMet || option.isLocked();
-            String text = net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(option.getText(), player, entity);
+            com.google.gson.JsonElement resolvedOptText = net.ashpapi.interactentity.formatting.PlaceholderResolver.resolveJson(option.getTextElement(), player, entity);
+            String text = resolvedOptText.toString();
             String reason = "";
-            if (locked) {
-                reason = option.getLockReason() != null
-                        ? net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(option.getLockReason(), player, entity)
-                        : "";
+            if (locked && option.getLockReasonElement() != null) {
+                com.google.gson.JsonElement resolvedReason = net.ashpapi.interactentity.formatting.PlaceholderResolver.resolveJson(option.getLockReasonElement(), player, entity);
+                reason = resolvedReason.toString();
             }
             optionTexts.add(text);
             optionIndices.add(i);
@@ -268,8 +271,8 @@ public class DialogueSession {
         ModNetwork.sendToPlayer(player, new OpenDialoguePacket(
                 entity.getId(),
                 currentNodeId,
-                net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(tree.getDisplayName(), player, entity),
-                net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(nodeText, player, entity),
+                resolvedDisplayNameElement.toString(),
+                resolvedTextElement.toString(),
                 nodeType,
                 optionTexts,
                 optionIndices,
@@ -432,7 +435,7 @@ public class DialogueSession {
     }
 
     public String getDisplayName() {
-        return tree.getDisplayName();
+        return tree.getDisplayNameElement().toString();
     }
 
     public static boolean hasActiveSession(ServerPlayer player) {
@@ -459,7 +462,8 @@ public class DialogueSession {
                     player.getName().getString(), session.tree.getId(), session.currentNodeId, optionIndex);
             return;
         }
-        String resolvedText = net.ashpapi.interactentity.formatting.PlaceholderResolver.resolve(selected.getText(), player, session.entity);
+        com.google.gson.JsonElement resolvedTextElement = net.ashpapi.interactentity.formatting.PlaceholderResolver.resolveJson(selected.getTextElement(), player, session.entity);
+        String resolvedText = resolvedTextElement.toString();
         session.historyEntry.addLine(new HistoryLine("player", resolvedText));
 
         net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(

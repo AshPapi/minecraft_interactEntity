@@ -51,4 +51,20 @@ public class PlaceholderResolver {
         matcher.appendTail(sb);
         return sb.toString();
     }
+
+    public static com.google.gson.JsonElement resolveJson(com.google.gson.JsonElement element, ServerPlayer player, LivingEntity entity) {
+        if (element == null || element.isJsonNull()) return com.google.gson.JsonNull.INSTANCE;
+        if (element.isJsonPrimitive()) {
+            return new com.google.gson.JsonPrimitive(resolve(element.getAsString(), player, entity));
+        }
+        if (element.isJsonObject()) {
+            com.google.gson.JsonObject obj = element.getAsJsonObject();
+            com.google.gson.JsonObject resolved = new com.google.gson.JsonObject();
+            for (java.util.Map.Entry<String, com.google.gson.JsonElement> entry : obj.entrySet()) {
+                resolved.add(entry.getKey(), resolveJson(entry.getValue(), player, entity));
+            }
+            return resolved;
+        }
+        return element;
+    }
 }
