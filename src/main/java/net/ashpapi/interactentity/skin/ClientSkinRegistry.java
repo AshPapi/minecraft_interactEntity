@@ -48,4 +48,22 @@ public final class ClientSkinRegistry {
     public static boolean has(String name) {
         return REGISTERED.containsKey(name);
     }
+
+    /** Если оригинальный путь соответствует динамическому скину (по имени файла), возвращает зарегистрированный ResourceLocation, иначе оригинал. */
+    public static ResourceLocation getDynamicOrFallback(ResourceLocation original) {
+        if (original == null) return null;
+        String path = original.getPath();
+        if (path.startsWith("textures/entity/skins/")) {
+            return original;
+        }
+        if (path.endsWith(".png")) {
+            int lastSlash = path.lastIndexOf('/');
+            String filename = lastSlash >= 0 ? path.substring(lastSlash + 1) : path;
+            String name = filename.substring(0, filename.length() - 4); // убираем ".png"
+            if (has(name)) {
+                return locationFor(name);
+            }
+        }
+        return original;
+    }
 }

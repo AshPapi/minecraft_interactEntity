@@ -276,8 +276,6 @@ public class DialogueSession {
                 optionLocked,
                 optionLockReasons,
                 avatar,
-                tree.getBackground(),
-                tree.getOptionsBackground(),
                 repLabel,
                 reputation,
                 node.getCameraMode(),

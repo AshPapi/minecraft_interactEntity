@@ -649,10 +649,11 @@ public class HistoryScreen extends Screen {
 
     /** Рисует квадратную иконку-голову из 64x64 player-skin текстуры (берёт face UV (8,8)→(16,16)). */
     private void drawAvatarHead(GuiGraphics graphics, String avatarPath, int x, int y, int size, float alpha) {
-        net.minecraft.resources.ResourceLocation tex = avatarPath != null && !avatarPath.isEmpty()
+        net.minecraft.resources.ResourceLocation rawTex = avatarPath != null && !avatarPath.isEmpty()
                 ? net.minecraft.resources.ResourceLocation.tryParse(avatarPath)
                 : null;
-        if (tex == null) tex = new net.minecraft.resources.ResourceLocation("minecraft", "textures/entity/zombie/zombie.png");
+        if (rawTex == null) rawTex = new net.minecraft.resources.ResourceLocation("minecraft", "textures/entity/zombie/zombie.png");
+        net.minecraft.resources.ResourceLocation tex = net.ashpapi.interactentity.skin.ClientSkinRegistry.getDynamicOrFallback(rawTex);
         // Лёгкая рамка вокруг иконки для контраста.
         int bgAlpha = Math.round(alpha * 255);
         int bgColor = (bgAlpha << 24) | 0x1B1F2A;

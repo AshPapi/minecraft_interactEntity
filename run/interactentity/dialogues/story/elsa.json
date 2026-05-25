@@ -1,24 +1,24 @@
 {
   "target": {
-    "name": "Эльза",
+    "name": "Elsa",
     "tag": "story_elsa",
     "entity_type": "interactentity:custom_npc"
   },
-  "display_name": "&d[&5Эльза&d]",
-  "character_info": "Травница из деревни. Собирает редкие коренья и варит мази.",
-  "avatar": "interactentity:textures/entity/elsa.png",
+  "display_name": "&d[&5Elsa&d]",
+  "character_info": "Village herbalist. Collects rare roots and brews ointments.",
+  "avatar": "interactentity:textures/entity/skins/elsa.png",
   "scope": "per_player",
   "entry": "start",
 
   "visual": {
     "model": "interactentity:geo/custom_npc_slim.geo.json",
-    "texture": "interactentity:textures/entity/elsa.png",
+    "texture": "elsa",
     "scale": 1.0
   },
 
   "summon": {
     "entity": "interactentity:custom_npc",
-    "custom_name": "Эльза",
+    "custom_name": "Elsa",
     "tags": ["story_elsa"],
     "spawn_position": "behind_player",
     "trigger": { "type": "on_join", "delay": 60 }
@@ -29,7 +29,7 @@
     "conditions": [
       {
         "condition": { "type": "quest_status", "quest_id": "lost_amulet", "status": "completed" },
-        "text": "&7Эльза тепло улыбается тебе. &dСпасибо, что выручил, {player}."
+        "text": "&7Elsa smiles warmly at you. &dThank you for helping out, {player}."
       },
       {
         "condition": { "type": "has_item", "item": "minecraft:clock", "count": 1 },
@@ -45,7 +45,7 @@
   "nodes": {
 
     "start": {
-      "text": "&fО, путник! Слава богам, хоть кто-то забрёл. У меня беда, {player}...",
+      "text": "&fOh, traveler! Thank the gods, at least someone stopped by. I am in trouble, {player}...",
       "next": "explain",
       "actions": [
         { "type": "play_emote", "emote": "wave", "duration_ticks": 30 },
@@ -54,7 +54,7 @@
     },
 
     "explain": {
-      "text": "&fМои &dкарманные часы&f пропали. Утром оставила на пеньке — отвлеклась на грядку, оборачиваюсь — нету. И лисьи следы рядом...",
+      "text": "&fMy &dpocket watch&f is gone. I left it on a tree stump this morning — got distracted by the garden bed, turned around, and it was gone. And there were fox tracks nearby...",
       "next": "ask_help",
       "actions": [
         { "type": "play_emote", "emote": "facepalm", "duration_ticks": 45 }
@@ -62,26 +62,26 @@
     },
 
     "ask_help": {
-      "text": "&fВ той стороне леса живёт охотник &6Гарольд&f. Лисы часто к нему таскают всякое — может, видел мои часы. Поможешь?",
+      "text": "&fOver in that part of the forest lives a hunter named &6Harold&f. Foxes often drag things to him — maybe he saw my watch. Will you help me?",
       "actions": [
         { "type": "play_emote", "emote": "please", "duration_ticks": 60 }
       ],
       "options": [
-        { "text": "&aКонечно, найду Гарольда.", "next": "accept",
+        { "text": "&aOf course, I'll find Harold.", "next": "accept",
           "actions": [
             { "type": "start_quest", "quest": {
               "id": "lost_amulet",
-              "title": "Пропавший амулет",
-              "description": "Эльза потеряла карманные часы. Возможно, их утащила лиса к охотнику Гарольду.",
+              "title": "The Lost Amulet",
+              "description": "Elsa lost her pocket watch. A fox might have dragged it to Harold the hunter.",
               "objectives": [
-                "Найти Гарольда и расспросить",
-                "Вернуть часы Эльзе"
+                "Find Harold and ask him",
+                "Return the watch to Elsa"
               ]
             }},
             { "type": "play_emote", "emote": "happy", "duration_ticks": 30 }
           ]
         },
-        { "text": "&7Сейчас не до этого.", "next": "refuse",
+        { "text": "&7Not up for this right now.", "next": "refuse",
           "actions": [
             { "type": "play_emote", "emote": "shrug", "duration_ticks": 25 }
           ]
@@ -90,37 +90,37 @@
     },
 
     "accept": {
-      "text": "&dСпасибо! Гарольд живёт в лесу — найдёшь по дыму над избушкой. Он бывает грубоват, но не злой.",
+      "text": "&dThank you! Harold lives in the forest — you'll find him by the smoke above his cabin. He can be a bit gruff, but he's not mean.",
       "actions": [
         { "type": "play_emote", "emote": "bow", "duration_ticks": 40 }
       ]
     },
 
     "refuse": {
-      "text": "&7Понимаю... Если передумаешь — я тут."
+      "text": "&7I understand... If you change your mind, I'll be here."
     },
 
     "hub_idle": {
-      "text": "&fСнова ты, {player}. Травки или поболтать?",
+      "text": "&fYou again, {player}. Looking for herbs or just to chat?",
       "actions": [
         { "type": "play_emote", "emote": "nod", "duration_ticks": 25 }
       ],
       "options": [
-        { "text": "&7Расскажи о себе.", "next": "lore" },
-        { "text": "&7Уйти.", "next": null }
+        { "text": "&7Tell me about yourself.", "next": "lore" },
+        { "text": "&7Leave.", "next": null }
       ]
     },
 
     "hub_active": {
-      "text": "&fНу как, нашёл Гарольда? Амулет у него?",
+      "text": "&fSo, did you find Harold? Does he have the amulet?",
       "options": [
-        { "text": "&7Ещё ищу.", "next": null },
-        { "text": "&7Расскажи о себе.", "next": "lore" }
+        { "text": "&7Still looking.", "next": null },
+        { "text": "&7Tell me about yourself.", "next": "lore" }
       ]
     },
 
     "return_with_amulet": {
-      "text": "&dОй! Мои часы! Где ты их нашёл, {player}?!",
+      "text": "&dOh! My watch! Where did you find it, {player}?!",
       "next": "thanks",
       "actions": [
         { "type": "play_emote", "emote": "celebrate", "duration_ticks": 40 }
@@ -128,7 +128,7 @@
     },
 
     "thanks": {
-      "text": "&fГарольд, значит... Передай ему банку мёда от меня в следующий раз. А тебе — вот, держи.",
+      "text": "&fHarold, huh... Give him a jar of honey from me next time. And for you — here, take this.",
       "next": "reward",
       "actions": [
         { "type": "remove_item", "item": "minecraft:clock", "count": 1 },
@@ -142,14 +142,14 @@
     },
 
     "reward": {
-      "text": "&e4 изумруда и яблочко в дорогу. Заходи ещё, путник.",
+      "text": "&e4 emeralds and an apple for the road. Stop by again, traveler.",
       "actions": [
         { "type": "play_emote", "emote": "bow", "duration_ticks": 45 }
       ]
     },
 
     "lore": {
-      "text": "&7*Эльза взвешивает в руках два пучка трав, прикидывая, какой лучше* &fРодилась здесь же, в деревне. Мать научила меня травам, бабка — заговорам. А часы — её, бабкины. Потому и переживаю.",
+      "text": "&7*Elsa weighs two bundles of herbs in her hands, pondering which is better* &fI was born right here in the village. My mother taught me about herbs, and my grandmother taught me charms. And the watch belonged to her, my grandmother. That's why I'm so worried.",
       "next": null,
       "actions": [
         { "type": "play_emote", "emote": "six_seven", "duration_ticks": 50 }

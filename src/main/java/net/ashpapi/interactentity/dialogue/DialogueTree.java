@@ -28,8 +28,6 @@ public class DialogueTree {
     @Nullable private final String reputationId;
     @Nullable private final String characterInfo;
     @Nullable private final ResourceLocation avatar;
-    @Nullable private final ResourceLocation background;
-    @Nullable private final ResourceLocation optionsBackground;
     private final boolean invulnerable;
     private final boolean repeatable;
     @Nullable private final List<NpcRoutine> routines;
@@ -41,7 +39,6 @@ public class DialogueTree {
                         @Nullable JsonObject visualConfig,
                         @Nullable String faction, @Nullable String reputationId, @Nullable String characterInfo,
                         @Nullable ResourceLocation avatar,
-                        @Nullable ResourceLocation background, @Nullable ResourceLocation optionsBackground,
                         boolean invulnerable, boolean repeatable, @Nullable List<NpcRoutine> routines) {
         this.id = id;
         this.scope = scope;
@@ -58,8 +55,6 @@ public class DialogueTree {
         this.reputationId = reputationId;
         this.characterInfo = characterInfo;
         this.avatar = avatar;
-        this.background = background;
-        this.optionsBackground = optionsBackground;
         this.invulnerable = invulnerable;
         this.repeatable = repeatable;
         this.routines = routines;
@@ -82,8 +77,6 @@ public class DialogueTree {
     @Nullable public String getReputationId() { return reputationId; }
     @Nullable public String getCharacterInfo() { return characterInfo; }
     @Nullable public ResourceLocation getAvatar() { return avatar; }
-    @Nullable public ResourceLocation getBackground() { return background; }
-    @Nullable public ResourceLocation getOptionsBackground() { return optionsBackground; }
     public boolean isInvulnerable() { return invulnerable; }
     public boolean isRepeatable() { return repeatable; }
     @Nullable public List<NpcRoutine> getRoutines() { return routines; }
@@ -136,16 +129,6 @@ public class DialogueTree {
             avatar = ResourceLocation.tryParse(json.get("avatar").getAsString());
         }
 
-        ResourceLocation background = null;
-        if (json.has("background") && json.get("background").isJsonPrimitive()) {
-            background = ResourceLocation.tryParse(json.get("background").getAsString());
-        }
-
-        ResourceLocation optionsBackground = null;
-        if (json.has("options_background") && json.get("options_background").isJsonPrimitive()) {
-            optionsBackground = ResourceLocation.tryParse(json.get("options_background").getAsString());
-        }
-
         boolean invulnerable = json.has("invulnerable") ? json.get("invulnerable").getAsBoolean() : true;
         boolean repeatable = json.has("repeatable") && json.get("repeatable").getAsBoolean();
 
@@ -159,7 +142,7 @@ public class DialogueTree {
         }
 
         injectScope(json, scope);
-        return new DialogueTree(id, scope, target, displayName, entry, nodes, revisitConfig, summonConfig, startTrigger, triggers, visualConfig, faction, reputationId, characterInfo, avatar, background, optionsBackground, invulnerable, repeatable, routines);
+        return new DialogueTree(id, scope, target, displayName, entry, nodes, revisitConfig, summonConfig, startTrigger, triggers, visualConfig, faction, reputationId, characterInfo, avatar, invulnerable, repeatable, routines);
     }
 
     private static boolean isValidInteractionTrigger(String type) {

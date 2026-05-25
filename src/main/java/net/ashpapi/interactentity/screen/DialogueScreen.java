@@ -57,8 +57,6 @@ public class DialogueScreen extends Screen {
     private List<Boolean> optionLocked;
     private List<String> optionLockReasons;
     @Nullable private ResourceLocation avatarTexture;
-    @Nullable private ResourceLocation background;
-    @Nullable private ResourceLocation optionsBackground;
     @Nullable private String factionId;
     private int reputation;
 
@@ -198,8 +196,7 @@ public class DialogueScreen extends Screen {
     public DialogueScreen(int entityId, String nodeId, String displayName, String text, String nodeType,
                           List<String> optionTexts, List<Integer> optionIndices,
                           List<Boolean> optionLocked, List<String> optionLockReasons,
-                          @Nullable ResourceLocation avatarTexture,
-                          @Nullable ResourceLocation background, @Nullable ResourceLocation optionsBackground) {
+                          @Nullable ResourceLocation avatarTexture) {
         super(Component.translatable("gui.interactentity.dialogue"));
         this.entityId = entityId;
         this.nodeId = nodeId;
@@ -211,8 +208,6 @@ public class DialogueScreen extends Screen {
         this.optionLocked = new ArrayList<>(optionLocked);
         this.optionLockReasons = new ArrayList<>(optionLockReasons);
         this.avatarTexture = avatarTexture;
-        this.background = background;
-        this.optionsBackground = optionsBackground;
         this.cachedNameComp = TextFormatter.format(displayName);
         this.cachedOptionAvailW = -1;
         synchronized (sessionHistory) {
@@ -262,6 +257,9 @@ public class DialogueScreen extends Screen {
 
     @Override
     public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+        if (net.ashpapi.interactentity.camera.DialogueCameraController.isTransitioningFromThirdPerson()) {
+            return;
+        }
         int effectivePanelW = Math.min(PANEL_WIDTH, this.width - 40);
         panelW = effectivePanelW;
         panelX = (this.width - panelW) / 2;
@@ -307,8 +305,8 @@ public class DialogueScreen extends Screen {
         panelH = Math.max(HEAD_SIZE + PADDING * 2, textAreaNeeded);
         panelY = this.height - HOTBAR_GAP - panelH;
 
-        ResourceLocation tex = background != null ? background : DEFAULT_WINDOW;
-        boolean hasTex = (background != null) ? textureExists(background) : useDefaultWindowTex;
+        ResourceLocation tex = DEFAULT_WINDOW;
+        boolean hasTex = useDefaultWindowTex;
 
         if (hasTex) {
             RenderSystem.enableBlend();
@@ -359,8 +357,9 @@ public class DialogueScreen extends Screen {
                     panelX + panelW - PADDING - hintWidth, panelY + panelH - PADDING - 2, HINT_COLOR);
         } else {
             // NPC avatar + text
-            ResourceLocation texture = avatarTexture != null ? avatarTexture
+            ResourceLocation rawTexture = avatarTexture != null ? avatarTexture
                     : new ResourceLocation("minecraft", "textures/entity/zombie/zombie.png");
+            ResourceLocation texture = net.ashpapi.interactentity.skin.ClientSkinRegistry.getDynamicOrFallback(rawTexture);
             RenderSystem.enableBlend();
             RenderSystem.setShaderTexture(0, texture);
             graphics.blit(texture, headX, headY, HEAD_SIZE, HEAD_SIZE, 8, 8, 8, 8, 64, 64);
@@ -484,12 +483,8 @@ public class DialogueScreen extends Screen {
             graphics.fill(optPanelX + 2, curY + 2, optPanelX + panelW + 2, curY + panelH + 2, SHADOW_COLOR);
             
             ResourceLocation optTex = isLocked ? DEFAULT_OPTIONS : (hovered ? DEFAULT_OPTIONS_HOVER : DEFAULT_OPTIONS);
-            if (optionsBackground != null && !isLocked) optTex = optionsBackground;
-            
             boolean hasOptTex;
-            if (optionsBackground != null && !isLocked) {
-                hasOptTex = textureExists(optionsBackground);
-            } else if (isLocked) {
+            if (isLocked) {
                 hasOptTex = useDefaultOptionsTex;
             } else {
                 hasOptTex = hovered ? useDefaultOptionsHoverTex : useDefaultOptionsTex;
@@ -568,6 +563,9 @@ public class DialogueScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (net.ashpapi.interactentity.camera.DialogueCameraController.isTransitioningFromThirdPerson()) {
+            return false;
+        }
         if (button == 0) {
             int bookX = panelX + panelW - 16;
             int bookY = panelY + 4;
@@ -655,6 +653,9 @@ public class DialogueScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (net.ashpapi.interactentity.camera.DialogueCameraController.isTransitioningFromThirdPerson()) {
+            return false;
+        }
         if (keyCode == 72) { // Клавиша H
             toggleHistoryOverlay();
             minecraft.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
@@ -732,8 +733,7 @@ public class DialogueScreen extends Screen {
     public void updateDialogue(String nodeId, String displayName, String text, String nodeType,
                                List<String> optionTexts, List<Integer> optionIndices,
                                List<Boolean> optionLocked, List<String> optionLockReasons,
-                               @Nullable ResourceLocation avatarTexture,
-                               @Nullable ResourceLocation background, @Nullable ResourceLocation optionsBackground) {
+                               @Nullable ResourceLocation avatarTexture) {
         this.nodeId = nodeId;
         this.displayName = displayName;
         this.dialogueText = text;
@@ -743,8 +743,6 @@ public class DialogueScreen extends Screen {
         this.optionLocked = new ArrayList<>(optionLocked);
         this.optionLockReasons = new ArrayList<>(optionLockReasons);
         this.avatarTexture = avatarTexture;
-        this.background = background;
-        this.optionsBackground = optionsBackground;
         this.cachedNameComp = TextFormatter.format(displayName);
         this.cachedOptionAvailW = -1;
         synchronized (sessionHistory) {
@@ -946,9 +944,12 @@ public class DialogueScreen extends Screen {
         graphics.fill(panelX + panelW - 1, historyY, panelX + panelW, historyY + currentHistoryH, borderColor);
 
         // Заголовок рисуем ВНЕ scissor контента, чтобы прокручиваемый текст не накладывался на него.
-        int titleY = historyY + 6;
-        String historyTitle = net.minecraft.client.resources.language.I18n.get("gui.interactentity.journal.current_dialogue");
-        drawStringScaled(graphics, Component.literal(historyTitle), panelX + PADDING, titleY, NAME_COLOR);
+        // Заворачиваем в условие, чтобы при анимации слайда текст не наезжал на рамку основного диалога
+        if (currentHistoryH >= 20) {
+            int titleY = historyY + 6;
+            String historyTitle = net.minecraft.client.resources.language.I18n.get("gui.interactentity.journal.current_dialogue");
+            drawStringScaled(graphics, Component.literal(historyTitle), panelX + PADDING, titleY, NAME_COLOR);
+        }
 
         int listY = historyY + 18;
         int staticListH = 116;

@@ -38,6 +38,11 @@ public class DialogueCameraController {
     private static boolean active         = false;
     private static Mode    mode           = Mode.NPC;
     private static int     targetEntityId = -1;
+    private static boolean transitionFromThirdPerson = false;
+
+    public static boolean isTransitioningFromThirdPerson() {
+        return active && transitionFromThirdPerson;
+    }
 
     private static final List<KeyFrame> recording = new ArrayList<>();
     private static int sideStartIndex = 0;
@@ -69,6 +74,28 @@ public class DialogueCameraController {
             Method m = Camera.class.getDeclaredMethod("setPosition", double.class, double.class, double.class);
             m.setAccessible(true);
             return m;
+        } catch (NoSuchMethodException e) {
+            try {
+                // Try production SRG name
+                Method m = Camera.class.getDeclaredMethod("m_90584_", double.class, double.class, double.class);
+                m.setAccessible(true);
+                return m;
+            } catch (Exception ex) {
+                // Try signature search (3 doubles, returns void)
+                for (Method m : Camera.class.getDeclaredMethods()) {
+                    if (m.getParameterCount() == 3 && 
+                        m.getParameterTypes()[0] == double.class && 
+                        m.getParameterTypes()[1] == double.class && 
+                        m.getParameterTypes()[2] == double.class &&
+                        m.getReturnType() == void.class) {
+                        m.setAccessible(true);
+                        InteractEntityMod.LOGGER.info("[camera] Found setPosition by signature: {}", m.getName());
+                        return m;
+                    }
+                }
+                InteractEntityMod.LOGGER.error("Camera.setPosition (m_90584_) access failed: {}", ex.getMessage());
+                return null;
+            }
         } catch (Exception e) {
             InteractEntityMod.LOGGER.error("Camera.setPosition access failed: {}", e.getMessage());
             return null;
@@ -82,6 +109,32 @@ public class DialogueCameraController {
             Field f = Camera.class.getDeclaredField("detached");
             f.setAccessible(true);
             return f;
+        } catch (NoSuchFieldException e) {
+            try {
+                // Try production SRG name
+                Field f = Camera.class.getDeclaredField("f_90566_");
+                f.setAccessible(true);
+                return f;
+            } catch (Exception ex) {
+                // Try signature order fallback (detached is the 2nd boolean field in Camera.class)
+                try {
+                    int booleanCount = 0;
+                    for (Field f : Camera.class.getDeclaredFields()) {
+                        if (f.getType() == boolean.class) {
+                            booleanCount++;
+                            if (booleanCount == 2) {
+                                f.setAccessible(true);
+                                InteractEntityMod.LOGGER.info("[camera] Found detached field by signature order: {}", f.getName());
+                                return f;
+                            }
+                        }
+                    }
+                } catch (Exception sigEx) {
+                    InteractEntityMod.LOGGER.error("[camera] Signature order search failed: {}", sigEx.getMessage());
+                }
+                InteractEntityMod.LOGGER.error("Camera.detached (f_90566_) access failed: {}", ex.getMessage());
+                return null;
+            }
         } catch (Exception e) {
             InteractEntityMod.LOGGER.error("Camera.detached access failed: {}", e.getMessage());
             return null;
@@ -105,13 +158,13 @@ public class DialogueCameraController {
             lastAppliedPitch = savedPlayerPitch;
             active = true;
             lastFrameTime = System.currentTimeMillis();
-            // Если игрок в F5, оставляем его CameraType как есть, но анимируем камеру к глазам вручную.
-            // Так не видно рывка F5 -> первое лицо -> F5.
+            // Если игрок в F5, сразу переключаем его в первое лицо, сохраняя старый режим
             CameraType current = mc.options.getCameraType();
             if (current != CameraType.FIRST_PERSON) {
                 savedCameraType = current;
-                pendingFirstPersonStartPos = mc.gameRenderer.getMainCamera().getPosition();
+                mc.options.setCameraType(CameraType.FIRST_PERSON);
             }
+            transitionFromThirdPerson = false;
         }
 
         if (mode == Mode.SIDE_REWIND) {
@@ -139,6 +192,13 @@ public class DialogueCameraController {
             lastAppliedPitch = savedPlayerPitch;
             active = true;
             lastFrameTime = System.currentTimeMillis();
+            // Если игрок в F5, сразу переключаем его в первое лицо, сохраняя старый режим
+            CameraType current = mc.options.getCameraType();
+            if (current != CameraType.FIRST_PERSON) {
+                savedCameraType = current;
+                mc.options.setCameraType(CameraType.FIRST_PERSON);
+            }
+            transitionFromThirdPerson = false;
         }
 
         sideStartIndex = recording.size();
@@ -202,6 +262,10 @@ public class DialogueCameraController {
         introPositionOverride = false;
         recording.clear();
         targetEntityId = -1;
+        transitionFromThirdPerson = false;
+        if (savedCameraType != null && mc.options != null) {
+            mc.options.setCameraType(savedCameraType);
+        }
         savedCameraType = null;
     }
 
@@ -218,25 +282,8 @@ public class DialogueCameraController {
         lastFrameTime = System.currentTimeMillis();
         calcNpcTarget(mc);
 
-        if (pendingFirstPersonStartPos != null && mc.player != null) {
-            startPos = pendingFirstPersonStartPos;
-            targetPos = mc.player.getEyePosition();
-            controlPos = arcControl(startPos, targetPos, mc);
-            lastCamPos = startPos;
-            overridePos = true;
-            introPositionOverride = true;
-            pendingFirstPersonStartPos = null;
-        } else if (savedCameraType != null && mc.player != null) {
-            startPos = mc.player.getEyePosition();
-            targetPos = startPos;
-            controlPos = startPos;
-            lastCamPos = startPos;
-            overridePos = true;
-            introPositionOverride = false;
-        } else {
-            overridePos = false;
-            introPositionOverride = false;
-        }
+        overridePos = false;
+        introPositionOverride = false;
     }
 
     private static void calcNpcTarget(Minecraft mc) {
@@ -364,6 +411,10 @@ public class DialogueCameraController {
                 }
                 introPositionOverride = false;
             }
+            if (transitionFromThirdPerson) {
+                transitionFromThirdPerson = false;
+                mc.options.setCameraType(CameraType.FIRST_PERSON);
+            }
         }
     }
 
@@ -418,15 +469,8 @@ public class DialogueCameraController {
             }
             mode          = Mode.NPC;
             segmentActive = false;
-            if (savedCameraType != null) {
-                lastCamPos = mc.player.getEyePosition();
-                setCameraPos(camera, lastCamPos);
-                setCameraDetached(camera, false);
-                overridePos = true;
-            } else {
-                overridePos = false;
-                setCameraDetached(camera, false);
-            }
+            overridePos = false;
+            setCameraDetached(camera, false);
 
             if (pendingLookAt) {
                 pendingLookAt  = false;
@@ -454,12 +498,12 @@ public class DialogueCameraController {
             hiding = progress < 0.35f; // Скрываем в начале анимации "от лица"
         } else if (active && mode == Mode.SIDE_REWIND) {
             // Скрываем в конце анимации возврата "в лицо"
-            hiding = savedCameraType == null && rewindProgress > 0.65f;
+            hiding = rewindProgress > 0.65f;
         }
         
         // КРИТИЧЕСКИЙ ФИКС: Если мы НЕ в режиме SIDE/REWIND (уже вернулись в тело),
         // но камера всё еще в режиме detached (предыдущий кадр), принудительно скрываем тело.
-        if (active && mode == Mode.NPC && savedCameraType == null) {
+        if (active && mode == Mode.NPC) {
             hiding = true;
         }
 

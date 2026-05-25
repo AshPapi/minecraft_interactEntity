@@ -160,8 +160,6 @@ public class EntityInteractHandler {
                             new ArrayList<>(),
                             new ArrayList<>(),
                             manager.getDialogueAvatar(target),
-                            tree.getBackground(),
-                            tree.getOptionsBackground(),
                             repLabel,
                             reputation,
                             "npc", 0f, 0f
@@ -194,8 +192,6 @@ public class EntityInteractHandler {
                     new ArrayList<>(),
                     new ArrayList<>(),
                     manager.getDialogueAvatar(target),
-                    tree.getBackground(),
-                    tree.getOptionsBackground(),
                     repLabel,
                     reputation,
                     "npc", 0f, 0f

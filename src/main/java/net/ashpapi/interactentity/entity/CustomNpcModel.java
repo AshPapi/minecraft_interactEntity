@@ -42,7 +42,8 @@ public class CustomNpcModel extends GeoModel<CustomNpcEntity> {
 
     @Override
     public ResourceLocation getTextureResource(CustomNpcEntity entity) {
-        return entity.getTextureLocation();
+        ResourceLocation loc = entity.getTextureLocation();
+        return net.ashpapi.interactentity.skin.ClientSkinRegistry.getDynamicOrFallback(loc);
     }
 
     @Override
