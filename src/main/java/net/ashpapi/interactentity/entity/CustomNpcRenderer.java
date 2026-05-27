@@ -109,6 +109,27 @@ public class CustomNpcRenderer extends GeoEntityRenderer<CustomNpcEntity> {
 
         // Броня: рендерим ванильные части модели брони по плейсхолдер-костям
         addRenderLayer(new ItemArmorGeoLayer<CustomNpcEntity>(this) {
+            @Override
+            public void render(PoseStack poseStack, CustomNpcEntity animatable, software.bernie.geckolib.cache.object.BakedGeoModel bakedModel, net.minecraft.client.renderer.RenderType renderType, MultiBufferSource bufferSource, com.mojang.blaze3d.vertex.VertexConsumer buffer, float partialTick, int packedLight, int packedOverlay) {
+                // Временно делаем кости брони видимыми, чтобы GeckoLib мог их обработать и отрендерить броню
+                String[] armorBones = {
+                    "armorHead", "armorBody", "armorLeggingsBody",
+                    "armorRightArm", "armorLeftArm",
+                    "armorRightLeg", "armorLeftLeg",
+                    "armorRightBoot", "armorLeftBoot"
+                };
+                for (String boneName : armorBones) {
+                    bakedModel.getBone(boneName).ifPresent(bone -> bone.setHidden(false));
+                }
+
+                super.render(poseStack, animatable, bakedModel, renderType, bufferSource, buffer, partialTick, packedLight, packedOverlay);
+
+                // Возвращаем скрытое состояние, чтобы кости-пустышки не влияли на обычный рендеринг сущности
+                for (String boneName : armorBones) {
+                    bakedModel.getBone(boneName).ifPresent(bone -> bone.setHidden(true));
+                }
+            }
+
             @Nullable
             @Override
             protected ItemStack getArmorItemForBone(GeoBone bone, CustomNpcEntity animatable) {
