@@ -12,9 +12,11 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
+import net.minecraftforge.event.entity.living.LivingAttackEvent;
 import net.minecraftforge.event.entity.living.LivingChangeTargetEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.event.entity.living.LivingKnockBackEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -40,6 +42,30 @@ public class PeacefulMobHandler {
         DialogueTree tree = manager.findDialogueForEntity(entity);
         if (tree != null && tree.isInvulnerable()) {
             event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onLivingAttack(LivingAttackEvent event) {
+        LivingEntity entity = event.getEntity();
+        if (entity.level().isClientSide()) return;
+
+        if (entity.getPersistentData().getBoolean("InteractEntity_NPC")) {
+            if (entity.getPersistentData().getBoolean("InteractEntity_DisableAttacks")) {
+                event.setCanceled(true);
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public static void onLivingKnockBack(LivingKnockBackEvent event) {
+        LivingEntity entity = event.getEntity();
+        if (entity.level().isClientSide()) return;
+
+        if (entity.getPersistentData().getBoolean("InteractEntity_NPC")) {
+            if (entity.getPersistentData().getBoolean("InteractEntity_DisableKnockback")) {
+                event.setCanceled(true);
+            }
         }
     }
 
@@ -71,6 +97,21 @@ public class PeacefulMobHandler {
             boolean invulnerable = !entity.getPersistentData().contains("InteractEntity_Invulnerable")
                     || entity.getPersistentData().getBoolean("InteractEntity_Invulnerable");
             applyNPCProtections(entity, invulnerable);
+
+            if (!entity.getPersistentData().contains("InteractEntity_DisableKnockback")) {
+                DialogueManager manager = DialogueManager.get();
+                DialogueTree tree = manager != null ? manager.findDialogueForEntity(entity) : null;
+                boolean disableKnockback = tree != null && tree.isDisableKnockback();
+                entity.getPersistentData().putBoolean("InteractEntity_DisableKnockback", disableKnockback);
+            }
+
+            if (!entity.getPersistentData().contains("InteractEntity_DisableAttacks")) {
+                DialogueManager manager = DialogueManager.get();
+                DialogueTree tree = manager != null ? manager.findDialogueForEntity(entity) : null;
+                boolean disableAttacks = tree != null && tree.isDisableAttacks();
+                entity.getPersistentData().putBoolean("InteractEntity_DisableAttacks", disableAttacks);
+            }
+
             reactToWeather(entity);
             returnHome(entity);
             NpcRoutineHandler.tick(entity);
@@ -91,6 +132,8 @@ public class PeacefulMobHandler {
         // Пометить на будущее (NBT сохраняется с сущностью)
         entity.getPersistentData().putBoolean("InteractEntity_NPC", true);
         entity.getPersistentData().putBoolean("InteractEntity_Invulnerable", tree.isInvulnerable());
+        entity.getPersistentData().putBoolean("InteractEntity_DisableKnockback", tree.isDisableKnockback());
+        entity.getPersistentData().putBoolean("InteractEntity_DisableAttacks", tree.isDisableAttacks());
 
         // Выставить тег для иконки над головой
         String tag = NPC_TAG_PREFIX + tree.getId() + ":" + tree.getEntryNodeId();

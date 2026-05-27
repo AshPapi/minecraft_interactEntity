@@ -8,6 +8,8 @@
   "character_info": "Village herbalist. Collects rare roots and brews ointments.",
   "avatar": "interactentity:textures/entity/skins/elsa.png",
   "scope": "per_player",
+  "disable_knockback": true,
+  "disable_attacks": true,
   "entry": "start",
 
   "visual": {

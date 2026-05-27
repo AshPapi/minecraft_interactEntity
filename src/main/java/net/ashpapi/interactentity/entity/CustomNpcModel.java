@@ -68,6 +68,20 @@ public class CustomNpcModel extends GeoModel<CustomNpcEntity> {
         CoreGeoBone neck = getAnimationProcessor().getBone("neck");
         CoreGeoBone chest = getAnimationProcessor().getBone("chest");
 
+        // Скрываем кости брони, чтобы они не рендерились как жесткие дубликаты конечностей
+        String[] armorBones = {
+            "armorHead", "armorBody", "armorLeggingsBody",
+            "armorRightArm", "armorLeftArm",
+            "armorRightLeg", "armorLeftLeg",
+            "armorRightBoot", "armorLeftBoot"
+        };
+        for (String boneName : armorBones) {
+            CoreGeoBone bone = getAnimationProcessor().getBone(boneName);
+            if (bone != null) {
+                bone.setHidden(true);
+            }
+        }
+
         EntityModelData entityData = animationState.getData(DataTickets.ENTITY_MODEL_DATA);
         
         // 1. Плавное слежение головой (ванильная логика с LERP сглаживанием во время переходов эмоций)
@@ -112,6 +126,10 @@ public class CustomNpcModel extends GeoModel<CustomNpcEntity> {
             chest.setScaleY(1.0f + breathing * 0.01f);
             chest.setScaleZ(1.0f + breathing * 0.005f);
         }
+    }
+
+    public static boolean isSlimModel(CustomNpcEntity entity) {
+        return detectPlayerModelShape(entity.getModelLocation()) == PlayerModelShape.SLIM;
     }
 
     private static PlayerModelShape detectPlayerModelShape(ResourceLocation model) {

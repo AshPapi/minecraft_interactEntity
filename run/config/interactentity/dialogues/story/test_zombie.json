@@ -1,0 +1,21 @@
+{
+  "target": {
+    "name": "Test Zombie",
+    "tag": "test_zombie",
+    "entity_type": "minecraft:zombie"
+  },
+  "display_name": "&c[Zombie Tester]",
+  "scope": "global",
+  "entry": "start",
+  "repeatable": true,
+  "invulnerable": true,
+
+  "nodes": {
+    "start": {
+      "text": "&eGrrr... I am a testing Zombie! You can Shift + Right Click me with weapons, items or armor to test my equipment slots, or interact to see this dialogue!",
+      "options": [
+        { "text": "&aCool, bye!", "next": null }
+      ]
+    }
+  }
+}

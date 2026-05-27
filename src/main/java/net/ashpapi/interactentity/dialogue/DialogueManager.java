@@ -28,7 +28,7 @@ public class DialogueManager {
     private static final Gson GSON = new GsonBuilder().create();
     private static DialogueManager instance;
 
-    public static final Path DIALOGUES_DIR = FMLPaths.GAMEDIR.get().resolve("interactentity").resolve("dialogues");
+    public static final Path DIALOGUES_DIR = FMLPaths.CONFIGDIR.get().resolve("interactentity").resolve("dialogues");
 
     private final Map<String, DialogueTree> dialoguesById = new HashMap<>();
     private final List<DialogueTree> allDialogues = new ArrayList<>();

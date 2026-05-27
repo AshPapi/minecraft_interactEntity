@@ -33,6 +33,86 @@ public class EntityInteractHandler {
 
         if (event.getEntity().distanceToSqr(target) > 16.0D) return;
 
+        // 1. Shift+Right-Click для экипировки NPC
+        if (event.getEntity().isSecondaryUseActive() && canWearEquipment(target) && (target.getPersistentData().getBoolean("InteractEntity_NPC") || (event.getLevel().isClientSide() && ClientNpcRegistry.get(target.getId()) != null))) {
+            net.minecraft.world.entity.player.Player player = event.getEntity();
+            net.minecraft.world.item.ItemStack heldItem = player.getItemInHand(InteractionHand.MAIN_HAND);
+
+            if (event.getLevel().isClientSide()) {
+                event.setCancellationResult(InteractionResult.SUCCESS);
+                event.setCanceled(true);
+                return;
+            }
+
+            if (heldItem.isEmpty()) {
+                // Снятие экипировки
+                net.minecraft.world.entity.EquipmentSlot[] slots = {
+                    net.minecraft.world.entity.EquipmentSlot.MAINHAND,
+                    net.minecraft.world.entity.EquipmentSlot.OFFHAND,
+                    net.minecraft.world.entity.EquipmentSlot.HEAD,
+                    net.minecraft.world.entity.EquipmentSlot.CHEST,
+                    net.minecraft.world.entity.EquipmentSlot.LEGS,
+                    net.minecraft.world.entity.EquipmentSlot.FEET
+                };
+                for (net.minecraft.world.entity.EquipmentSlot slot : slots) {
+                    net.minecraft.world.item.ItemStack equipped = target.getItemBySlot(slot);
+                    if (!equipped.isEmpty()) {
+                        target.setItemSlot(slot, net.minecraft.world.item.ItemStack.EMPTY);
+                        if (!player.getInventory().add(equipped)) {
+                            player.drop(equipped, false);
+                        }
+                        event.getLevel().playSound(null, target.getX(), target.getY(), target.getZ(),
+                                net.minecraft.sounds.SoundEvents.ITEM_PICKUP,
+                                net.minecraft.sounds.SoundSource.PLAYERS, 1.0f, 1.0f);
+                        break;
+                    }
+                }
+            } else {
+                // Надевание предмета
+                net.minecraft.world.entity.EquipmentSlot slot;
+                if (heldItem.getItem() instanceof net.minecraft.world.item.ArmorItem armorItem) {
+                    slot = armorItem.getEquipmentSlot();
+                } else if (heldItem.getItem() instanceof net.minecraft.world.item.ShieldItem) {
+                    slot = net.minecraft.world.entity.EquipmentSlot.OFFHAND;
+                } else if (heldItem.getItem() instanceof net.minecraft.world.item.ElytraItem) {
+                    slot = net.minecraft.world.entity.EquipmentSlot.CHEST;
+                } else if (heldItem.getItem() instanceof net.minecraft.world.item.BlockItem blockItem && 
+                        (blockItem.getBlock() instanceof net.minecraft.world.level.block.AbstractSkullBlock || 
+                         blockItem.getBlock() == net.minecraft.world.level.block.Blocks.CARVED_PUMPKIN)) {
+                    slot = net.minecraft.world.entity.EquipmentSlot.HEAD;
+                } else {
+                    slot = net.minecraft.world.entity.EquipmentSlot.MAINHAND;
+                }
+
+                net.minecraft.world.item.ItemStack currentEquipped = target.getItemBySlot(slot);
+                net.minecraft.world.item.ItemStack toEquip = heldItem.copy();
+                toEquip.setCount(1);
+                
+                target.setItemSlot(slot, toEquip);
+
+                if (!player.getAbilities().instabuild) {
+                    heldItem.shrink(1);
+                    if (!currentEquipped.isEmpty()) {
+                        if (!player.getInventory().add(currentEquipped)) {
+                            player.drop(currentEquipped, false);
+                        }
+                    }
+                }
+                
+                net.minecraft.sounds.SoundEvent sound = net.minecraft.sounds.SoundEvents.ARMOR_EQUIP_GENERIC;
+                if (heldItem.getItem() instanceof net.minecraft.world.item.ArmorItem armorItem) {
+                    sound = armorItem.getEquipSound();
+                }
+                event.getLevel().playSound(null, target.getX(), target.getY(), target.getZ(),
+                        sound, net.minecraft.sounds.SoundSource.PLAYERS, 1.0f, 1.0f);
+            }
+
+            event.setCancellationResult(InteractionResult.SUCCESS);
+            event.setCanceled(true);
+            return;
+        }
+
+        // 2. Старт диалога
         if (event.getLevel().isClientSide()) {
             if (isClientDialogueTarget(target)) {
                 event.setCancellationResult(InteractionResult.FAIL);
@@ -197,5 +277,17 @@ public class EntityInteractHandler {
                     "npc", 0f, 0f
             ));
         }
+    }
+
+    public static boolean canWearEquipment(LivingEntity entity) {
+        if (entity instanceof net.ashpapi.interactentity.entity.CustomNpcEntity) return true;
+        if (entity instanceof net.minecraft.world.entity.monster.Zombie) return true;
+        if (entity instanceof net.minecraft.world.entity.monster.AbstractSkeleton) return true;
+        if (entity instanceof net.minecraft.world.entity.monster.piglin.AbstractPiglin) return true;
+        if (entity instanceof net.minecraft.world.entity.npc.AbstractVillager) return true;
+        if (entity instanceof net.minecraft.world.entity.monster.AbstractIllager) return true;
+        if (entity instanceof net.minecraft.world.entity.monster.Witch) return true;
+        if (entity instanceof net.minecraft.world.entity.decoration.ArmorStand) return true;
+        return false;
     }
 }

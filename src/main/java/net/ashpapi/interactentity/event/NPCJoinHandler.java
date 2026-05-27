@@ -30,6 +30,17 @@ public class NPCJoinHandler {
                     || entity.getPersistentData().getBoolean("InteractEntity_Invulnerable");
             entity.getPersistentData().putBoolean("InteractEntity_Invulnerable", invulnerable);
             entity.setInvulnerable(invulnerable);
+
+            boolean disableKnockback = tree != null
+                    ? tree.isDisableKnockback()
+                    : entity.getPersistentData().getBoolean("InteractEntity_DisableKnockback");
+            entity.getPersistentData().putBoolean("InteractEntity_DisableKnockback", disableKnockback);
+
+            boolean disableAttacks = tree != null
+                    ? tree.isDisableAttacks()
+                    : entity.getPersistentData().getBoolean("InteractEntity_DisableAttacks");
+            entity.getPersistentData().putBoolean("InteractEntity_DisableAttacks", disableAttacks);
+
             if (tree != null) applyVisual(entity, tree);
             InteractEntityMod.LOGGER.debug("NPC re-joined (NBT flag): {}", entity.getName().getString());
             return;
@@ -50,6 +61,8 @@ public class NPCJoinHandler {
     public static void setupNPC(LivingEntity entity, DialogueTree tree) {
         entity.getPersistentData().putBoolean("InteractEntity_NPC", true);
         entity.getPersistentData().putBoolean("InteractEntity_Invulnerable", tree.isInvulnerable());
+        entity.getPersistentData().putBoolean("InteractEntity_DisableKnockback", tree.isDisableKnockback());
+        entity.getPersistentData().putBoolean("InteractEntity_DisableAttacks", tree.isDisableAttacks());
 
         entity.setInvulnerable(tree.isInvulnerable());
 

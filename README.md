@@ -97,7 +97,7 @@ What the mod can do:
 
 Quick mental model so you know where things go:
 
-- **JSON dialogues** are your content. They live in the world folder under `interactentity/dialogues/`. One file = one dialogue.
+- **JSON dialogues** are your content. They live in the configuration folder under `config/interactentity/dialogues/`. One file = one dialogue.
 - **Skins (PNG)** live separately from the mod, in the player's config folder (`config/interactentity/skins/`) or in the world folder (`<world>/interactentity/skins/`). Details in §20.
 - **Player progress** is saved automatically by the mod inside the world. You don't have to touch it — just make sure the scope (see §27) is right.
 - **Journal** is opened with `J` — players see every NPC they've talked to, their reply history, and quest list.
@@ -109,7 +109,7 @@ Quick mental model so you know where things go:
 
 The fastest way to confirm everything is working is to make a one-NPC dialogue with two replies and test it.
 
-Create `<world>/interactentity/dialogues/test.json` (where `<world>` is your world folder):
+Create `config/interactentity/dialogues/test.json`:
 
 ```json
 {
@@ -144,11 +144,11 @@ Right-click the zombie — the dialogue opens. If nothing happens, check that th
 
 ## 3. File location and IDs
 
-All dialogue JSONs live in one folder inside your world: `<world>/interactentity/dialogues/`. Subfolders are allowed — handy for organizing chapters or zones.
+All dialogue JSONs live in the configuration folder: `config/interactentity/dialogues/`. Subfolders are allowed — handy for organizing chapters or zones.
 
 Example structure:
 ```
-interactentity/dialogues/
+config/interactentity/dialogues/
   zombie.json                → dialogue ID: "zombie"
   showcase/mayor.json        → dialogue ID: "showcase/mayor"
   story/chapter_1/intro.json → dialogue ID: "story/chapter_1/intro"
@@ -171,6 +171,8 @@ After any JSON edit you have to tell the mod to reread the file. Run `/dialogue 
 | `scope` | string | — | `"global"` (default) or `"per_player"` — where progress is stored. See §27 |
 | `repeatable` | bool | — | `false` (default). If `true` the dialogue can be replayed |
 | `invulnerable` | bool | — | `true` (default) — NPC is invulnerable while talking |
+| `disable_knockback` | bool | — | `false` (default). If `true` disables knockback/movement from hits for this NPC |
+| `disable_attacks` | bool | — | `false` (default). If `true` completely disables attack registration (pain animation, pain sound, and hits) for this NPC |
 | `avatar` | string | — | Avatar texture in the dialogue window and journal. Simple name `"harold"` or full path `"interactentity:textures/entity/foo.png"` |
 | `faction` | string | — | Faction name (shown in the journal) |
 | `reputation_id` | string | — | Faction ID for reputation accumulation. Defaults to `faction` |
@@ -966,6 +968,23 @@ A universal entity with a player-shaped model. **Only this one** supports:
 
 Use it for important characters.
 
+### 17.3 Equipment Management (Armor and Items)
+
+You can manage the equipment (held items and armor) of any registered NPC entity in the world:
+- **Equipping items/armor:**
+  - Hold an item/armor piece in your main hand, crouch (hold Shift), and right-click the NPC.
+  - Armor items (helmets, chestplates, leggings, boots) are placed in their respective armor slots.
+  - Shields are equipped in their offhand slot.
+  - Elytras are placed in their chestplate slot.
+  - Pumpkins and heads/skulls are placed in their helmet slot.
+  - All other items are equipped in their mainhand slot.
+  - If the NPC was already wearing/holding an item in that slot, the old item is returned to your inventory (or dropped on the ground if your inventory is full).
+  - Plays the corresponding equip sound.
+- **Removing items/armor:**
+  - Crouch (hold Shift) and right-click the NPC with an empty hand.
+  - This retrieves equipped items from the NPC one by one in sequence: Main Hand → Offhand → Head → Chest → Legs → Feet, and returns them to your inventory.
+  - Plays a pickup sound.
+
 ---
 
 ## 18. Emotes and animations
@@ -1660,6 +1679,8 @@ Plot: the player meets Elsa (the herbalist) → she asks to find her lost pocket
   "character_info": "Village herbalist. Collects rare roots and brews ointments.",
   "avatar": "interactentity:textures/entity/skins/elsa.png",
   "scope": "per_player",
+  "disable_knockback": true,
+  "disable_attacks": true,
   "entry": "start",
   "visual": {
     "model": "interactentity:geo/custom_npc_slim.geo.json",
@@ -1990,10 +2011,10 @@ Plot: the player meets Elsa (the herbalist) → she asks to find her lost pocket
 ### 35.3 What to put in files
 
 ```
-<world>/interactentity/dialogues/story/elsa.json
-<world>/interactentity/dialogues/story/harold.json
-<world>/interactentity/skins/elsa.png             ← 64x64
-<world>/interactentity/skins/harold.png           ← 64x64
+config/interactentity/dialogues/story/elsa.json
+config/interactentity/dialogues/story/harold.json
+config/interactentity/skins/elsa.png             ← 64x64
+config/interactentity/skins/harold.png           ← 64x64
 ```
 
 After starting: `/dialogue reload`, then wait for Elsa to spawn (or spawn her manually). Talk to Elsa → start quest → Elsa spawns Harold in the forest → find Harold → bring him bread to get the watch → return the watch to Elsa for the reward.
@@ -2064,8 +2085,8 @@ Want the NPC to appear automatically (no commands)? Add a `summon` block with a 
 
 ## Cheatsheet for quickly making an NPC
 
-1. **JSON** → `<world>/interactentity/dialogues/my_npc.json` (minimal — see §2)
-2. **Skin** (if `custom_npc`) → `<world>/interactentity/skins/my_npc.png` (64×64, name `[a-z0-9_]+`)
+1. **JSON** → `config/interactentity/dialogues/my_npc.json` (minimal — see §2)
+2. **Skin** (if `custom_npc`) → `<world>/interactentity/skins/my_npc.png` or `config/interactentity/skins/my_npc.png` (64×64, name `[a-z0-9_]+`)
 3. **target** → declare `name` and `tag` (see §5)
 4. **Spawn** → one of:
    - `summon` block in JSON with a trigger (see §14)
@@ -2169,7 +2190,7 @@ If something doesn't work — check the server log, look for `[InteractEntity]`,
 
 Чтобы понять что куда класть и где что искать, держи в голове такое разделение:
 
-- **JSON-диалоги** — это твой контент. Лежат в папке мира в `interactentity/dialogues/`. Каждый файл = один диалог.
+- **JSON-диалоги** — это твой контент. Лежат в папке конфигурации в `config/interactentity/dialogues/`. Каждый файл = один диалог.
 - **Скины (PNG)** — лежат отдельно от мода, в папке игрока (`config/interactentity/skins/`) или в папке мира (`<world>/interactentity/skins/`). Подробности в §20.
 - **Прогресс игроков** мод сохраняет автоматически в файлах мира. Тебе не нужно с этим возиться — главное, чтобы scope (см. §27) был указан правильно.
 - **Журнал** игрок открывает клавишей `J` — там он видит всех NPC с которыми разговаривал, их историю реплик и список квестов.
@@ -2181,7 +2202,7 @@ If something doesn't work — check the server log, look for `[InteractEntity]`,
 
 Самый простой способ убедиться что всё работает — сделать одного NPC с двумя репликами и проверить.
 
-Создай файл `<world>/interactentity/dialogues/test.json` (где `<world>` — папка твоего мира):
+Создай файл `config/interactentity/dialogues/test.json`:
 
 ```json
 {
@@ -2216,11 +2237,11 @@ If something doesn't work — check the server log, look for `[InteractEntity]`,
 
 ## 3. Расположение и ID диалогов
 
-Все JSON-файлы диалогов лежат в одной папке внутри твоего мира. Путь такой: `<твой_мир>/interactentity/dialogues/`. Подпапки разрешены — можно организовывать сюжет как удобно, например складывать главы в отдельные папки.
+Все JSON-файлы диалогов лежат в папке конфигурации: `config/interactentity/dialogues/`. Подпапки разрешены — можно организовывать сюжет как удобно, например складывать главы в отдельные папки.
 
 Пример структуры:
 ```
-interactentity/dialogues/
+config/interactentity/dialogues/
   zombie.json                → ID диалога: "zombie"
   showcase/mayor.json        → ID диалога: "showcase/mayor"
   story/chapter_1/intro.json → ID диалога: "story/chapter_1/intro"
@@ -2243,6 +2264,8 @@ interactentity/dialogues/
 | `scope` | string | — | `"global"` (default) или `"per_player"` — где хранится прогресс. См. §27 |
 | `repeatable` | bool | — | `false` (default). Если `true` — диалог можно перепроходить |
 | `invulnerable` | bool | — | `true` (default) — NPC неуязвим во время диалога |
+| `disable_knockback` | bool | — | `false` (default). Если `true` — отключает отбрасывание и сдвиг для этого NPC при ударах |
+| `disable_attacks` | bool | — | `false` (default). Если `true` — полностью отключает регистрацию атак (анимацию боли, звук боли и получение ударов) для этого NPC |
 | `avatar` | string | — | Текстура аватара в диалоговом окне и журнале. Простое имя `"harold"` или полный путь `"interactentity:textures/entity/foo.png"` |
 | `faction` | string | — | Название фракции (отображается в журнале) |
 | `reputation_id` | string | — | ID фракции для накопления репутации. По умолчанию = `faction` |
@@ -3077,6 +3100,23 @@ A зажигает флаг, B его читает.
 
 Используй для важных персонажей.
 
+### 17.3 Управление экипировкой (Броня и предметы)
+
+Вы можете управлять экипировкой (оружием, щитами и броней) любого зарегистрированного NPC в мире:
+- **Надевание предметов и брони:**
+  - Возьмите предмет в основную руку, присядьте (зажмите Shift) и нажмите Правой кнопкой мыши по NPC.
+  - Броня (шлемы, нагрудники, поножи, ботинки) автоматически наденется в нужные слоты брони.
+  - Щиты экипируются во вторую руку (`OFFHAND`).
+  - Элитры экипируются в слот нагрудника (`CHEST`).
+  - Тыквы и головы/черепа экипируются в слот шлема (`HEAD`).
+  - Все остальные предметы/блоки берутся в основную руку (`MAINHAND`).
+  - Если слот NPC уже был занят, старый предмет автоматически возвращается в ваш инвентарь (или выпадает на землю, если ваш инвентарь переполнен).
+  - Проигрывается соответствующий звук экипировки брони.
+- **Снятие предметов и брони:**
+  - Присядьте (зажмите Shift) и нажмите по NPC Правой кнопкой мыши с пустой рукой.
+  - Это поочередно снимет с NPC надетые предметы в последовательности: Основная рука → Левая рука → Шлем → Нагрудник → Поножи → Ботинки, и вернет их в ваш инвентарь.
+  - Проигрывается звук поднятия предмета.
+
 ---
 
 ## 18. Эмоции и анимации
@@ -3796,6 +3836,8 @@ public static void onQuestStart(QuestStartEvent event) {
   "character_info": "Village herbalist. Collects rare roots and brews ointments.",
   "avatar": "interactentity:textures/entity/skins/elsa.png",
   "scope": "per_player",
+  "disable_knockback": true,
+  "disable_attacks": true,
   "entry": "start",
   "visual": {
     "model": "interactentity:geo/custom_npc_slim.geo.json",
@@ -4126,10 +4168,10 @@ public static void onQuestStart(QuestStartEvent event) {
 ### 35.3 Что положить в файлы
 
 ```
-<world>/interactentity/dialogues/story/elsa.json
-<world>/interactentity/dialogues/story/harold.json
-<world>/interactentity/skins/elsa.png             ← 64x64
-<world>/interactentity/skins/harold.png           ← 64x64
+config/interactentity/dialogues/story/elsa.json
+config/interactentity/dialogues/story/harold.json
+config/interactentity/skins/elsa.png             ← 64x64
+config/interactentity/skins/harold.png           ← 64x64
 ```
 
 После запуска: `/dialogue reload`, затем подождите спавна Эльзы (или призовите её вручную). Поговорите с Эльзой → начнется квест → Эльза заспавнит Гарольда в лесу → найдите Гарольда → принесите ему хлеб, чтобы забрать часы → верните часы Эльзе для получения награды.
@@ -4200,8 +4242,8 @@ ForgeEvents.onEvent('net.ashpapi.interactentity.api.QuestCompleteEvent', event =
 
 ## Шпаргалка для быстрого создания NPC
 
-1. **JSON** → `<world>/interactentity/dialogues/my_npc.json` (минимальный — см. §2)
-2. **Скин** (если `custom_npc`) → `<world>/interactentity/skins/my_npc.png` (64×64, имя `[a-z0-9_]+`)
+1. **JSON** → `config/interactentity/dialogues/my_npc.json` (минимальный — см. §2)
+2. **Скин** (если `custom_npc`) → `<world>/interactentity/skins/my_npc.png` или `config/interactentity/skins/my_npc.png` (64×64, имя `[a-z0-9_]+`)
 3. **target** → объяви `name` и `tag` (см. §5)
 4. **Спавн** → один из:
    - `summon` блок в JSON с триггером (см. §14)

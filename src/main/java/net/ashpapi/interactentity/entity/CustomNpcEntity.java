@@ -279,6 +279,30 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
     }
 
     @Override
+    public boolean isPushable() {
+        if (this.getPersistentData().getBoolean("InteractEntity_DisableKnockback")) {
+            return false;
+        }
+        return super.isPushable();
+    }
+
+    @Override
+    public void push(net.minecraft.world.entity.Entity entity) {
+        if (this.getPersistentData().getBoolean("InteractEntity_DisableKnockback")) {
+            return;
+        }
+        super.push(entity);
+    }
+
+    @Override
+    protected void doPush(net.minecraft.world.entity.Entity entity) {
+        if (this.getPersistentData().getBoolean("InteractEntity_DisableKnockback")) {
+            return;
+        }
+        super.doPush(entity);
+    }
+
+    @Override
     public AnimatableInstanceCache getAnimatableInstanceCache() {
         return cache;
     }
