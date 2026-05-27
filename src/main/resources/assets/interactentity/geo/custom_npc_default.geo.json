@@ -161,7 +161,7 @@
 				{
 					"name": "armorBody",
 					"parent": "body",
-					"pivot": [0, 18, 0],
+					"pivot": [0, 24, 0],
 					"cubes": [
 						{"origin": [-4, 12, -2], "size": [8, 12, 4], "uv": [16, 16]}
 					]
@@ -169,7 +169,7 @@
 				{
 					"name": "armorLeggingsBody",
 					"parent": "body",
-					"pivot": [0, 18, 0],
+					"pivot": [0, 24, 0],
 					"cubes": [
 						{"origin": [-4, 12, -2], "size": [8, 12, 4], "uv": [16, 16]}
 					]
