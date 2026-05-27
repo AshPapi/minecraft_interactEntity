@@ -48,7 +48,7 @@ public class GiveGiftAction implements DialogueAction {
         int totalFound = 0;
         for (int i = 0; i < player.getInventory().getContainerSize(); i++) {
             ItemStack stack = player.getInventory().getItem(i);
-            if (!stack.isEmpty() && stack.getItem() == item && !stack.hasTag()) {
+            if (!stack.isEmpty() && stack.getItem() == item) {
                 totalFound += stack.getCount();
             }
         }
@@ -61,7 +61,7 @@ public class GiveGiftAction implements DialogueAction {
         int remaining = amount;
         for (int i = 0; i < player.getInventory().getContainerSize() && remaining > 0; i++) {
             ItemStack stack = player.getInventory().getItem(i);
-            if (!stack.isEmpty() && stack.getItem() == item && !stack.hasTag()) {
+            if (!stack.isEmpty() && stack.getItem() == item) {
                 int toTake = Math.min(remaining, stack.getCount());
                 stack.shrink(toTake);
                 remaining -= toTake;
