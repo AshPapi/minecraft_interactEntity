@@ -330,7 +330,7 @@ Below — all 28 types with examples. A `?` after a field means optional; the va
 { "type": "give_item",   "item": "minecraft:apple", "count": 5 }
 { "type": "remove_item", "item": "minecraft:apple", "count": 3 }
 ```
-`remove_item` ignores items with NBT — enchanted/renamed items don't count.
+`remove_item` works with any items, including modded ones and items with NBT (enchanted, renamed, or with durability).
 
 #### `run_command`
 ```json
@@ -522,7 +522,7 @@ All 19 condition types:
 
 | `type` | Fields | Meaning |
 |--------|--------|---------|
-| `has_item` | `item`, `count?` (1) | **Ignores items with NBT** |
+| `has_item` | `item`, `count?` (1) | Counts any items — modded and NBT (enchanted, durability) included |
 | `visited_node` | `dialogue`, `node` | Player visited this node |
 | `quest_status` | `quest_id`, `status` (`"active"`/`"completed"`/`"failed"`/`"none"`) | |
 | `if_var` | `name`, `op?` (`"eq"`/`"neq"`/`"gt"`/`"lt"`/`"gte"`/`"lte"`/`"exists"`), `value?` | |
@@ -1441,7 +1441,8 @@ Here is how a complete node looks with multilingual support:
         "condition": {
           "type": "reputation",
           "id": "village",
-          "min": 10
+          "op": "gte",
+          "value": 10
         },
         "lock_reason": {
           "en_us": "You must be trusted in the village.",
@@ -1644,7 +1645,7 @@ public static void onQuestStart(QuestStartEvent event) {
 3. **`triggers[]` ≠ `summon.trigger`** — different sets and roles.
 4. **Non-`repeatable` dialogues won't re-issue an `after_dialogue` spawn** of a child NPC if the child's entry node was already visited. Reset: `/dialogue reload` (no arg).
 5. **ESC doesn't mark a dialogue completed** — `on_revisit` won't fire. You need a real end node.
-6. **`has_item` ignores NBT items** (enchanted, anvil-renamed).
+6. **`has_item` counts any items** — modded items and items with NBT (enchanted, anvil-renamed, with durability) all count.
 7. **Options support only one `condition`** — use an intermediate node for AND/OR.
 8. **`fire_event` is caught via `DialogueChoiceEvent`** with `source == "action"`.
 9. **`schedule_event` doesn't survive a server restart** if the player is offline.
@@ -2425,7 +2426,7 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 { "type": "remove_item", "item": "minecraft:apple", "count": 3 }
 ```
 
-`remove_item` игнорирует предметы с NBT — зачарованные/переименованные не считаются.
+`remove_item` работает с любыми предметами, включая модовые и с NBT (зачарованные, переименованные, с прочностью).
 
 #### `run_command`
 
@@ -2648,7 +2649,7 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 
 | `type` | Поля | Семантика |
 |--------|------|-----------|
-| `has_item` | `item`, `count?` (1) | **Игнорирует предметы с NBT** |
+| `has_item` | `item`, `count?` (1) | Считает любые предметы — модовые и с NBT (зачарование, прочность) включительно |
 | `visited_node` | `dialogue`, `node` | Игрок проходил этот узел |
 | `quest_status` | `quest_id`, `status` (`"active"`/`"completed"`/`"failed"`/`"none"`) | |
 | `if_var` | `name`, `op?` (`"eq"`/`"neq"`/`"gt"`/`"lt"`/`"gte"`/`"lte"`/`"exists"`), `value?` | |
@@ -3587,7 +3588,8 @@ Action в одном scope может ссылаться на квест из д
         "condition": {
           "type": "reputation",
           "id": "village",
-          "min": 10
+          "op": "gte",
+          "value": 10
         },
         "lock_reason": {
           "en_us": "You must be trusted in the village.",
@@ -3802,7 +3804,7 @@ public static void onQuestStart(QuestStartEvent event) {
 3. **`triggers[]` ≠ `summon.trigger`** — разные наборы типов, разные роли.
 4. **Не-repeatable диалог не перевыдаст after_dialogue-спавн** дочернего NPC, если энтри-нода дочернего уже посещался. Сброс: `/dialogue reload` (без аргумента).
 5. **ESC не помечает диалог завершённым** — `on_revisit` не сработает. Нужен реальный end-нод.
-6. **`has_item` игнорирует предметы с NBT** (зачарованные, переименованные через анвил).
+6. **`has_item` считает любые предметы** — модовые и с NBT (зачарованные, переименованные через анвил, с прочностью) учитываются.
 7. **Опции поддерживают только одно `condition`** — для AND/OR делай промежуточный узел.
 8. **`fire_event` ловится через `DialogueChoiceEvent`** с `source == "action"`.
 9. **`schedule_event` не сохраняется через рестарт** если игрок офлайн.
