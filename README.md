@@ -173,7 +173,7 @@ After any JSON edit you have to tell the mod to reread the file. Run `/dialogue 
 | `invulnerable` | bool | — | `true` (default) — NPC is invulnerable while talking |
 | `disable_knockback` | bool | — | `false` (default). If `true` disables knockback/movement from hits for this NPC |
 | `disable_attacks` | bool | — | `false` (default). If `true` completely disables attack registration (pain animation, pain sound, and hits) for this NPC |
-| `avatar` | string | — | Avatar texture in the dialogue window and journal. Simple name `"harold"` or full path `"interactentity:textures/entity/foo.png"` |
+| `avatar` | string | — | Avatar texture in the dialogue window and journal. **Full path required** (e.g. `"interactentity:textures/entity/skins/harold.png"`). A bare skin name is NOT expanded here — that shortcut works only for `visual.texture` |
 | `faction` | string | — | Faction name (shown in the journal) |
 | `reputation_id` | string | — | Faction ID for reputation accumulation. Defaults to `faction` |
 | `character_info` | string | — | Character description for the journal |
@@ -679,7 +679,7 @@ Like everything else, quests are stored either globally or per-player depending 
 | `required_item` | object | `{id, count?}` — if the player already has the count, the first objective auto-closes |
 | `required_kills` | object | `{entity, tag?, count, objective?}` — auto-counter with `(N/M)` label |
 | `deadline` | object | `{type, value?}`: `"ticks"`/`"game_days"` (need `value`), `"sunset"`/`"sunrise"` |
-| `giver` | string | Quest giver's name (shown in journal) |
+| `giver` | string | Quest giver's name. **Ignored when started from dialogue JSON** — the giver is taken from the NPC's `display_name`/CustomName. Only honored when a quest is started via the KubeJS API |
 
 ### 11.3 "Kill N mobs" objective
 
@@ -1011,7 +1011,7 @@ Removed: `angry`, `sad`, `salute`.
 { "type": "play_emote", "emote": "" }         // clear
 ```
 
-`duration_ticks` is optional — for looped emotes it sets how many ticks to play. For one-shots (wave, bow) it's ignored and the animation plays through.
+`duration_ticks` is optional — it sets how many ticks the emote stays active before returning to idle. If omitted, a per-emote default (matching the animation length) is used. One-shot animations (wave, bow) play through once regardless of the value.
 
 ### Base animations (not emotes)
 
@@ -1094,7 +1094,7 @@ When names collide, **per-world wins** (logic: the map author intentionally put 
 |----------|--------------|
 | `"texture": "harold"` | Resolves to `interactentity:textures/entity/skins/harold.png` — dynamic skin or resource pack fallback |
 | `"texture": "interactentity:textures/entity/foo.png"` | Used as-is |
-| `"avatar": "harold"` | Same rule |
+| `"avatar": "interactentity:textures/entity/skins/harold.png"` | Avatar needs the **full path** — a bare skin name is not expanded |
 
 **Recommendation:** for your own NPCs use simple names. For textures coming from resource packs use full namespaced paths.
 
@@ -1162,9 +1162,11 @@ Very useful for guiding the player: finished one quest → next NPC auto-lights 
 This is the head of the NPC shown to the left of the reply. Set in the dialogue's root via the `avatar` field:
 
 ```json
-"avatar": "harold"
+"avatar": "interactentity:textures/entity/skins/harold.png"
 "avatar": "interactentity:textures/entity/mayor.png"
 ```
+
+Unlike `visual.texture`, the `avatar` field needs a **full texture path** — a bare skin name like `"harold"` is not expanded into the skins folder and will render as a missing texture.
 
 The mod takes the 8×8 region from coordinate (8,8) of the texture — that's the face in the standard 64×64 player-skin layout. So you can drop in regular player/NPC skins directly and the mod will crop out the head.
 
@@ -1488,6 +1490,8 @@ Inside any string you can color and style text. Standard Minecraft codes work (u
 | `/dialogue reload <id>` | One dialogue + reset its progress (NOT in-memory spawn flags) |
 | `/dialogue test <id> [node]` | Opens dialogue with the nearest mob without target checks |
 | `/dialogue goto <node>` | Jump to a node inside the active dialogue |
+| `/dialogue var set <name> <value> [target]` | Set a variable — global, or per-player if `target` is given |
+| `/dialogue var get <name> [target]` | Print a variable's value (global, or the target player's) |
 
 ### `/npc`
 
@@ -2267,7 +2271,7 @@ config/interactentity/dialogues/
 | `invulnerable` | bool | — | `true` (default) — NPC неуязвим во время диалога |
 | `disable_knockback` | bool | — | `false` (default). Если `true` — отключает отбрасывание и сдвиг для этого NPC при ударах |
 | `disable_attacks` | bool | — | `false` (default). Если `true` — полностью отключает регистрацию атак (анимацию боли, звук боли и получение ударов) для этого NPC |
-| `avatar` | string | — | Текстура аватара в диалоговом окне и журнале. Простое имя `"harold"` или полный путь `"interactentity:textures/entity/foo.png"` |
+| `avatar` | string | — | Текстура аватара в диалоговом окне и журнале. **Нужен полный путь** (напр. `"interactentity:textures/entity/skins/harold.png"`). Простое имя скина здесь НЕ расширяется — этот шорткат работает только для `visual.texture` |
 | `faction` | string | — | Название фракции (отображается в журнале) |
 | `reputation_id` | string | — | ID фракции для накопления репутации. По умолчанию = `faction` |
 | `character_info` | string | — | Описание персонажа для журнала |
@@ -2806,7 +2810,7 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 | `required_item` | object | `{id, count?}` — если у игрока уже есть нужное кол-во, первая цель закрывается сразу |
 | `required_kills` | object | `{entity, tag?, count, objective?}` — авто-счётчик убийств с подписью `(N/M)` |
 | `deadline` | object | `{type, value?}`: `"ticks"`/`"game_days"` (`value` обязат.), `"sunset"`/`"sunrise"` |
-| `giver` | string | Имя выдавшего квест (отображается в журнале) |
+| `giver` | string | Имя выдавшего квест. **При запуске из диалогового JSON игнорируется** — берётся из `display_name`/CustomName NPC. Учитывается только при запуске квеста через KubeJS API |
 
 ### 11.3 Цель «убить N мобов»
 
@@ -3144,7 +3148,7 @@ NPC типа `interactentity:custom_npc` умеет проигрывать од�
 { "type": "play_emote", "emote": "" }         // сброс
 ```
 
-`duration_ticks` опционально — для зацикленных эмоций задаёт сколько тиков играть. Для одноразовых (wave, bow) — игнорируется и проигрывается полностью.
+`duration_ticks` опционально — задаёт, сколько тиков эмоция остаётся активной до возврата в idle. Если не указано, берётся дефолт под каждую эмоцию (по длине анимации). Одноразовые анимации (wave, bow) в любом случае проигрываются один раз до конца.
 
 ### Базовые анимации (не эмоции)
 
@@ -3227,7 +3231,7 @@ NPC типа `interactentity:custom_npc` умеет проигрывать од�
 |--------|----------------|
 | `"texture": "harold"` | резолвится в `interactentity:textures/entity/skins/harold.png` — динамика или fallback ресурспака |
 | `"texture": "interactentity:textures/entity/foo.png"` | используется как есть |
-| `"avatar": "harold"` | то же правило |
+| `"avatar": "interactentity:textures/entity/skins/harold.png"` | Для аватара нужен **полный путь** — простое имя скина не расширяется |
 
 **Рекомендация:** для своих NPC используй простое имя. Для текстур из ресурспаков — полный namespaced путь.
 
@@ -3295,9 +3299,11 @@ NPC типа `interactentity:custom_npc` умеет проигрывать од�
 Это голова NPC которая показывается слева от реплики. Указывается в корне диалога через поле `avatar`:
 
 ```json
-"avatar": "harold"
+"avatar": "interactentity:textures/entity/skins/harold.png"
 "avatar": "interactentity:textures/entity/mayor.png"
 ```
+
+В отличие от `visual.texture`, полю `avatar` нужен **полный путь к текстуре** — простое имя скина вроде `"harold"` здесь не расширяется в папку скинов и отрисуется как отсутствующая текстура.
 
 Мод берёт из текстуры область 8×8 от координаты (8,8) — это лицо в стандартной player-skin раскладке (64×64). Поэтому удобно использовать обычные скины игроков и NPC напрямую — мод сам вырежет из них голову.
 
@@ -3635,6 +3641,8 @@ Action в одном scope может ссылаться на квест из д
 | `/dialogue reload <id>` | Один диалог + сброс прогресса (но НЕ in-memory флаги спавна) |
 | `/dialogue test <id> [node]` | Открывает диалог с ближайшим мобом без проверок target |
 | `/dialogue goto <node>` | В активном диалоге — прыжок к узлу |
+| `/dialogue var set <name> <value> [target]` | Задать переменную — глобально или per-player, если указан `target` |
+| `/dialogue var get <name> [target]` | Вывести значение переменной (глобальной или у игрока `target`) |
 
 ### `/npc`
 
