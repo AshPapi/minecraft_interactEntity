@@ -73,7 +73,7 @@ public class DialogueSession {
         JsonObject vc = tree.getVisualConfig();
         String visualModel = (vc != null && vc.has("model")) ? vc.get("model").getAsString() : null;
 
-        if (existing != null) {
+        if (existing != null && existingData.getResumeNode(tree.getId()) != null) {
             this.historyEntry = new DialogueHistoryEntry(
                     existing.getDialogueId(), existing.getDisplayName(),
                     this.reputationId, this.factionLabel,
@@ -380,8 +380,8 @@ public class DialogueSession {
         if (!session.completed) {
             data.setResumeNode(session.tree.getId(), session.currentNodeId);
         } else if (session.tree.isRepeatable()) {
-            // Сбрасываем прогресс чтобы диалог мог сработать снова
-            data.resetDialogue(session.tree.getId());
+            // Сбрасываем прогресс чтобы диалог мог сработать снова (сохраняя историю)
+            data.resetDialogueForRepeat(session.tree.getId());
         } else {
             data.clearResumeNode(session.tree.getId());
             data.markCompleted(session.tree.getId());

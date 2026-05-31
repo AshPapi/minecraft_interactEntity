@@ -119,6 +119,15 @@ public class DialogueSavedData extends SavedData {
         setDirty();
     }
 
+    /** Сброс прогресса диалога для повторного прохождения (сохраняет историю). */
+    public void resetDialogueForRepeat(String dialogueId) {
+        visitedNodes.remove(dialogueId);
+        resumeNodes.remove(dialogueId);
+        completedDialogues.remove(dialogueId);
+        executedActions.remove(dialogueId);
+        setDirty();
+    }
+
     /** Очистить все квесты (для тестирования). */
     public void clearAllQuests() {
         if (!quests.isEmpty() || !trackedQuests.isEmpty()) {

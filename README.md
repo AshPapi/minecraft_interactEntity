@@ -522,7 +522,7 @@ All 19 condition types:
 
 | `type` | Fields | Meaning |
 |--------|--------|---------|
-| `has_item` | `item`, `count?` (1) | Counts any items — modded and NBT (enchanted, durability) included |
+| `has_item` | `item`, `count?` (1), `nbt?` | Counts any items — modded and NBT included. Supports matching specific NBT via optional `"nbt"` string (e.g., `"{GunId:\"tacz:deagle\"}"`) |
 | `visited_node` | `dialogue`, `node` | Player visited this node |
 | `quest_status` | `quest_id`, `status` (`"active"`/`"completed"`/`"failed"`/`"none"`) | |
 | `if_var` | `name`, `op?` (`"eq"`/`"neq"`/`"gt"`/`"lt"`/`"gte"`/`"lte"`/`"exists"`), `value?` | |
@@ -2653,7 +2653,7 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 
 | `type` | Поля | Семантика |
 |--------|------|-----------|
-| `has_item` | `item`, `count?` (1) | Считает любые предметы — модовые и с NBT (зачарование, прочность) включительно |
+| `has_item` | `item`, `count?` (1), `nbt?` | Считает любые предметы. Поддерживает проверку конкретных NBT-тегов через строковый параметр `"nbt"` (например, `"{GunId:\"tacz:deagle\"}"`) |
 | `visited_node` | `dialogue`, `node` | Игрок проходил этот узел |
 | `quest_status` | `quest_id`, `status` (`"active"`/`"completed"`/`"failed"`/`"none"`) | |
 | `if_var` | `name`, `op?` (`"eq"`/`"neq"`/`"gt"`/`"lt"`/`"gte"`/`"lte"`/`"exists"`), `value?` | |
