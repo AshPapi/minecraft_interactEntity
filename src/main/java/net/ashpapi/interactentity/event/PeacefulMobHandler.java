@@ -112,6 +112,13 @@ public class PeacefulMobHandler {
                 entity.getPersistentData().putBoolean("InteractEntity_DisableAttacks", disableAttacks);
             }
 
+            if (!entity.getPersistentData().contains("InteractEntity_ItemsTake")) {
+                DialogueManager manager = DialogueManager.get();
+                DialogueTree tree = manager != null ? manager.findDialogueForEntity(entity) : null;
+                boolean itemsTake = tree == null || tree.isItemsTake();
+                entity.getPersistentData().putBoolean("InteractEntity_ItemsTake", itemsTake);
+            }
+
             reactToWeather(entity);
             returnHome(entity);
             NpcRoutineHandler.tick(entity);
@@ -134,6 +141,7 @@ public class PeacefulMobHandler {
         entity.getPersistentData().putBoolean("InteractEntity_Invulnerable", tree.isInvulnerable());
         entity.getPersistentData().putBoolean("InteractEntity_DisableKnockback", tree.isDisableKnockback());
         entity.getPersistentData().putBoolean("InteractEntity_DisableAttacks", tree.isDisableAttacks());
+        entity.getPersistentData().putBoolean("InteractEntity_ItemsTake", tree.isItemsTake());
 
         // Выставить тег для иконки над головой
         String tag = NPC_TAG_PREFIX + tree.getId() + ":" + tree.getEntryNodeId();

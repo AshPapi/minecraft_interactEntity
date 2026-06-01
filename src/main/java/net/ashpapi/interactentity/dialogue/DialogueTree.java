@@ -33,6 +33,8 @@ public class DialogueTree {
     @Nullable private final List<NpcRoutine> routines;
     private final boolean disableKnockback;
     private final boolean disableAttacks;
+    private final boolean itemsTake;
+
 
     public DialogueTree(String id, String scope, DialogueTarget target, com.google.gson.JsonElement displayName, String entryNodeId,
                         Map<String, DialogueNode> nodes, @Nullable RevisitConfig revisitConfig,
@@ -42,7 +44,7 @@ public class DialogueTree {
                         @Nullable String faction, @Nullable String reputationId, @Nullable String characterInfo,
                         @Nullable ResourceLocation avatar,
                         boolean invulnerable, boolean repeatable, @Nullable List<NpcRoutine> routines,
-                        boolean disableKnockback, boolean disableAttacks) {
+                        boolean disableKnockback, boolean disableAttacks, boolean itemsTake) {
         this.id = id;
         this.scope = scope;
         this.target = target;
@@ -63,6 +65,7 @@ public class DialogueTree {
         this.routines = routines;
         this.disableKnockback = disableKnockback;
         this.disableAttacks = disableAttacks;
+        this.itemsTake = itemsTake;
     }
 
     public String getId() { return id; }
@@ -89,6 +92,7 @@ public class DialogueTree {
     @Nullable public List<NpcRoutine> getRoutines() { return routines; }
     public boolean isDisableKnockback() { return disableKnockback; }
     public boolean isDisableAttacks() { return disableAttacks; }
+    public boolean isItemsTake() { return itemsTake; }
 
     public static DialogueTree fromJson(String id, JsonObject json) {
         DialogueTarget target = DialogueTarget.fromJson(json.getAsJsonObject("target"));
@@ -142,6 +146,7 @@ public class DialogueTree {
         boolean repeatable = json.has("repeatable") && json.get("repeatable").getAsBoolean();
         boolean disableKnockback = json.has("disable_knockback") ? json.get("disable_knockback").getAsBoolean() : false;
         boolean disableAttacks = json.has("disable_attacks") ? json.get("disable_attacks").getAsBoolean() : false;
+        boolean itemsTake = !json.has("items_take") || json.get("items_take").getAsBoolean();
 
         List<NpcRoutine> routines = null;
         if (json.has("routines")) {
@@ -153,7 +158,7 @@ public class DialogueTree {
         }
 
         injectScope(json, scope);
-        return new DialogueTree(id, scope, target, displayName, entry, nodes, revisitConfig, summonConfig, startTrigger, triggers, visualConfig, faction, reputationId, characterInfo, avatar, invulnerable, repeatable, routines, disableKnockback, disableAttacks);
+        return new DialogueTree(id, scope, target, displayName, entry, nodes, revisitConfig, summonConfig, startTrigger, triggers, visualConfig, faction, reputationId, characterInfo, avatar, invulnerable, repeatable, routines, disableKnockback, disableAttacks, itemsTake);
     }
 
     private static boolean isValidInteractionTrigger(String type) {

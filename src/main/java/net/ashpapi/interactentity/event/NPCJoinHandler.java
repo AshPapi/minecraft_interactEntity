@@ -41,7 +41,16 @@ public class NPCJoinHandler {
                     : entity.getPersistentData().getBoolean("InteractEntity_DisableAttacks");
             entity.getPersistentData().putBoolean("InteractEntity_DisableAttacks", disableAttacks);
 
-            if (tree != null) applyVisual(entity, tree);
+            boolean itemsTake = tree != null
+                    ? tree.isItemsTake()
+                    : !entity.getPersistentData().contains("InteractEntity_ItemsTake")
+                    || entity.getPersistentData().getBoolean("InteractEntity_ItemsTake");
+            entity.getPersistentData().putBoolean("InteractEntity_ItemsTake", itemsTake);
+
+            if (tree != null) {
+                applyVisual(entity, tree);
+                applyEquipment(entity, tree);
+            }
             InteractEntityMod.LOGGER.debug("NPC re-joined (NBT flag): {}", entity.getName().getString());
             return;
         }
@@ -63,6 +72,7 @@ public class NPCJoinHandler {
         entity.getPersistentData().putBoolean("InteractEntity_Invulnerable", tree.isInvulnerable());
         entity.getPersistentData().putBoolean("InteractEntity_DisableKnockback", tree.isDisableKnockback());
         entity.getPersistentData().putBoolean("InteractEntity_DisableAttacks", tree.isDisableAttacks());
+        entity.getPersistentData().putBoolean("InteractEntity_ItemsTake", tree.isItemsTake());
 
         entity.setInvulnerable(tree.isInvulnerable());
 
@@ -81,6 +91,7 @@ public class NPCJoinHandler {
         }
 
         applyVisual(entity, tree);
+        applyEquipment(entity, tree);
     }
 
     /** Применяет visual.{model,texture,scale} из JSON диалога к CustomNpcEntity. */
@@ -99,5 +110,33 @@ public class NPCJoinHandler {
         entity.getPersistentData().putInt("InteractEntity_HomeY", pos.getY());
         entity.getPersistentData().putInt("InteractEntity_HomeZ", pos.getZ());
         entity.getPersistentData().putInt("InteractEntity_HomeRadius", radius);
+    }
+
+    /** Применяет visual.equipment из JSON диалога к LivingEntity при первом спавне. */
+    public static void applyEquipment(LivingEntity entity, DialogueTree tree) {
+        if (entity.getPersistentData().getBoolean("InteractEntity_EquipmentApplied")) return;
+
+        JsonObject visual = tree.getVisualConfig();
+        if (visual != null && visual.has("equipment")) {
+            JsonObject eq = visual.getAsJsonObject("equipment");
+            for (net.minecraft.world.entity.EquipmentSlot slot : net.minecraft.world.entity.EquipmentSlot.values()) {
+                String key = slot.getName().toLowerCase(java.util.Locale.ROOT);
+                if (eq.has(key)) {
+                    String itemId = eq.get(key).getAsString();
+                    if (itemId.isEmpty() || "minecraft:air".equals(itemId)) {
+                        entity.setItemSlot(slot, net.minecraft.world.item.ItemStack.EMPTY);
+                    } else {
+                        net.minecraft.resources.ResourceLocation itemLoc = net.minecraft.resources.ResourceLocation.tryParse(itemId);
+                        if (itemLoc != null) {
+                            net.minecraft.world.item.Item item = net.minecraftforge.registries.ForgeRegistries.ITEMS.getValue(itemLoc);
+                            if (item != null) {
+                                entity.setItemSlot(slot, new net.minecraft.world.item.ItemStack(item));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        entity.getPersistentData().putBoolean("InteractEntity_EquipmentApplied", true);
     }
 }

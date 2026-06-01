@@ -44,6 +44,18 @@ public class EntityInteractHandler {
                 return;
             }
 
+            if (!player.getAbilities().instabuild) {
+                boolean itemsTake = !target.getPersistentData().contains("InteractEntity_ItemsTake")
+                        || target.getPersistentData().getBoolean("InteractEntity_ItemsTake");
+                if (!itemsTake) {
+                    player.sendSystemMessage(net.minecraft.network.chat.Component.literal("Вы не можете изменять экипировку этого персонажа!")
+                            .withStyle(net.minecraft.ChatFormatting.RED));
+                    event.setCancellationResult(InteractionResult.SUCCESS);
+                    event.setCanceled(true);
+                    return;
+                }
+            }
+
             if (heldItem.isEmpty()) {
                 // Снятие экипировки
                 net.minecraft.world.entity.EquipmentSlot[] slots = {
