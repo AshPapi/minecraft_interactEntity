@@ -173,6 +173,7 @@ After any JSON edit you have to tell the mod to reread the file. Run `/dialogue 
 | `invulnerable` | bool | — | `true` (default) — NPC is invulnerable while talking |
 | `disable_knockback` | bool | — | `false` (default). If `true` disables knockback/movement from hits for this NPC |
 | `disable_attacks` | bool | — | `false` (default). If `true` completely disables attack registration (pain animation, pain sound, and hits) for this NPC |
+| `items_take` | bool | — | `true` (default). If `false`, players in Survival mode cannot modify the NPC's equipment (cannot take or equip items) |
 | `avatar` | string | — | Avatar texture in the dialogue window and journal. **Full path required** (e.g. `"interactentity:textures/entity/skins/harold.png"`). A bare skin name is NOT expanded here — that shortcut works only for `visual.texture` |
 | `faction` | string | — | Faction name (shown in the journal) |
 | `reputation_id` | string | — | Faction ID for reputation accumulation. Defaults to `faction` |
@@ -1029,7 +1030,15 @@ Not configurable from JSON. Can only be replaced by overriding `custom_npc.anima
 "visual": {
   "model": "interactentity:geo/custom_npc_default.geo.json",
   "texture": "harold",
-  "scale": 1.0
+  "scale": 1.0,
+  "equipment": {
+    "mainhand": "minecraft:iron_sword",
+    "offhand": "minecraft:shield",
+    "head": "minecraft:iron_helmet",
+    "chest": "minecraft:iron_chestplate",
+    "legs": "minecraft:iron_leggings",
+    "feet": "minecraft:iron_boots"
+  }
 }
 ```
 
@@ -1038,6 +1047,7 @@ Not configurable from JSON. Can only be replaced by overriding `custom_npc.anima
 | `model` | string | Path to a `.geo.json` model |
 | `texture` | string | Simple name (dynamic skin, §20) or full path (`namespace:textures/entity/...png`) |
 | `scale` | float | 0.1..5.0 |
+| `equipment` | object | `{slot: itemId}` — pre-equipped items for the NPC on spawn (slots: `mainhand`, `offhand`, `head`, `chest`, `legs`, `feet`) |
 
 ### Built-in models
 
@@ -2271,6 +2281,7 @@ config/interactentity/dialogues/
 | `invulnerable` | bool | — | `true` (default) — NPC неуязвим во время диалога |
 | `disable_knockback` | bool | — | `false` (default). Если `true` — отключает отбрасывание и сдвиг для этого NPC при ударах |
 | `disable_attacks` | bool | — | `false` (default). Если `true` — полностью отключает регистрацию атак (анимацию боли, звук боли и получение ударов) для этого NPC |
+| `items_take` | bool | — | `true` (default). Если `false` — игроки в режиме выживания не смогут изменять экипировку NPC (забирать или надевать предметы) |
 | `avatar` | string | — | Текстура аватара в диалоговом окне и журнале. **Нужен полный путь** (напр. `"interactentity:textures/entity/skins/harold.png"`). Простое имя скина здесь НЕ расширяется — этот шорткат работает только для `visual.texture` |
 | `faction` | string | — | Название фракции (отображается в журнале) |
 | `reputation_id` | string | — | ID фракции для накопления репутации. По умолчанию = `faction` |
@@ -3166,7 +3177,15 @@ NPC типа `interactentity:custom_npc` умеет проигрывать од�
 "visual": {
   "model": "interactentity:geo/custom_npc_default.geo.json",
   "texture": "harold",
-  "scale": 1.0
+  "scale": 1.0,
+  "equipment": {
+    "mainhand": "minecraft:iron_sword",
+    "offhand": "minecraft:shield",
+    "head": "minecraft:iron_helmet",
+    "chest": "minecraft:iron_chestplate",
+    "legs": "minecraft:iron_leggings",
+    "feet": "minecraft:iron_boots"
+  }
 }
 ```
 
@@ -3175,6 +3194,7 @@ NPC типа `interactentity:custom_npc` умеет проигрывать од�
 | `model` | string | Путь к `.geo.json` модели |
 | `texture` | string | Простое имя (динамика, §20) или полный путь (`namespace:textures/entity/...png`) |
 | `scale` | float | 0.1..5.0 |
+| `equipment` | object | `{slot: itemId}` — предустановленная экипировка NPC при первом спавне (слоты: `mainhand`, `offhand`, `head`, `chest`, `legs`, `feet`) |
 
 ### Доступные встроенные модели
 
