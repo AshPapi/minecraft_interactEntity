@@ -66,6 +66,14 @@ public class DialogueSession {
 
         // Продолжаем существующую историю если диалог был прерван ранее
         DialogueSavedData existingData = DialogueDataManager.get(player, tree.getScope());
+
+        // Для повторяемого диалога при старте нового прохождения (не возобновление с resume-узла)
+        // сбрасываем только выполненные экшены, чтобы они снова отработали. visitedNodes
+        // сохраняются — на них опирается логика on_revisit.
+        if (tree.isRepeatable() && existingData.getResumeNode(tree.getId()) == null) {
+            existingData.resetActionsForRepeat(tree.getId());
+        }
+
         DialogueHistoryEntry existing = existingData.getHistoryEntry(tree.getId());
         String entityType = tree.getTarget().getEntityType();
         String characterInfo = tree.getCharacterInfo();
@@ -379,10 +387,10 @@ public class DialogueSession {
 
         if (!session.completed) {
             data.setResumeNode(session.tree.getId(), session.currentNodeId);
-        } else if (session.tree.isRepeatable()) {
-            // Сбрасываем прогресс чтобы диалог мог сработать снова (сохраняя историю)
-            data.resetDialogueForRepeat(session.tree.getId());
         } else {
+            // Повторяемые диалоги тоже помечаются завершёнными и сохраняют visitedNodes —
+            // на них опирается on_revisit. Повторный запуск/сброс экшенов происходит при
+            // старте новой сессии (см. конструктор и startDialogue).
             data.clearResumeNode(session.tree.getId());
             data.markCompleted(session.tree.getId());
         }
@@ -472,7 +480,9 @@ public class DialogueSession {
                         "option", "option_" + optionIndex));
 
         DialogueSavedData optData = session.getData();
-        if (!selected.getActions().isEmpty() && session.markActionPoint(optData, "option:" + session.currentNodeId + ":" + optionIndex)) {
+        // Экшены опции выполняются при каждом выборе (например, покупка у торговца),
+        // поэтому не защищаем их markActionPoint — иначе действие срабатывало бы один раз за сессию.
+        if (!selected.getActions().isEmpty()) {
             ActionRegistry.executeActions(selected.getActions(), player, session.entity);
         }
         // Если action заменил сессию (summon_npc+start_dialogue, force_dialogue) — не продолжаем

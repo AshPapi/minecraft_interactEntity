@@ -191,19 +191,21 @@ public class EntityInteractHandler {
             return true;
         }
 
-        if (tree.isRepeatable()) {
-            // Repeatable диалоги всегда запускаются заново (прогресс сбрасывается при завершении)
-            DialogueSession.startSession(player, target, tree);
-            return true;
-        }
-
         boolean visited = data.hasVisited(tree.getId(), tree.getEntryNodeId());
         if (visited) {
-            handleRevisit(tree, player, target, manager);
+            // Игрок уже общался — сначала пробуем on_revisit (работает и для повторяемых).
+            if (handleRevisit(tree, player, target, manager)) {
+                return true;
+            }
+            // on_revisit не настроен или ни одно условие не подошло.
+            if (tree.isRepeatable()) {
+                // Повторяемый диалог проигрывается заново с начала.
+                DialogueSession.startSession(player, target, tree);
+            }
             return true;
         }
 
-        if (data.isCompleted(tree.getId())) {
+        if (!tree.isRepeatable() && data.isCompleted(tree.getId())) {
             InteractEntityMod.LOGGER.debug("Dialogue '{}' is fully completed — skipping fresh start", tree.getId());
             return true;
         }
@@ -221,10 +223,11 @@ public class EntityInteractHandler {
         return manager != null && manager.findDialogueForEntity(target) != null;
     }
 
-    private static void handleRevisit(DialogueTree tree, ServerPlayer player,
+    /** @return true, если повторный визит был обработан (запущена сессия или показано сообщение). */
+    private static boolean handleRevisit(DialogueTree tree, ServerPlayer player,
                                       LivingEntity target, DialogueManager manager) {
         RevisitConfig revisit = tree.getRevisitConfig();
-        if (revisit == null) return;
+        if (revisit == null) return false;
 
         InteractEntityMod.LOGGER.debug("Handling revisit for dialogue {}", tree.getId());
         for (RevisitConfig.ConditionalText cond : revisit.getConditions()) {
@@ -257,14 +260,14 @@ public class EntityInteractHandler {
                             "npc", 0f, 0f
                     ));
                 }
-                return;
+                return true;
             }
         }
 
         String defaultStartNode = revisit.getDefaultStartNode();
         if (defaultStartNode != null && !defaultStartNode.isEmpty() && tree.getNode(defaultStartNode) != null) {
             DialogueSession.startSessionFromNode(player, target, tree, defaultStartNode);
-            return;
+            return true;
         }
 
         String defaultText = revisit.getDefaultText();
@@ -288,7 +291,9 @@ public class EntityInteractHandler {
                     reputation,
                     "npc", 0f, 0f
             ));
+            return true;
         }
+        return false;
     }
 
     public static boolean canWearEquipment(LivingEntity entity) {
