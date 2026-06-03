@@ -1,4 +1,22 @@
-# Project exclude paths
 /.gradle/
 /build/
-/build/classes/java/main/
+
+/run/*
+!/run/config/
+
+/.idea/
+*.iml
+*.ipr
+*.iws
+
+/.settings/
+/.classpath
+/.project
+/bin/
+
+/.vscode/
+
+*.log
+*.hprof
+hs_err_pid*.log
+replay_pid*.log

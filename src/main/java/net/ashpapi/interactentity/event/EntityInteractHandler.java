@@ -193,13 +193,10 @@ public class EntityInteractHandler {
 
         boolean visited = data.hasVisited(tree.getId(), tree.getEntryNodeId());
         if (visited) {
-            // Игрок уже общался — сначала пробуем on_revisit (работает и для повторяемых).
             if (handleRevisit(tree, player, target, manager)) {
                 return true;
             }
-            // on_revisit не настроен или ни одно условие не подошло.
             if (tree.isRepeatable()) {
-                // Повторяемый диалог проигрывается заново с начала.
                 DialogueSession.startSession(player, target, tree);
             }
             return true;
@@ -223,7 +220,6 @@ public class EntityInteractHandler {
         return manager != null && manager.findDialogueForEntity(target) != null;
     }
 
-    /** @return true, если повторный визит был обработан (запущена сессия или показано сообщение). */
     private static boolean handleRevisit(DialogueTree tree, ServerPlayer player,
                                       LivingEntity target, DialogueManager manager) {
         RevisitConfig revisit = tree.getRevisitConfig();

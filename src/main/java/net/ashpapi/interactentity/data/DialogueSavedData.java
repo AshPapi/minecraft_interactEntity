@@ -128,10 +128,6 @@ public class DialogueSavedData extends SavedData {
         setDirty();
     }
 
-    /**
-     * Сброс только выполненных экшенов диалога для нового прохождения повторяемого диалога.
-     * Сохраняет visitedNodes и completedDialogues, чтобы продолжала работать логика on_revisit.
-     */
     public void resetActionsForRepeat(String dialogueId) {
         if (executedActions.remove(dialogueId) != null) setDirty();
     }
