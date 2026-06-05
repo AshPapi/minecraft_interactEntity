@@ -498,6 +498,25 @@ Without coordinates uses the NPC's current position. NPC will return to within `
 ```
 Only for `interactentity:custom_npc`. List in §18.
 
+#### `set_pose` — change NPC's pose and movement
+```json
+{ "type": "set_pose", "pose": "sitting", "is_moving": false }
+```
+Changes the NPC's active pose and/or enables/disables movement at runtime. Both fields are optional. Works for all NPC entities. Valid poses: `standing`/`idle`, `sitting`, `sleeping`, `sneaking`/`crouching`, `swimming`/`crawling`.
+
+Example usage in a dialogue node:
+```json
+"nodes": {
+  "sleep_node": {
+    "text": "Good night, going to bed now...",
+    "actions": [
+      { "type": "set_pose", "pose": "sleeping", "is_moving": false }
+    ],
+    "options": []
+  }
+}
+```
+
 ### 8.5 `scope` on individual actions
 
 You can explicitly add `"scope": "global"` or `"per_player"` to any action. By default the scope is inherited from the dialogue's root — `DialogueTree.injectScope` auto-injects it into every action/condition that doesn't have its own `scope`.
@@ -1031,6 +1050,8 @@ Not configurable from JSON. Can only be replaced by overriding `custom_npc.anima
   "model": "interactentity:geo/custom_npc_default.geo.json",
   "texture": "harold",
   "scale": 1.0,
+  "pose": "sitting",
+  "is_moving": false,
   "equipment": {
     "mainhand": "minecraft:iron_sword",
     "offhand": "minecraft:shield",
@@ -1047,6 +1068,8 @@ Not configurable from JSON. Can only be replaced by overriding `custom_npc.anima
 | `model` | string | Path to a `.geo.json` model |
 | `texture` | string | Simple name (dynamic skin, §20) or full path (`namespace:textures/entity/...png`) |
 | `scale` | float | 0.1..5.0 |
+| `pose` | string | Active pose: `standing`/`idle`, `sitting`, `sleeping`, `sneaking`/`crouching`, `swimming`/`crawling` |
+| `is_moving` | boolean | If `false`, disables NPC walking/wandering (looking around still works). Default is `true` |
 | `equipment` | object | `{slot: itemId}` — pre-equipped items for the NPC on spawn (slots: `mainhand`, `offhand`, `head`, `chest`, `legs`, `feet`) |
 
 ### Built-in models
@@ -2639,6 +2662,25 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 
 Только для `interactentity:custom_npc`. Список см. §18.
 
+#### `set_pose` — изменить позу и движение NPC
+```json
+{ "type": "set_pose", "pose": "sitting", "is_moving": false }
+```
+Изменяет позу и/или включает/выключает движение NPC во время выполнения. Оба поля опциональны. Работает для всех NPC. Доступные позы: `standing`/`idle`, `sitting`, `sleeping`, `sneaking`/`crouching`, `swimming`/`crawling`.
+
+Пример использования в реплике диалога:
+```json
+"nodes": {
+  "sleep_node": {
+    "text": "Спокойной ночи, я пошёл спать...",
+    "actions": [
+      { "type": "set_pose", "pose": "sleeping", "is_moving": false }
+    ],
+    "options": []
+  }
+}
+```
+
 ### 8.5 Поле `scope` в action
 
 Любому action можно явно указать `"scope": "global"` или `"per_player"`. По умолчанию scope наследуется из корня диалога — `DialogueTree.injectScope` автоматически вставляет его в каждый action/condition без своего `scope`.
@@ -3178,6 +3220,8 @@ NPC типа `interactentity:custom_npc` умеет проигрывать од�
   "model": "interactentity:geo/custom_npc_default.geo.json",
   "texture": "harold",
   "scale": 1.0,
+  "pose": "sitting",
+  "is_moving": false,
   "equipment": {
     "mainhand": "minecraft:iron_sword",
     "offhand": "minecraft:shield",
@@ -3194,6 +3238,8 @@ NPC типа `interactentity:custom_npc` умеет проигрывать од�
 | `model` | string | Путь к `.geo.json` модели |
 | `texture` | string | Простое имя (динамика, §20) или полный путь (`namespace:textures/entity/...png`) |
 | `scale` | float | 0.1..5.0 |
+| `pose` | string | Активная поза: `standing`/`idle`, `sitting`, `sleeping`, `sneaking`/`crouching`, `swimming`/`crawling` |
+| `is_moving` | boolean | Если `false`, NPC стоит на месте и не ходит (продолжая поворачивать голову). По умолчанию `true` |
 | `equipment` | object | `{slot: itemId}` — предустановленная экипировка NPC при первом спавне (слоты: `mainhand`, `offhand`, `head`, `chest`, `legs`, `feet`) |
 
 ### Доступные встроенные модели

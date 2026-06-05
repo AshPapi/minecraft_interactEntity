@@ -35,7 +35,14 @@ public class DialogueTarget {
 
         if (entityType != null && !entityType.isEmpty()) {
             ResourceLocation typeId = ForgeRegistries.ENTITY_TYPES.getKey(entity.getType());
-            if (typeId == null || !typeId.toString().equals(entityType)) return false;
+            if (typeId == null) return false;
+            String typeStr = typeId.toString();
+            if (!typeStr.equals(entityType)) {
+                String mapped = net.ashpapi.interactentity.command.NpcCommand.getMappedNpcType(entityType);
+                if (mapped == null || !typeStr.equals(mapped)) {
+                    return false;
+                }
+            }
         }
 
         return true;

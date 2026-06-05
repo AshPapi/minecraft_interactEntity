@@ -119,8 +119,29 @@ public class PeacefulMobHandler {
                 entity.getPersistentData().putBoolean("InteractEntity_ItemsTake", itemsTake);
             }
 
-            reactToWeather(entity);
-            returnHome(entity);
+            // Enforce pose if set
+            String poseStr = entity.getPersistentData().getString("InteractEntity_Pose");
+            if (poseStr != null && !poseStr.isEmpty()) {
+                net.minecraft.world.entity.Pose vanillaPose = mapPose(poseStr);
+                if (vanillaPose != null && entity.getPose() != vanillaPose) {
+                    entity.setPose(vanillaPose);
+                }
+            }
+
+            // Enforce no movement if disabled
+            boolean movementDisabled = entity.getPersistentData().contains("InteractEntity_IsMoving") && !entity.getPersistentData().getBoolean("InteractEntity_IsMoving");
+            if (movementDisabled) {
+                if (entity instanceof Mob mob) {
+                    mob.getNavigation().stop();
+                    net.minecraft.world.phys.Vec3 delta = mob.getDeltaMovement();
+                    mob.setDeltaMovement(0, delta.y, 0);
+                }
+            }
+
+            if (!movementDisabled) {
+                reactToWeather(entity);
+                returnHome(entity);
+            }
             NpcRoutineHandler.tick(entity);
             CompanionHandler.tick(entity);
             return;
@@ -279,6 +300,24 @@ public class PeacefulMobHandler {
         if (DialogueSession.hasActiveSession(player)) {
             event.setCanceled(true);
         }
+    }
+
+    public static net.minecraft.world.entity.Pose mapPose(String poseStr) {
+        if (poseStr == null) return null;
+        return switch (poseStr.trim().toLowerCase(java.util.Locale.ROOT)) {
+            case "sleeping" -> net.minecraft.world.entity.Pose.SLEEPING;
+            case "sneaking", "crouching" -> net.minecraft.world.entity.Pose.CROUCHING;
+            case "swimming", "crawling" -> net.minecraft.world.entity.Pose.SWIMMING;
+            case "sitting" -> {
+                try {
+                    yield net.minecraft.world.entity.Pose.valueOf("SITTING");
+                } catch (IllegalArgumentException e) {
+                    yield net.minecraft.world.entity.Pose.STANDING;
+                }
+            }
+            case "standing", "idle" -> net.minecraft.world.entity.Pose.STANDING;
+            default -> null;
+        };
     }
 
 }

@@ -22,4 +22,9 @@ public class NPCZombie extends Zombie {
         }
         super.checkDespawn();
     }
+
+    @Override
+    public boolean onlyOpCanSetNbt() {
+        return false;
+    }
 }

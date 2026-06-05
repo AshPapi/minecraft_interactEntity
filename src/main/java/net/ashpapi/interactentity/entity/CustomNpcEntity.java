@@ -34,6 +34,10 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
             SynchedEntityData.defineId(CustomNpcEntity.class, EntityDataSerializers.STRING);
     private static final EntityDataAccessor<Float> SCALE =
             SynchedEntityData.defineId(CustomNpcEntity.class, EntityDataSerializers.FLOAT);
+    private static final EntityDataAccessor<String> CUSTOM_POSE =
+            SynchedEntityData.defineId(CustomNpcEntity.class, EntityDataSerializers.STRING);
+    private static final EntityDataAccessor<Boolean> MOVEMENT_ENABLED =
+            SynchedEntityData.defineId(CustomNpcEntity.class, EntityDataSerializers.BOOLEAN);
     private static final String NO_EMOTE = "";
 
     private final AnimatableInstanceCache cache = GeckoLibUtil.createInstanceCache(this);
@@ -59,11 +63,17 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
     private static final RawAnimation FACEPALM_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.facepalm");
     private static final RawAnimation BOW_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.bow");
     private static final RawAnimation SIX_SEVEN_ANIM = RawAnimation.begin().thenPlay("animation.custom_npc.six_seven");
+    private static final RawAnimation SITTING_ANIM = RawAnimation.begin().thenLoop("animation.custom_npc.sitting");
+    private static final RawAnimation SLEEPING_ANIM = RawAnimation.begin().thenLoop("animation.custom_npc.sleeping");
+    private static final RawAnimation SNEAKING_ANIM = RawAnimation.begin().thenLoop("animation.custom_npc.sneaking");
+    private static final RawAnimation SWIMMING_ANIM = RawAnimation.begin().thenLoop("animation.custom_npc.swimming");
 
     // Кастомная модель и текстура задаются через NBT
     private static final String MODEL_KEY = "InteractEntity_Model";
     private static final String TEXTURE_KEY = "InteractEntity_Texture";
     private static final String SCALE_KEY = "InteractEntity_Scale";
+    private static final String POSE_KEY = "InteractEntity_Pose";
+    private static final String IS_MOVING_KEY = "InteractEntity_IsMoving";
 
     public CustomNpcEntity(EntityType<? extends PathfinderMob> type, Level level) {
         super(type, level);
@@ -78,7 +88,7 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
         this.goalSelector.addGoal(5, new WaterAvoidingRandomStrollGoal(this, 0.7D) {
             @Override
             public boolean canUse() {
-                return super.canUse() && !net.ashpapi.interactentity.dialogue.DialogueSession.isEntityBusy(CustomNpcEntity.this);
+                return super.canUse() && !net.ashpapi.interactentity.dialogue.DialogueSession.isEntityBusy(CustomNpcEntity.this) && CustomNpcEntity.this.isMovementEnabled();
             }
         });
     }
@@ -97,6 +107,8 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
         this.entityData.define(MODEL_ID, "");
         this.entityData.define(TEXTURE_ID, "");
         this.entityData.define(SCALE, 1.0f);
+        this.entityData.define(CUSTOM_POSE, "");
+        this.entityData.define(MOVEMENT_ENABLED, true);
     }
 
     @Override
@@ -106,6 +118,22 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
 
     public void setNpcScale(float scale) {
         this.entityData.set(SCALE, Math.max(0.1f, Math.min(5.0f, scale)));
+    }
+
+    public String getCustomPose() {
+        return this.entityData.get(CUSTOM_POSE);
+    }
+
+    public void setCustomPose(String pose) {
+        this.entityData.set(CUSTOM_POSE, pose == null ? "" : pose);
+    }
+
+    public boolean isMovementEnabled() {
+        return this.entityData.get(MOVEMENT_ENABLED);
+    }
+
+    public void setMovementEnabled(boolean enabled) {
+        this.entityData.set(MOVEMENT_ENABLED, enabled);
     }
 
     public String getEmote() {
@@ -145,6 +173,25 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
         } else {
             this.lookWeight = Math.min(1.0f, this.lookWeight + 0.1f);
         }
+
+        if (this.level() != null && !this.level().isClientSide()) {
+            String cPose = getCustomPose();
+            if (!cPose.isEmpty()) {
+                net.minecraft.world.entity.Pose vanillaPose = net.ashpapi.interactentity.event.PeacefulMobHandler.mapPose(cPose);
+                if (vanillaPose != null && this.getPose() != vanillaPose) {
+                    this.setPose(vanillaPose);
+                }
+            }
+        }
+    }
+
+    @Override
+    public void travel(net.minecraft.world.phys.Vec3 travelVector) {
+        if (!isMovementEnabled()) {
+            super.travel(net.minecraft.world.phys.Vec3.ZERO);
+        } else {
+            super.travel(travelVector);
+        }
     }
 
     public float getLookWeight() {
@@ -174,6 +221,8 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
         compound.putString(MODEL_KEY, getModelId());
         compound.putString(TEXTURE_KEY, getTextureId());
         compound.putFloat(SCALE_KEY, getScale());
+        compound.putString(POSE_KEY, getCustomPose());
+        compound.putBoolean(IS_MOVING_KEY, isMovementEnabled());
     }
 
     @Override
@@ -182,6 +231,8 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
         if (compound.contains(MODEL_KEY)) setModelId(compound.getString(MODEL_KEY));
         if (compound.contains(TEXTURE_KEY)) setTextureId(compound.getString(TEXTURE_KEY));
         if (compound.contains(SCALE_KEY)) setNpcScale(compound.getFloat(SCALE_KEY));
+        if (compound.contains(POSE_KEY)) setCustomPose(compound.getString(POSE_KEY));
+        if (compound.contains(IS_MOVING_KEY)) setMovementEnabled(compound.getBoolean(IS_MOVING_KEY));
     }
 
     public ResourceLocation getTextureLocation() {
@@ -210,6 +261,18 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         // Контроллер 1: Базовые движения (ходьба/idle)
         controllers.add(new AnimationController<>(this, "base", 10, state -> {
+            String cPose = getCustomPose().trim().toLowerCase(java.util.Locale.ROOT);
+            if (!cPose.isEmpty() && !"standing".equals(cPose) && !"idle".equals(cPose)) {
+                state.getController().setAnimationSpeed(1.0f);
+                return switch (cPose) {
+                    case "sitting" -> state.setAndContinue(SITTING_ANIM);
+                    case "sleeping" -> state.setAndContinue(SLEEPING_ANIM);
+                    case "sneaking", "crouching" -> state.setAndContinue(SNEAKING_ANIM);
+                    case "swimming", "crawling" -> state.setAndContinue(SWIMMING_ANIM);
+                    default -> state.setAndContinue(IDLE_ANIM);
+                };
+            }
+
             // Во время диалога NPC заморожен — форсируем IDLE,
             // иначе крошечное Y-движение (гравитация на неровном рельефе)
             // даёт ненулевой limbSwingAmount и вызывает рывки между IDLE и WALK.
@@ -300,6 +363,11 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
             return;
         }
         super.doPush(entity);
+    }
+
+    @Override
+    public boolean onlyOpCanSetNbt() {
+        return false;
     }
 
     @Override

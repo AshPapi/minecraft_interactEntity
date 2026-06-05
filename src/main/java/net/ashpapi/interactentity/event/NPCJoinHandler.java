@@ -94,14 +94,27 @@ public class NPCJoinHandler {
         applyEquipment(entity, tree);
     }
 
-    /** Применяет visual.{model,texture,scale} из JSON диалога к CustomNpcEntity. */
+    /** Применяет visual.{model,texture,scale,pose,is_moving} из JSON диалога к NPC. */
     public static void applyVisual(LivingEntity entity, DialogueTree tree) {
-        if (!(entity instanceof CustomNpcEntity customNpc)) return;
         JsonObject visual = tree.getVisualConfig();
         if (visual == null) return;
-        if (visual.has("texture")) customNpc.setTextureId(visual.get("texture").getAsString());
-        if (visual.has("model")) customNpc.setModelId(visual.get("model").getAsString());
-        if (visual.has("scale")) customNpc.setNpcScale(visual.get("scale").getAsFloat());
+
+        // Parse and set generic NPC properties in NBT
+        if (visual.has("pose")) {
+            entity.getPersistentData().putString("InteractEntity_Pose", visual.get("pose").getAsString());
+        }
+        if (visual.has("is_moving")) {
+            entity.getPersistentData().putBoolean("InteractEntity_IsMoving", visual.get("is_moving").getAsBoolean());
+        }
+
+        // Apply CustomNpcEntity specific properties
+        if (entity instanceof CustomNpcEntity customNpc) {
+            if (visual.has("texture")) customNpc.setTextureId(visual.get("texture").getAsString());
+            if (visual.has("model")) customNpc.setModelId(visual.get("model").getAsString());
+            if (visual.has("scale")) customNpc.setNpcScale(visual.get("scale").getAsFloat());
+            if (visual.has("pose")) customNpc.setCustomPose(visual.get("pose").getAsString());
+            if (visual.has("is_moving")) customNpc.setMovementEnabled(visual.get("is_moving").getAsBoolean());
+        }
     }
 
     /** Задать домашнюю позицию и радиус для NPC. */

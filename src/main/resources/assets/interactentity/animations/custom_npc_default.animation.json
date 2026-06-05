@@ -597,6 +597,58 @@
 					}
 				}
 			}
+		},
+		"animation.custom_npc.sitting": {
+			"loop": true,
+			"bones": {
+				"root": {
+					"position": [0, -10.0, 0]
+				},
+				"right_leg": {
+					"rotation": [-90.0, 0, 0]
+				},
+				"left_leg": {
+					"rotation": [-90.0, 0, 0]
+				},
+				"right_arm": {
+					"rotation": [-20.0, 0, 0]
+				},
+				"left_arm": {
+					"rotation": [-20.0, 0, 0]
+				}
+			}
+		},
+		"animation.custom_npc.sleeping": {
+			"loop": true,
+			"bones": {
+				"root": {
+					"rotation": [90.0, 90.0, 0.0],
+					"position": [0, -23.0, 0]
+				}
+			}
+		},
+		"animation.custom_npc.sneaking": {
+			"loop": true,
+			"bones": {
+				"root": {
+					"position": [0, -3.0, 0]
+				},
+				"body": {
+					"rotation": [25.0, 0, 0]
+				},
+				"head": {
+					"rotation": [-20.0, 0, 0]
+				}
+			}
+		},
+		"animation.custom_npc.swimming": {
+			"loop": true,
+			"bones": {
+				"root": {
+					"rotation": [90.0, 0.0, 0.0],
+					"position": [0, -20.0, 0]
+				}
+			}
 		}
 	}
 }

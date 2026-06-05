@@ -72,6 +72,10 @@ public class NpcCommand {
         Map.entry("minecraft:shulker",          "interactentity:npc_shulker")
     );
 
+    public static String getMappedNpcType(String vanillaId) {
+        return NPC_ENTITY_MAP.get(vanillaId);
+    }
+
     private static final SuggestionProvider<CommandSourceStack> DIALOGUE_IDS = (ctx, builder) -> {
         DialogueManager mgr = DialogueManager.get();
         if (mgr != null) {
