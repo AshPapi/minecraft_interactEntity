@@ -504,16 +504,26 @@ Only for `interactentity:custom_npc`. List in §18.
 ```
 Changes the NPC's active pose and/or enables/disables movement at runtime. Both fields are optional. Works for all NPC entities. Valid poses: `standing`/`idle`, `sitting`, `sleeping`, `sneaking`/`crouching`, `swimming`/`crawling`.
 
-Example usage in a dialogue node:
+`is_moving` — enables/disables movement (walking/wandering; head tracking keeps working). Default is `true`. Movement also drives the pose animation: `swimming`/`crawling` plays swim strokes only while the NPC is actually moving (with `is_moving: false` it just lies still), and `sneaking` keeps the legs walking while moving. Rule of thumb: `sitting`/`sleeping` → `is_moving: false`, `swimming` → `is_moving: true`.
+
+Demo dialogue — a menu that switches all poses:
 ```json
 "nodes": {
-  "sleep_node": {
-    "text": "Good night, going to bed now...",
-    "actions": [
-      { "type": "set_pose", "pose": "sleeping", "is_moving": false }
-    ],
-    "options": []
-  }
+  "start": {
+    "text": "Pick a pose.",
+    "options": [
+      { "text": "Sit",           "next": "do_sit" },
+      { "text": "Sleep",         "next": "do_sleep" },
+      { "text": "Sneak",         "next": "do_sneak" },
+      { "text": "Swim",          "next": "do_swim" },
+      { "text": "Stand back up", "next": "do_stand" }
+    ]
+  },
+  "do_sit":   { "text": "Sitting down.",   "actions": [ { "type": "set_pose", "pose": "sitting",  "is_moving": false } ], "next": "start" },
+  "do_sleep": { "text": "Going to sleep.", "actions": [ { "type": "set_pose", "pose": "sleeping", "is_moving": false } ], "next": "start" },
+  "do_sneak": { "text": "Sneaking.",       "actions": [ { "type": "set_pose", "pose": "sneaking", "is_moving": true } ],  "next": "start" },
+  "do_swim":  { "text": "Crawling.",       "actions": [ { "type": "set_pose", "pose": "swimming", "is_moving": true } ],  "next": "start" },
+  "do_stand": { "text": "Standing up.",    "actions": [ { "type": "set_pose", "pose": "standing", "is_moving": true } ],  "next": "start" }
 }
 ```
 
@@ -2668,16 +2678,26 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 ```
 Изменяет позу и/или включает/выключает движение NPC во время выполнения. Оба поля опциональны. Работает для всех NPC. Доступные позы: `standing`/`idle`, `sitting`, `sleeping`, `sneaking`/`crouching`, `swimming`/`crawling`.
 
-Пример использования в реплике диалога:
+`is_moving` — включает/выключает движение (ходьба/блуждание; слежение головой продолжает работать). По умолчанию `true`. Движение влияет и на анимацию позы: `swimming`/`crawling` играет гребки только когда NPC реально движется (с `is_moving: false` он просто лежит), а при `sneaking` в движении ноги продолжают шагать. Практическое правило: `sitting`/`sleeping` → `is_moving: false`, `swimming` → `is_moving: true`.
+
+Демо-диалог — меню, переключающее все позы:
 ```json
 "nodes": {
-  "sleep_node": {
-    "text": "Спокойной ночи, я пошёл спать...",
-    "actions": [
-      { "type": "set_pose", "pose": "sleeping", "is_moving": false }
-    ],
-    "options": []
-  }
+  "start": {
+    "text": "Выбери позу.",
+    "options": [
+      { "text": "Сесть",     "next": "do_sit" },
+      { "text": "Спать",     "next": "do_sleep" },
+      { "text": "Красться",  "next": "do_sneak" },
+      { "text": "Плыть",     "next": "do_swim" },
+      { "text": "Встать",    "next": "do_stand" }
+    ]
+  },
+  "do_sit":   { "text": "Сажусь.",   "actions": [ { "type": "set_pose", "pose": "sitting",  "is_moving": false } ], "next": "start" },
+  "do_sleep": { "text": "Ложусь.",   "actions": [ { "type": "set_pose", "pose": "sleeping", "is_moving": false } ], "next": "start" },
+  "do_sneak": { "text": "Крадусь.",  "actions": [ { "type": "set_pose", "pose": "sneaking", "is_moving": true } ],  "next": "start" },
+  "do_swim":  { "text": "Ползу.",    "actions": [ { "type": "set_pose", "pose": "swimming", "is_moving": true } ],  "next": "start" },
+  "do_stand": { "text": "Встаю.",    "actions": [ { "type": "set_pose", "pose": "standing", "is_moving": true } ],  "next": "start" }
 }
 ```
 
