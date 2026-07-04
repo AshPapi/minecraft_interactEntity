@@ -176,4 +176,28 @@ public class CustomNpcRenderer extends GeoEntityRenderer<CustomNpcEntity> {
         super.render(entity, entityYaw, partialTick, poseStack, bufferSource, packedLight);
         MobIconRenderer.tryRender(entity, poseStack, bufferSource);
     }
+
+    @Override
+    public void renderNameTag(CustomNpcEntity entity, net.minecraft.network.chat.Component name,
+                              PoseStack poseStack, MultiBufferSource bufferSource, int packedLight) {
+        String pose = entity.getCustomPose().trim().toLowerCase(java.util.Locale.ROOT);
+        boolean sleeping = pose.equals("sleeping");
+        boolean crawling = pose.equals("swimming") || pose.equals("crawling");
+        if (sleeping || crawling) {
+            // У лежащей модели голова смещена от позиции сущности вдоль корпуса:
+            // во сне (на спине) — позади, ползком (лицом вниз) — впереди.
+            // Переносим неймтег к голове.
+            float yawRad = entity.yBodyRot * ((float) Math.PI / 180F);
+            // Тело отцентрировано на позиции сущности, голова в ~0.75 блока от центра
+            float dist = sleeping ? -0.8f : 0.8f;
+            float dx = -net.minecraft.util.Mth.sin(yawRad) * dist;
+            float dz = net.minecraft.util.Mth.cos(yawRad) * dist;
+            poseStack.pushPose();
+            poseStack.translate(dx, 0, dz);
+            super.renderNameTag(entity, name, poseStack, bufferSource, packedLight);
+            poseStack.popPose();
+            return;
+        }
+        super.renderNameTag(entity, name, poseStack, bufferSource, packedLight);
+    }
 }

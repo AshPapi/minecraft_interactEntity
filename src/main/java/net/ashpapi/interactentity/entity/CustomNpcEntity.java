@@ -4,8 +4,10 @@ import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.EntityDimensions;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.PathfinderMob;
+import net.minecraft.world.entity.Pose;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
@@ -67,6 +69,7 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
     private static final RawAnimation SLEEPING_ANIM = RawAnimation.begin().thenLoop("animation.custom_npc.sleeping");
     private static final RawAnimation SNEAKING_ANIM = RawAnimation.begin().thenLoop("animation.custom_npc.sneaking");
     private static final RawAnimation SWIMMING_ANIM = RawAnimation.begin().thenLoop("animation.custom_npc.swimming");
+    private static final RawAnimation SWIMMING_MOVE_ANIM = RawAnimation.begin().thenLoop("animation.custom_npc.swimming_move");
 
     // Кастомная модель и текстура задаются через NBT
     private static final String MODEL_KEY = "InteractEntity_Model";
@@ -128,6 +131,52 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
         this.entityData.set(CUSTOM_POSE, pose == null ? "" : pose);
     }
 
+    /**
+     * Высота хитбокса следует за позой. Множители — из геометрии модели
+     * (32 юнита = полный рост): sitting — макушка на 22/32, sneaking — ~29/32,
+     * лежачие позы — толщина тела над землёй. Ширина не меняется: бокс в MC —
+     * всегда вертикальный столбик с квадратным основанием по центру сущности.
+     */
+    @Override
+    public EntityDimensions getDimensions(Pose pose) {
+        EntityDimensions dims = super.getDimensions(pose);
+        return switch (getCustomPose().trim().toLowerCase(java.util.Locale.ROOT)) {
+            case "sitting" -> dims.scale(1.0f, 0.70f);
+            case "sneaking", "crouching" -> dims.scale(1.0f, 0.90f);
+            // Ширина у AABB одна на обе оси (квадратное основание), поэтому
+            // расширение вдоль тела торчит и вбок — 2.0 (1.2 блока) как компромисс
+            case "sleeping" -> dims.scale(2.0f, 0.22f);
+            case "swimming", "crawling" -> dims.scale(2.0f, 0.28f);
+            default -> dims;
+        };
+    }
+
+    /** Лежит ли NPC (root повёрнут на 90°, тело выходит далеко за узкий хитбокс). */
+    public boolean isInLyingPose() {
+        String cPose = getCustomPose().trim().toLowerCase(java.util.Locale.ROOT);
+        return cPose.equals("sleeping") || cPose.equals("swimming") || cPose.equals("crawling");
+    }
+
+    @Override
+    public net.minecraft.world.phys.AABB getBoundingBoxForCulling() {
+        // Cull-бокс шире хитбокса, иначе лежащая модель исчезает,
+        // когда её низкий хитбокс уходит за край экрана
+        if (isInLyingPose()) {
+            return this.getBoundingBox().inflate(2.0, 0.5, 2.0);
+        }
+        return super.getBoundingBoxForCulling();
+    }
+
+    @Override
+    public void onSyncedDataUpdated(EntityDataAccessor<?> key) {
+        super.onSyncedDataUpdated(key);
+        // Срабатывает и на сервере при set(), и на клиенте при приходе пакета —
+        // хитбокс пересчитывается на обеих сторонах
+        if (CUSTOM_POSE.equals(key)) {
+            refreshDimensions();
+        }
+    }
+
     public boolean isMovementEnabled() {
         return this.entityData.get(MOVEMENT_ENABLED);
     }
@@ -174,15 +223,9 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
             this.lookWeight = Math.min(1.0f, this.lookWeight + 0.1f);
         }
 
-        if (this.level() != null && !this.level().isClientSide()) {
-            String cPose = getCustomPose();
-            if (!cPose.isEmpty()) {
-                net.minecraft.world.entity.Pose vanillaPose = net.ashpapi.interactentity.event.PeacefulMobHandler.mapPose(cPose);
-                if (vanillaPose != null && this.getPose() != vanillaPose) {
-                    this.setPose(vanillaPose);
-                }
-            }
-        }
+        // Ванильную Pose НЕ выставляем: GeoEntityRenderer при Pose.SLEEPING сам
+        // поворачивает модель (Z 90° + Y 270°), что конфликтует с поворотом root
+        // в GeckoLib-анимации. Кастомная поза целиком отрисовывается анимацией.
     }
 
     @Override
@@ -261,18 +304,6 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
     public void registerControllers(AnimatableManager.ControllerRegistrar controllers) {
         // Контроллер 1: Базовые движения (ходьба/idle)
         controllers.add(new AnimationController<>(this, "base", 10, state -> {
-            String cPose = getCustomPose().trim().toLowerCase(java.util.Locale.ROOT);
-            if (!cPose.isEmpty() && !"standing".equals(cPose) && !"idle".equals(cPose)) {
-                state.getController().setAnimationSpeed(1.0f);
-                return switch (cPose) {
-                    case "sitting" -> state.setAndContinue(SITTING_ANIM);
-                    case "sleeping" -> state.setAndContinue(SLEEPING_ANIM);
-                    case "sneaking", "crouching" -> state.setAndContinue(SNEAKING_ANIM);
-                    case "swimming", "crawling" -> state.setAndContinue(SWIMMING_ANIM);
-                    default -> state.setAndContinue(IDLE_ANIM);
-                };
-            }
-
             // Во время диалога NPC заморожен — форсируем IDLE,
             // иначе крошечное Y-движение (гравитация на неровном рельефе)
             // даёт ненулевой limbSwingAmount и вызывает рывки между IDLE и WALK.
@@ -289,7 +320,30 @@ public class CustomNpcEntity extends PathfinderMob implements GeoEntity {
             return state.setAndContinue(IDLE_ANIM);
         }));
 
-        // Контроллер 2: Эмоции и жесты
+        // Контроллер 2: Поза — оверлей поверх base. Переопределяет только кости,
+        // заданные в анимации позы: sneaking не трогает ноги, поэтому при движении
+        // ноги продолжают шагать из base, а корпус остаётся в крауче.
+        controllers.add(new AnimationController<>(this, "pose", 10, state -> {
+            String cPose = getCustomPose().trim().toLowerCase(java.util.Locale.ROOT);
+            if (!cPose.isEmpty() && !"standing".equals(cPose) && !"idle".equals(cPose)) {
+                RawAnimation poseAnim = switch (cPose) {
+                    case "sitting" -> SITTING_ANIM;
+                    case "sleeping" -> SLEEPING_ANIM;
+                    case "sneaking", "crouching" -> SNEAKING_ANIM;
+                    // Гребки — только в движении, на месте — статичная поза лёжа
+                    case "swimming", "crawling" -> state.isMoving() ? SWIMMING_MOVE_ANIM : SWIMMING_ANIM;
+                    default -> null;
+                };
+                if (poseAnim != null) {
+                    state.getController().setAnimationSpeed(1.0f);
+                    return state.setAndContinue(poseAnim);
+                }
+            }
+            return PlayState.STOP;
+        }));
+
+        // Контроллер 3: Эмоции и жесты — регистрируется последним, чтобы жесты
+        // накладывались поверх позы (кивок сидящего NPC и т.п.).
         // Transition = 10 тиков: GeckoLib плавно интерполирует кости из idle в начало эмота.
         controllers.add(new AnimationController<>(this, "emote", 10, state -> {
             long emoteUntil = this.entityData.get(EMOTE_UNTIL);

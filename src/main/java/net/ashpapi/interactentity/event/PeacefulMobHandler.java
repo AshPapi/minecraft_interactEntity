@@ -119,12 +119,15 @@ public class PeacefulMobHandler {
                 entity.getPersistentData().putBoolean("InteractEntity_ItemsTake", itemsTake);
             }
 
-            // Enforce pose if set
-            String poseStr = entity.getPersistentData().getString("InteractEntity_Pose");
-            if (poseStr != null && !poseStr.isEmpty()) {
-                net.minecraft.world.entity.Pose vanillaPose = mapPose(poseStr);
-                if (vanillaPose != null && entity.getPose() != vanillaPose) {
-                    entity.setPose(vanillaPose);
+            // Ванильная Pose — только для ванильных мобов (их рендерер сам умеет SLEEPING/SWIMMING).
+            // CustomNpcEntity позируется GeckoLib-анимацией, ванильная Pose ему всё ломает.
+            if (!(entity instanceof net.ashpapi.interactentity.entity.CustomNpcEntity)) {
+                String poseStr = entity.getPersistentData().getString("InteractEntity_Pose");
+                if (poseStr != null && !poseStr.isEmpty()) {
+                    net.minecraft.world.entity.Pose vanillaPose = mapPose(poseStr);
+                    if (vanillaPose != null && entity.getPose() != vanillaPose) {
+                        entity.setPose(vanillaPose);
+                    }
                 }
             }
 

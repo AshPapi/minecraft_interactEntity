@@ -83,28 +83,58 @@ public class CustomNpcModel extends GeoModel<CustomNpcEntity> {
         }
 
         EntityModelData entityData = animationState.getData(DataTickets.ENTITY_MODEL_DATA);
-        
+
+        // В лежачих позах (root повёрнут на 90°) слежение головой выкручивает шею —
+        // голова целиком остаётся под управлением анимации позы
+        String cPose = animatable.getCustomPose().trim().toLowerCase(Locale.ROOT);
+        boolean lyingPose = cPose.equals("sleeping") || cPose.equals("swimming") || cPose.equals("crawling");
+
         // 1. Плавное слежение головой (ванильная логика с LERP сглаживанием во время переходов эмоций)
-        if (head != null) {
+        if (head != null && !lyingPose) {
             float headPitch = Mth.clamp(entityData.headPitch(), -45, 45) * ((float) Math.PI / 180F);
             float headYaw = Mth.wrapDegrees(entityData.netHeadYaw()) * ((float) Math.PI / 180F);
 
             float weight = animatable.getLookWeight();
             if (weight > 0.0f) {
-                if (neck != null) {
-                    neck.updateRotation(neck.getRotX(), headYaw * 0.25f * weight, neck.getRotZ());
+                boolean sneakPose = cPose.equals("sneaking") || cPose.equals("crouching");
+                float targetRotX;
+                float targetRotY;
+                float targetRotZ = head.getRotZ();
+
+                if (sneakPose) {
+                    // Голова наследует наклон корпуса, и yaw вокруг наклонённой оси
+                    // заваливает её при поворотах. Считаем локальные углы так, чтобы
+                    // поворот шёл вокруг мировой вертикали, а взгляд был на горизонте:
+                    // L = Rx(-наклон) * Ry(yaw) * Rx(pitch), разложенное в ZYX-эйлеры
+                    // (тот же порядок осей, что в GeckoLib). Yaw целиком на голове,
+                    // шею не задействуем — её ось тоже наклонена.
+                    CoreGeoBone body = getAnimationProcessor().getBone("body");
+                    float tilt = body != null ? body.getRotX() : 0.0f;
+                    org.joml.Vector3f euler = new org.joml.Matrix3f()
+                            .rotationX(-tilt)
+                            .rotateY(headYaw)
+                            .rotateX(headPitch)
+                            .getEulerAnglesZYX(new org.joml.Vector3f());
+                    targetRotX = euler.x;
+                    targetRotY = euler.y;
+                    targetRotZ = euler.z;
+                    if (neck != null) {
+                        neck.updateRotation(neck.getRotX(), 0.0f, neck.getRotZ());
+                    }
+                } else {
+                    if (neck != null) {
+                        neck.updateRotation(neck.getRotX(), headYaw * 0.25f * weight, neck.getRotZ());
+                    }
+                    targetRotX = headPitch;
+                    targetRotY = headYaw * 0.75f;
                 }
-                
-                // Целевые углы слежения за игроком
-                float targetRotX = headPitch;
-                float targetRotY = headYaw * 0.75f;
 
                 // Плавно интерполируем от позы, созданной анимацией GeckoLib (head.getRotX() / getRotY()),
                 // к целевым углам слежения в зависимости от weight перехода.
                 head.updateRotation(
                     Mth.lerp(weight, head.getRotX(), targetRotX),
                     Mth.lerp(weight, head.getRotY(), targetRotY),
-                    head.getRotZ()
+                    Mth.lerp(weight, head.getRotZ(), targetRotZ)
                 );
             } else {
                 // Во время активной эмоции голова на 100% управляется GeckoLib,
