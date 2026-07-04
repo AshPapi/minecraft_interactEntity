@@ -13,8 +13,8 @@ public class IfVarCondition implements DialogueCondition {
         String expected = params.has("value") ? params.get("value").getAsString() : "";
         String actual = DialogueDataManager.get(player, params).getVar(name);
         return switch (op) {
-            case "eq" -> actual.equals(expected);
-            case "neq" -> !actual.equals(expected);
+            case "eq" -> valueForCompare(actual, expected).equals(expected);
+            case "neq" -> !valueForCompare(actual, expected).equals(expected);
             case "gt", "lt", "gte", "lte" -> {
                 try {
                     int a = Integer.parseInt(actual.isEmpty() ? "0" : actual);
@@ -31,5 +31,10 @@ public class IfVarCondition implements DialogueCondition {
             case "exists" -> !actual.isEmpty();
             default -> false;
         };
+    }
+
+    /** Несуществующая переменная ("") при сравнении с числом ведёт себя как "0" — как в gt/lt/gte/lte. */
+    private static String valueForCompare(String actual, String expected) {
+        return actual.isEmpty() && expected.matches("-?\\d+") ? "0" : actual;
     }
 }
