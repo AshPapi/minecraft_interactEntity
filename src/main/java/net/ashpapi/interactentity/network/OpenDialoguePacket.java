@@ -1,10 +1,9 @@
 package net.ashpapi.interactentity.network;
 
-import net.ashpapi.interactentity.camera.DialogueCameraController;
-import net.ashpapi.interactentity.screen.DialogueScreen;
-import net.minecraft.client.Minecraft;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.fml.DistExecutor;
 import net.minecraftforge.network.NetworkEvent;
 
 import java.util.ArrayList;
@@ -12,21 +11,22 @@ import java.util.List;
 import java.util.function.Supplier;
 
 public class OpenDialoguePacket {
-    private final int entityId;
-    private final String nodeId;
-    private final String displayName;
-    private final String text;
-    private final String nodeType;
-    private final List<String> optionTexts;
-    private final List<Integer> optionIndices;
-    private final List<Boolean> optionLocked;
-    private final List<String> optionLockReasons;
-    private final ResourceLocation avatarTexture;
-    private final String factionId;
-    private final int reputation;
-    private final String cameraMode;
-    private final float cameraYawOffset;
-    private final float cameraPitchOffset;
+    // package-private: клиентскую часть обрабатывает ClientPacketHandler
+    final int entityId;
+    final String nodeId;
+    final String displayName;
+    final String text;
+    final String nodeType;
+    final List<String> optionTexts;
+    final List<Integer> optionIndices;
+    final List<Boolean> optionLocked;
+    final List<String> optionLockReasons;
+    final ResourceLocation avatarTexture;
+    final String factionId;
+    final int reputation;
+    final String cameraMode;
+    final float cameraYawOffset;
+    final float cameraPitchOffset;
 
     public OpenDialoguePacket(int entityId, String nodeId, String displayName, String text, String nodeType,
                               List<String> optionTexts, List<Integer> optionIndices,
@@ -106,23 +106,8 @@ public class OpenDialoguePacket {
     }
 
     public void handle(Supplier<NetworkEvent.Context> ctx) {
-        ctx.get().enqueueWork(() -> {
-            Minecraft mc = Minecraft.getInstance();
-            if (mc.screen instanceof DialogueScreen screen) {
-                screen.updateDialogue(nodeId, displayName, text, nodeType, optionTexts, optionIndices, optionLocked, optionLockReasons, avatarTexture);
-                screen.setFactionInfo(factionId, reputation);
-            } else {
-                DialogueScreen screen = new DialogueScreen(entityId, nodeId, displayName, text, nodeType,
-                        optionTexts, optionIndices, optionLocked, optionLockReasons, avatarTexture);
-                screen.setFactionInfo(factionId, reputation);
-                mc.setScreen(screen);
-            }
-            applyCameraMode(entityId);
-        });
+        ctx.get().enqueueWork(() ->
+            DistExecutor.unsafeRunWhenOn(Dist.CLIENT, () -> () -> ClientPacketHandler.handleOpenDialogue(this)));
         ctx.get().setPacketHandled(true);
-    }
-
-    private void applyCameraMode(int entityId) {
-        DialogueCameraController.startLookAt(entityId);
     }
 }
