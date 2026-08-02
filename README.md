@@ -2126,7 +2126,7 @@ The flag persists: once set, the pouch icon stays until you disable it with `"me
 
 ### 36.2 Shop file — `config/interactentity/trades/`
 
-A shop file has no `target` (the NPC link comes from the node flag). Only `shop_name` and `offers`:
+A shop file has no `target` (the NPC link comes from the node flag). It only needs `shop_name` and `offers`. The example below is a **complete, ready-to-use shop** that shows every offer variety at once — copy it into `config/interactentity/trades/harold_basic.json` and it works as is:
 
 ```json
 {
@@ -2141,29 +2141,55 @@ A shop file has no `target` (the NPC link comes from the node flag). Only `shop_
       "stock": -1
     },
     {
+      "type": "buy",
+      "result": { "item": "minecraft:iron_ingot", "count": 8 },
+      "price": [
+        { "item": "minecraft:emerald", "count": 3 },
+        { "item": "minecraft:coal", "count": 16 }
+      ],
+      "info": "&fIron ingots — x8",
+      "description": "Straight from the mine. The coal is for the forge."
+    },
+    {
       "type": "sell",
       "merchandise": { "item": "minecraft:wheat", "count": 8 },
       "price": [ { "item": "minecraft:emerald", "count": 1 } ],
-      "info": "&aI buy wheat — x8"
+      "info": "&aI buy wheat — x8",
+      "description": "Bring me eights of wheat and I'll pay in emeralds."
+    },
+    {
+      "type": "buy",
+      "result": {
+        "item": "minecraft:enchanted_book",
+        "count": 1,
+        "nbt": "{StoredEnchantments:[{id:\"minecraft:sharpness\",lvl:3s}]}"
+      },
+      "price": [ { "item": "minecraft:emerald", "count": 12 } ],
+      "info": "&bSharpness III",
+      "description": "An enchanted book — the price buys exactly this enchantment."
     },
     {
       "type": "buy",
       "result": { "item": "minecraft:diamond_sword", "count": 1 },
       "price": [ { "item": "minecraft:emerald", "count": 32 } ],
       "info": "&bHero's sword",
+      "description": "&7Only for those who slew the dragon.&r A reward, not merchandise.",
       "condition": { "type": "quest_status", "quest_id": "kill_dragon", "status": "completed" }
     },
     {
       "type": "buy",
       "result": { "item": "minecraft:golden_apple", "count": 1 },
       "price": [ { "item": "minecraft:emerald", "count": 10 } ],
-      "info": "&6Golden apple (limited)",
+      "info": "&6Golden apple",
+      "description": "&7Rare stock.&r Once the three are gone, no more will come.",
       "stock": 3,
       "stock_scope": "global"
     }
   ]
 }
 ```
+
+This one file covers: a plain unlimited `buy`, a `buy` with a **multi-item price**, a `sell`, a `buy` of an item with **NBT** (an enchanted book), a `buy` gated by a **`condition`**, and a `buy` with a limited **`global` stock**.
 
 ### 36.3 Offer fields
 
@@ -2181,19 +2207,7 @@ Every offer is one line in the shop. `type` decides its direction; `price` is **
 | `stock_scope` | `"per_player"` \| `"global"` | no (default `"per_player"`) | Whose counter `stock` uses: each player has their own, or one shared across everyone |
 | `condition` | object | no | A condition from §9. If it fails, the offer is hidden. Re-checked on the server before every deal |
 
-A **stack** is `{ "item": "<id>", "count": <n>, "nbt": "<snbt>" }` — `item` is required, `count` defaults to 1, `nbt` (SNBT string) is optional.
-
-Minimal `buy` (player pays 2 emeralds, gets 1 iron):
-
-```json
-{ "type": "buy", "result": { "item": "minecraft:iron_ingot" }, "price": [ { "item": "minecraft:emerald", "count": 2 } ] }
-```
-
-Minimal `sell` (player gives 8 wheat, gets 1 emerald):
-
-```json
-{ "type": "sell", "merchandise": { "item": "minecraft:wheat", "count": 8 }, "price": [ { "item": "minecraft:emerald" } ] }
-```
+A **stack** is `{ "item": "<id>", "count": <n>, "nbt": "<snbt>" }` — `item` is required, `count` defaults to 1, `nbt` (SNBT string) is optional. See the full shop in §36.2 for every field in context.
 
 ### 36.4 Two ways to update the assortment
 
@@ -4511,7 +4525,7 @@ NPC могут быть торговцами. Пока на персонаже �
 
 ### 36.2 Файл-витрина — `config/interactentity/trades/`
 
-У витрины нет `target` (привязка к NPC идёт через метку на ноде). Только `shop_name` и `offers`:
+У витрины нет `target` (привязка к NPC идёт через метку на ноде). Нужны только `shop_name` и `offers`. Пример ниже — **готовая витрина**, показывающая сразу все виды офферов: скопируй её в `config/interactentity/trades/harold_basic.json`, и она работает как есть:
 
 ```json
 {
@@ -4526,29 +4540,55 @@ NPC могут быть торговцами. Пока на персонаже �
       "stock": -1
     },
     {
+      "type": "buy",
+      "result": { "item": "minecraft:iron_ingot", "count": 8 },
+      "price": [
+        { "item": "minecraft:emerald", "count": 3 },
+        { "item": "minecraft:coal", "count": 16 }
+      ],
+      "info": "&fЖелезные слитки — x8",
+      "description": "Прямо из шахты. Уголь — для горна."
+    },
+    {
       "type": "sell",
       "merchandise": { "item": "minecraft:wheat", "count": 8 },
       "price": [ { "item": "minecraft:emerald", "count": 1 } ],
-      "info": "&aКуплю пшеницу — x8"
+      "info": "&aКуплю пшеницу — x8",
+      "description": "Приноси пшеницу восьмёрками — плачу изумрудами."
+    },
+    {
+      "type": "buy",
+      "result": {
+        "item": "minecraft:enchanted_book",
+        "count": 1,
+        "nbt": "{StoredEnchantments:[{id:\"minecraft:sharpness\",lvl:3s}]}"
+      },
+      "price": [ { "item": "minecraft:emerald", "count": 12 } ],
+      "info": "&bОстрота III",
+      "description": "Зачарованная книга — цена покупает именно это зачарование."
     },
     {
       "type": "buy",
       "result": { "item": "minecraft:diamond_sword", "count": 1 },
       "price": [ { "item": "minecraft:emerald", "count": 32 } ],
       "info": "&bМеч героя",
+      "description": "&7Только для убивших дракона.&r Награда, а не товар.",
       "condition": { "type": "quest_status", "quest_id": "kill_dragon", "status": "completed" }
     },
     {
       "type": "buy",
       "result": { "item": "minecraft:golden_apple", "count": 1 },
       "price": [ { "item": "minecraft:emerald", "count": 10 } ],
-      "info": "&6Золотое яблоко (ограничено)",
+      "info": "&6Золотое яблоко",
+      "description": "&7Редкий товар.&r Когда три штуки кончатся — больше не привезут.",
       "stock": 3,
       "stock_scope": "global"
     }
   ]
 }
 ```
+
+Этот один файл покрывает: простой бесконечный `buy`, `buy` с **ценой из нескольких предметов**, `sell`, `buy` предмета с **NBT** (зачарованная книга), `buy` под **`condition`** и `buy` с ограниченным **`global`-остатком**.
 
 ### 36.3 Поля оффера
 
@@ -4566,19 +4606,7 @@ NPC могут быть торговцами. Пока на персонаже �
 | `stock_scope` | `"per_player"` \| `"global"` | нет (дефолт `"per_player"`) | Чей счётчик у `stock`: у каждого игрока свой или один общий на всех |
 | `condition` | объект | нет | Условие из §9. Не выполнено → оффер скрыт. Перепроверяется на сервере перед каждой сделкой |
 
-**Стек** = `{ "item": "<id>", "count": <n>, "nbt": "<snbt>" }` — `item` обязателен, `count` по умолчанию 1, `nbt` (строка SNBT) опционально.
-
-Минимальный `buy` (игрок платит 2 изумруда, получает 1 железо):
-
-```json
-{ "type": "buy", "result": { "item": "minecraft:iron_ingot" }, "price": [ { "item": "minecraft:emerald", "count": 2 } ] }
-```
-
-Минимальный `sell` (игрок отдаёт 8 пшеницы, получает 1 изумруд):
-
-```json
-{ "type": "sell", "merchandise": { "item": "minecraft:wheat", "count": 8 }, "price": [ { "item": "minecraft:emerald" } ] }
-```
+**Стек** = `{ "item": "<id>", "count": <n>, "nbt": "<snbt>" }` — `item` обязателен, `count` по умолчанию 1, `nbt` (строка SNBT) опционально. Полную витрину со всеми полями в контексте см. в §36.2.
 
 ### 36.4 Два способа обновить ассортимент
 
