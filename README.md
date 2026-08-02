@@ -2216,7 +2216,7 @@ A **stack** is `{ "item": "<id>", "count": <n>, "nbt": "<snbt>" }` — `item` is
 
 ### 36.5 Notes
 
-- While the shop is open the NPC is frozen and turned towards the player, same as in dialogue. The shop auto-closes if the player walks away (more than 16 blocks), logs out or the target disappears. One NPC will not trade with two players at once.
+- While the shop is open the NPC is frozen and turned towards the player, same as in dialogue. The shop auto-closes if the player moves more than 16 blocks away, changes dimension, or the NPC dies. One NPC will not trade with two players at once.
 - The shop file id (its path relative to `trades/` without `.json`) is what you put in the `merchant` field. Subfolders are supported, e.g. `trades/village/harold.json` → `"merchant": "village/harold"`.
 - Demo: `config/interactentity/dialogues/story/merchant_demo.json` + `config/interactentity/trades/merchant_demo.json`.
 
@@ -2510,6 +2510,7 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 | `camera` | string | Режим камеры. Default `"npc"` |
 | `camera_yaw_offset` | float | Сдвиг ракурса по горизонтали |
 | `camera_pitch_offset` | float | Сдвиг ракурса по вертикали |
+| `merchant` | string \| false | Метка торговца: имя файла-витрины (напр. `"harold_basic"`) включает/меняет лавку; `false` выключает торговлю. См. §36 |
 
 ### Пример: линейный → выбор → конец
 
@@ -4615,6 +4616,6 @@ NPC могут быть торговцами. Пока на персонаже �
 
 ### 36.5 Заметки
 
-- На время открытой витрины NPC заморожен и развёрнут к игроку, как и в диалоге. Витрина сама закрывается, если игрок отошёл (> 16 блоков), вышел из игры или цель пропала. Один NPC не торгует с двумя игроками сразу.
+- На время открытой витрины NPC заморожен и развёрнут к игроку, как и в диалоге. Витрина сама закрывается, если игрок отошёл дальше 16 блоков, сменил измерение или NPC погиб. Один NPC не торгует с двумя игроками сразу.
 - id файла-витрины (путь относительно `trades/` без `.json`) — это то, что пишешь в поле `merchant`. Подпапки поддерживаются: `trades/village/harold.json` → `"merchant": "village/harold"`.
 - Демо: `config/interactentity/dialogues/story/merchant_demo.json` + `config/interactentity/trades/merchant_demo.json`.
