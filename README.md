@@ -2092,7 +2092,7 @@ ForgeEvents.onEvent('net.ashpapi.interactentity.api.QuestCompleteEvent', event =
 
 ## 36. Trading / merchants
 
-NPCs can be merchants. While the merchant flag is on, a pouch icon shows up in the top-right corner of the dialogue window — clicking it slides the shop out on top of the dialogue. There is no separate trade key: flag on — icon there, flag off — icon gone.
+NPCs can be merchants. While the merchant flag is on, the player opens the shop straight from the dialogue via the pouch icon. Remove the flag and trading is gone.
 
 How it works:
 
@@ -2172,8 +2172,8 @@ A shop file has no `target` (the NPC link comes from the node flag). Only `shop_
 | `result` | stack | What the player receives on `buy` |
 | `merchandise` | stack | What the player must hand over on `sell` |
 | `price` | array of stacks | The cost (can be multiple items). Always interpreted from the player's side |
-| `info` | string | Offer label in the side panel, color codes `&` supported. Falls back to the item name when omitted |
-| `description` | string | Item description under the price, color codes `&` supported. Wraps to lines; long text scrolls with the wheel |
+| `info` | string | Offer label, color codes `&` supported. Falls back to the item name when omitted |
+| `description` | string | Item description, color codes `&` supported. No length limit |
 | `stock` | int | `-1` (default) = unlimited; otherwise a limit on the number of deals |
 | `stock_scope` | `"per_player"` \| `"global"` | Where the deal counter lives. Default `per_player`; `global` is shared across all players |
 | `condition` | object | Optional condition from §9. Failed → the offer isn't shown. Re-checked on the server before every deal |
@@ -2185,20 +2185,9 @@ A **stack** is `{ "item": "<id>", "count": <n>, "nbt": "<snbt>" }` (`count` defa
 - **Whole window** — create a new shop file and point the node's `merchant` at it.
 - **Per offer** — add a `condition` to an offer (e.g. a `quest_status` or `if_var`). The offer appears/disappears as conditions change. Conditions are evaluated on the server when the window opens.
 
-### 36.5 Interface
+### 36.5 Notes
 
-The shop opens on top of the dialogue window via the pouch icon in the top-right corner of the panel (the icon only shows when the NPC has the `merchant` flag on).
-
-- Left — a grid of cards: item icon, stock left and a trade button. The price is shown on the card itself only when the side panel does not fit.
-- Right — the selected offer: preview, the `info` caption (or the item name), price, stock, the `description` text and a large trade button.
-- Clicking a card body selects the offer, clicking a button performs the trade. Both buttons — on the card and in the side panel — behave identically.
-- The mouse wheel scrolls the grid by rows, and scrolls the description while hovering it. Arrow keys move the selection, Enter/Space trades, Esc closes the shop.
-- The button turns red when the player lacks the items (clicking plays the deny sound) and grey with "Sold out" when the stock is empty.
-- On a narrow or short screen the side panel is dropped and the grid takes the full width.
-
-### 36.6 Notes
-
-- Trade does **not** freeze the NPC (unlike dialogue). The screen auto-closes if the player walks away (more than 16 blocks) or the target disappears.
+- While the shop is open the NPC is frozen and turned towards the player, same as in dialogue. The shop auto-closes if the player walks away (more than 16 blocks), logs out or the target disappears. One NPC will not trade with two players at once.
 - The shop file id (its path relative to `trades/` without `.json`) is what you put in the `merchant` field. Subfolders are supported, e.g. `trades/village/harold.json` → `"merchant": "village/harold"`.
 - Demo: `config/interactentity/dialogues/story/merchant_demo.json` + `config/interactentity/trades/merchant_demo.json`.
 
@@ -4472,7 +4461,7 @@ ForgeEvents.onEvent('net.ashpapi.interactentity.api.QuestCompleteEvent', event =
 
 ## 36. Торговля / торговцы
 
-NPC могут быть торговцами. Когда метка торговца включена, в правом верхнем углу окна диалога появляется иконка-мешочек — по клику на неё поверх диалога выезжает витрина. Отдельной клавиши для торговли нет: есть метка — есть иконка, нет метки — нет иконки.
+NPC могут быть торговцами. Пока на персонаже стоит метка торговца, игрок открывает его витрину прямо из диалога — по иконке-мешочку. Снял метку — торговля пропала.
 
 Как это устроено:
 
@@ -4552,8 +4541,8 @@ NPC могут быть торговцами. Когда метка торгов
 | `result` | стек | Что получает игрок при `buy` |
 | `merchandise` | стек | Что игрок должен отдать при `sell` |
 | `price` | массив стеков | Стоимость (может быть несколько предметов). Всегда со стороны игрока |
-| `info` | строка | Подпись оффера в панели деталей, поддерживает цвет-коды `&`. Если не задана — берётся имя предмета |
-| `description` | строка | Описание товара под ценой, поддерживает цвет-коды `&`. Переносится по строкам, длинное прокручивается колесом |
+| `info` | строка | Подпись оффера, поддерживает цвет-коды `&`. Если не задана — берётся имя предмета |
+| `description` | строка | Описание товара, поддерживает цвет-коды `&`. Длина не ограничена |
 | `stock` | int | `-1` (дефолт) = бесконечно; иначе лимит числа сделок |
 | `stock_scope` | `"per_player"` \| `"global"` | Где живёт счётчик сделок. По умолчанию `per_player`; `global` — общий на всех игроков |
 | `condition` | объект | Необязательное условие из §9. Не выполнено → оффер не показывается. Перепроверяется на сервере перед каждой сделкой |
@@ -4565,19 +4554,8 @@ NPC могут быть торговцами. Когда метка торгов
 - **Целиком** — создать новый файл-витрину и в ноде сослаться на него в `merchant`.
 - **Поотдельности** — добавить `condition` к офферу (напр. `quest_status` или `if_var`). Оффер появляется/исчезает по мере изменения условий. Условия проверяются на сервере при открытии витрины.
 
-### 36.5 Интерфейс
+### 36.5 Заметки
 
-Витрина открывается поверх окна диалога по иконке-мешочку в правом верхнем углу панели (иконка видна, только если у NPC включена метка `merchant`).
-
-- Слева — сетка карточек: иконка товара, остаток и кнопка сделки. Цена показывается прямо на карточке, только если панель деталей не поместилась.
-- Справа — панель выбранного товара: превью, подпись из `info` (или имя предмета), цена, остаток, описание из `description` и большая кнопка сделки.
-- Клик по телу карточки выбирает товар, клик по кнопке совершает сделку. Обе кнопки — на карточке и в панели — работают одинаково.
-- Колесо мыши прокручивает сетку по рядам, а над описанием — само описание. Стрелки выбирают товар, Enter/Пробел совершает сделку, Esc закрывает витрину.
-- Кнопка красная, если предметов не хватает (клик даёт звук отказа), и серая с надписью «Распродано» при нулевом остатке.
-- На узком или низком экране панель деталей скрывается, и сетка занимает всю ширину.
-
-### 36.6 Заметки
-
-- Торговля **не замораживает** NPC (в отличие от диалога). Экран сам закрывается, если игрок отошёл (> 16 блоков) или цель пропала.
+- На время открытой витрины NPC заморожен и развёрнут к игроку, как и в диалоге. Витрина сама закрывается, если игрок отошёл (> 16 блоков), вышел из игры или цель пропала. Один NPC не торгует с двумя игроками сразу.
 - id файла-витрины (путь относительно `trades/` без `.json`) — это то, что пишешь в поле `merchant`. Подпапки поддерживаются: `trades/village/harold.json` → `"merchant": "village/harold"`.
 - Демо: `config/interactentity/dialogues/story/merchant_demo.json` + `config/interactentity/trades/merchant_demo.json`.
