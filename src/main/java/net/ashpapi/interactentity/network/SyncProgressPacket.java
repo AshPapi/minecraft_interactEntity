@@ -124,6 +124,11 @@ public class SyncProgressPacket {
             CompoundTag repTag = data.getCompound("reputation");
             for (String k : repTag.getAllKeys()) reputation.put(k, repTag.getInt(k));
             ClientProgressData.setReputation(reputation);
+
+            Map<String, String> merchantShops = new HashMap<>();
+            CompoundTag merchantTag = data.getCompound("merchant_shops");
+            for (String k : merchantTag.getAllKeys()) merchantShops.put(k, merchantTag.getString(k));
+            ClientProgressData.setMerchantShops(merchantShops);
         });
         ctx.get().setPacketHandled(true);
     }

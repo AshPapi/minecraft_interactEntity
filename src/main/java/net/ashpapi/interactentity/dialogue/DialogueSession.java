@@ -39,6 +39,9 @@ public class DialogueSession {
     private final boolean entityWasNoAI;
 
     private boolean completed = false;
+    // Диалог приостановлен ради открытого экрана торга. Сессия НЕ завершается —
+    // после закрытия торга экран диалога восстанавливается (resumeAfterTrade).
+    private boolean suspendedForTrade = false;
     private long nodeEnterGameTime = 0;
     
     private int preStartTicks = 15; // 15 тиков на плавный поворот NPC к игроку перед экшнами
@@ -129,13 +132,32 @@ public class DialogueSession {
             return; // Пока поворачиваемся, не обрабатываем остальную логику
         }
 
-        // Auto-advance for timed linear nodes
-        DialogueNode node = tree.getNode(currentNodeId);
-        if (node != null && node.getAutoNextTicks() > 0 && node.isLinear()
-                && player.serverLevel().getGameTime() - nodeEnterGameTime >= node.getAutoNextTicks()) {
-            handleNavigate(player, currentNodeId, true);
+        // Auto-advance for timed linear nodes (не срабатывает, пока игрок в трейде)
+        if (!suspendedForTrade) {
+            DialogueNode node = tree.getNode(currentNodeId);
+            if (node != null && node.getAutoNextTicks() > 0 && node.isLinear()
+                    && player.serverLevel().getGameTime() - nodeEnterGameTime >= node.getAutoNextTicks()) {
+                handleNavigate(player, currentNodeId, true);
+            }
         }
     }
+
+    /**
+     * Приостановить диалог ради экрана торга: прячем экран диалога с клиента,
+     * но сессию НЕ завершаем (NPC остаётся замороженным, прогресс сохраняется).
+     */
+    public void suspendForTrade() {
+        suspendedForTrade = true;
+        ModNetwork.sendToPlayer(player, new CloseDialogueS2CPacket());
+    }
+
+    /** Восстановить экран диалога после закрытия торга (показать текущую ноду). */
+    public void resumeAfterTrade() {
+        suspendedForTrade = false;
+        sendCurrentNode();
+    }
+
+    public boolean isSuspendedForTrade() { return suspendedForTrade; }
 
     private void freezeEntity() {
         entity.setInvulnerable(true);
@@ -225,6 +247,12 @@ public class DialogueSession {
             ModNetwork.sendToPlayer(player, SyncProgressPacket.createFor(player));
         }
         if (ACTIVE_SESSIONS.get(player.getUUID()) != this) return;
+
+        // Метка торговца применяется при каждом показе ноды (идемпотентно).
+        // Так repeatable/revisit-диалоги корректно (пере)устанавливают витрину на повторном проходе.
+        if (applyMerchantFlag(node, data)) {
+            ModNetwork.sendToPlayer(player, SyncProgressPacket.createFor(player));
+        }
 
         // Сначала фильтруем опции, потом определяем тип узла
         List<String> optionTexts    = new ArrayList<>();
@@ -373,6 +401,20 @@ public class DialogueSession {
         return false;
     }
 
+    /** Возвращает true если моб уже ведёт диалог с ДРУГИМ игроком. */
+    public static boolean isEntityBusyWithOtherPlayer(LivingEntity entity, ServerPlayer player) {
+        if (entity == null || player == null) return false;
+        UUID entityUUID = entity.getUUID();
+        UUID playerUUID = player.getUUID();
+        for (DialogueSession s : ACTIVE_SESSIONS.values()) {
+            if (s.entity != null && s.entity.getUUID().equals(entityUUID) && s.player != null && !s.player.getUUID().equals(playerUUID)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
     public static void endSession(ServerPlayer player) {
         DialogueSession session = ACTIVE_SESSIONS.remove(player.getUUID());
         if (session == null) return;
@@ -396,7 +438,10 @@ public class DialogueSession {
             DespawnHandler.scheduleDespawn(entity, walkAway);
         }
 
-        SummonScheduler.scheduleAfterDialogue(session.tree.getId(), player);
+        // after_dialogue продвигает цепочку только по завершённому диалогу (Esc сохраняет resume-node)
+        if (session.completed) {
+            SummonScheduler.scheduleAfterDialogue(session.tree.getId(), player);
+        }
         net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(
                 new net.ashpapi.interactentity.api.DialogueEndEvent(player, entity, session.tree.getId(), session.currentNodeId, session.completed));
         InteractEntityMod.LOGGER.debug("Dialogue session ended for {}", player.getName().getString());
@@ -544,6 +589,32 @@ public class DialogueSession {
         }
         data.markActionExecuted(tree.getId(), actionKey);
         return true;
+    }
+
+    /**
+     * Применяет метку торговца с ноды к персистентному состоянию.
+     * @return true если состояние изменилось (требуется синхронизация с клиентом).
+     *         null-флаг = нода ничего не говорит о торговле → не трогаем.
+     *         "false"   = выключить торговлю (снимаем флаг).
+     *         иначе     = имя файла-витрины (включаем/сменяем).
+     */
+    private boolean applyMerchantFlag(DialogueNode node, DialogueSavedData data) {
+        String flag = node.getMerchantFlag();
+        if (flag == null) return false;
+        String dialogueId = tree.getId();
+        if ("false".equals(flag)) {
+            if (data.isMerchantEnabled(dialogueId)) {
+                data.unsetMerchantShop(dialogueId);
+                return true;
+            }
+            return false;
+        }
+        String current = data.getMerchantShop(dialogueId);
+        if (!flag.equals(current)) {
+            data.setMerchantShop(dialogueId, flag);
+            return true;
+        }
+        return false;
     }
 
     /** Returns the correct data store based on this dialogue's scope. */

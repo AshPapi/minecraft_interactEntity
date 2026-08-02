@@ -22,10 +22,14 @@ public class DialogueNode {
     private final String cameraMode;
     private final float cameraYawOffset;
     private final float cameraPitchOffset;
+    // Метка торговца: null = нет метки, "false" = выключить торговлю, иначе = имя файла-витрины.
+    @Nullable
+    private final String merchantFlag;
 
     public DialogueNode(String id, com.google.gson.JsonElement text, List<com.google.gson.JsonElement> randomTexts, @Nullable String nextNodeId,
                         List<DialogueOption> options, List<JsonObject> actions, int autoNextTicks,
-                        String cameraMode, float cameraYawOffset, float cameraPitchOffset) {
+                        String cameraMode, float cameraYawOffset, float cameraPitchOffset,
+                        @Nullable String merchantFlag) {
         this.id = id;
         this.text = text;
         this.randomTexts = randomTexts;
@@ -36,6 +40,7 @@ public class DialogueNode {
         this.cameraMode = cameraMode;
         this.cameraYawOffset = cameraYawOffset;
         this.cameraPitchOffset = cameraPitchOffset;
+        this.merchantFlag = merchantFlag;
     }
 
     public String getCameraMode() { return cameraMode; }
@@ -67,6 +72,10 @@ public class DialogueNode {
     public boolean isLinear() { return nextNodeId != null && options.isEmpty(); }
     public boolean isChoice() { return !options.isEmpty(); }
     public boolean isEnd() { return nextNodeId == null && options.isEmpty(); }
+
+    /** @return null = метки нет; "false" = выключить торговлю; иначе = имя файла-витрины. */
+    @Nullable
+    public String getMerchantFlag() { return merchantFlag; }
 
     public static DialogueNode fromJson(String id, JsonObject json) {
         com.google.gson.JsonElement text = json.has("text") ? json.get("text") : new com.google.gson.JsonPrimitive("");
@@ -101,9 +110,23 @@ public class DialogueNode {
         float yawOff = json.has("camera_yaw_offset") ? json.get("camera_yaw_offset").getAsFloat() : 0f;
         float pitchOff = json.has("camera_pitch_offset") ? json.get("camera_pitch_offset").getAsFloat() : 0f;
 
+        // merchant: false → "false", строка → имя файла-витрины, иначе null
+        String merchantFlag = null;
+        if (json.has("merchant") && !json.get("merchant").isJsonNull()) {
+            com.google.gson.JsonElement mEl = json.get("merchant");
+            if (mEl.isJsonPrimitive()) {
+                if (mEl.getAsJsonPrimitive().isBoolean()) {
+                    if (!mEl.getAsBoolean()) merchantFlag = "false";
+                } else {
+                    String s = mEl.getAsString();
+                    if (!s.isEmpty()) merchantFlag = s;
+                }
+            }
+        }
+
         return new DialogueNode(id, text,
                 randomTexts == null ? null : Collections.unmodifiableList(randomTexts),
                 next, Collections.unmodifiableList(options), Collections.unmodifiableList(actions),
-                autoNext, cameraMode, yawOff, pitchOff);
+                autoNext, cameraMode, yawOff, pitchOff, merchantFlag);
     }
 }

@@ -14,6 +14,7 @@ public class ClientProgressData {
     private static final Set<String> npcNotifications = new HashSet<>();
     private static final Map<String, Integer> reputation = new HashMap<>();
     private static final LinkedHashSet<String> trackedQuests = new LinkedHashSet<>();
+    private static final Map<String, String> merchantShops = new HashMap<>();
 
     public static void setCompletedDialogues(Set<String> ids) {
         completedDialogues.clear();
@@ -165,6 +166,25 @@ public class ClientProgressData {
         return Collections.unmodifiableMap(reputation);
     }
 
+    // ==================== Merchant shops (метка merchant на ноде) ====================
+
+    public static void setMerchantShops(Map<String, String> shops) {
+        merchantShops.clear();
+        merchantShops.putAll(shops);
+    }
+
+    public static boolean isMerchantEnabled(String dialogueId) {
+        return dialogueId != null && merchantShops.containsKey(dialogueId);
+    }
+
+    public static String getMerchantShop(String dialogueId) {
+        return dialogueId != null ? merchantShops.get(dialogueId) : null;
+    }
+
+    public static Map<String, String> getAllMerchantShops() {
+        return Collections.unmodifiableMap(merchantShops);
+    }
+
     public static void clear() {
         visitedNodes.clear();
         history.clear();
@@ -173,5 +193,6 @@ public class ClientProgressData {
         npcNotifications.clear();
         reputation.clear();
         trackedQuests.clear();
+        merchantShops.clear();
     }
 }
