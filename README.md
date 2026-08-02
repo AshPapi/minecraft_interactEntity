@@ -1564,7 +1564,6 @@ The player has lots of hotkeys — you don't have to use the mouse inside a dial
 | `J` | Open journal |
 | `K` | Toggle quest HUD |
 | `RMB` on NPC | Open dialogue |
-| `T` on NPC | Open trade (only if the NPC is a merchant — see §36) |
 
 **Inside a dialogue:**
 
@@ -2090,6 +2089,8 @@ ForgeEvents.onEvent('net.ashpapi.interactentity.api.QuestCompleteEvent', event =
 
 ---
 
+<a id="36-trading"></a>
+
 ## 36. Trading / merchants
 
 NPCs can be merchants. While the merchant flag is on, the player opens the shop straight from the dialogue via the pouch icon. Remove the flag and trading is gone.
@@ -2166,19 +2167,33 @@ A shop file has no `target` (the NPC link comes from the node flag). Only `shop_
 
 ### 36.3 Offer fields
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `type` | `"buy"` \| `"sell"` | `buy` = the player pays `price` and gets `result`; `sell` = the player gives `merchandise` and gets `price` |
-| `result` | stack | What the player receives on `buy` |
-| `merchandise` | stack | What the player must hand over on `sell` |
-| `price` | array of stacks | The cost (can be multiple items). Always interpreted from the player's side |
-| `info` | string | Offer label, color codes `&` supported. Falls back to the item name when omitted |
-| `description` | string | Item description, color codes `&` supported. No length limit |
-| `stock` | int | `-1` (default) = unlimited; otherwise a limit on the number of deals |
-| `stock_scope` | `"per_player"` \| `"global"` | Where the deal counter lives. Default `per_player`; `global` is shared across all players |
-| `condition` | object | Optional condition from §9. Failed → the offer isn't shown. Re-checked on the server before every deal |
+Every offer is one line in the shop. `type` decides its direction; `price` is **always** what the player gives or gets in emeralds (or any item you choose).
 
-A **stack** is `{ "item": "<id>", "count": <n>, "nbt": "<snbt>" }` (`count` defaults to 1, `nbt` is optional).
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | `"buy"` \| `"sell"` | no (default `"buy"`) | `buy` = the player pays `price`, receives `result`. `sell` = the player hands over `merchandise`, receives `price` |
+| `result` | stack | **for `buy`** | What the player receives on a `buy` offer |
+| `merchandise` | stack | **for `sell`** | What the player hands over on a `sell` offer |
+| `price` | array of stacks | yes | The player's side of the deal — cost for `buy`, payout for `sell`. May list several items |
+| `info` | string | no | Short label of the offer (top of the info panel), `&` color codes. Falls back to the item name |
+| `description` | string | no | Longer item description below the price, `&` color codes. No length limit |
+| `stock` | int | no (default `-1`) | `-1` = unlimited; otherwise how many times the deal can be made |
+| `stock_scope` | `"per_player"` \| `"global"` | no (default `"per_player"`) | Whose counter `stock` uses: each player has their own, or one shared across everyone |
+| `condition` | object | no | A condition from §9. If it fails, the offer is hidden. Re-checked on the server before every deal |
+
+A **stack** is `{ "item": "<id>", "count": <n>, "nbt": "<snbt>" }` — `item` is required, `count` defaults to 1, `nbt` (SNBT string) is optional.
+
+Minimal `buy` (player pays 2 emeralds, gets 1 iron):
+
+```json
+{ "type": "buy", "result": { "item": "minecraft:iron_ingot" }, "price": [ { "item": "minecraft:emerald", "count": 2 } ] }
+```
+
+Minimal `sell` (player gives 8 wheat, gets 1 emerald):
+
+```json
+{ "type": "sell", "merchandise": { "item": "minecraft:wheat", "count": 8 }, "price": [ { "item": "minecraft:emerald" } ] }
+```
 
 ### 36.4 Two ways to update the assortment
 
@@ -2317,6 +2332,7 @@ If something doesn't work — check the server log, look for `[InteractEntity]`,
 33. [Forge API — события и хуки](#33-forge-api)
 34. [Подводные камни](#34-подводные-камни)
 35. [Большой пример — сюжетная карта](#35-большой-пример)
+36. [Торговля / торговцы](#36-торговля)
 
 ---
 
@@ -3862,7 +3878,6 @@ Action в одном scope может ссылаться на квест из д
 | `J` | Открыть журнал |
 | `K` | Показать/скрыть HUD активных квестов |
 | `ПКМ` по NPC | Открыть диалог |
-| `T` на NPC | Открыть торговлю (только если NPC — торговец, см. §36) |
 
 **Внутри диалога:**
 
@@ -4459,6 +4474,8 @@ ForgeEvents.onEvent('net.ashpapi.interactentity.api.QuestCompleteEvent', event =
 
 ---
 
+<a id="36-торговля"></a>
+
 ## 36. Торговля / торговцы
 
 NPC могут быть торговцами. Пока на персонаже стоит метка торговца, игрок открывает его витрину прямо из диалога — по иконке-мешочку. Снял метку — торговля пропала.
@@ -4535,19 +4552,33 @@ NPC могут быть торговцами. Пока на персонаже �
 
 ### 36.3 Поля оффера
 
-| Поле | Тип | Описание |
-|------|-----|----------|
-| `type` | `"buy"` \| `"sell"` | `buy` = игрок платит `price` и получает `result`; `sell` = игрок отдаёт `merchandise` и получает `price` |
-| `result` | стек | Что получает игрок при `buy` |
-| `merchandise` | стек | Что игрок должен отдать при `sell` |
-| `price` | массив стеков | Стоимость (может быть несколько предметов). Всегда со стороны игрока |
-| `info` | строка | Подпись оффера, поддерживает цвет-коды `&`. Если не задана — берётся имя предмета |
-| `description` | строка | Описание товара, поддерживает цвет-коды `&`. Длина не ограничена |
-| `stock` | int | `-1` (дефолт) = бесконечно; иначе лимит числа сделок |
-| `stock_scope` | `"per_player"` \| `"global"` | Где живёт счётчик сделок. По умолчанию `per_player`; `global` — общий на всех игроков |
-| `condition` | объект | Необязательное условие из §9. Не выполнено → оффер не показывается. Перепроверяется на сервере перед каждой сделкой |
+Оффер — это одна позиция в лавке. `type` задаёт направление сделки; `price` — **всегда** то, что игрок отдаёт или получает (изумруды или любой предмет на твой выбор).
 
-**Стек** = `{ "item": "<id>", "count": <n>, "nbt": "<snbt>" }` (`count` по умолчанию 1, `nbt` опционально).
+| Поле | Тип | Обязательно | Описание |
+|------|-----|-------------|----------|
+| `type` | `"buy"` \| `"sell"` | нет (дефолт `"buy"`) | `buy` = игрок платит `price`, получает `result`. `sell` = игрок отдаёт `merchandise`, получает `price` |
+| `result` | стек | **для `buy`** | Что получает игрок при `buy` |
+| `merchandise` | стек | **для `sell`** | Что игрок отдаёт при `sell` |
+| `price` | массив стеков | да | Сторона игрока: цена при `buy`, выплата при `sell`. Можно перечислить несколько предметов |
+| `info` | строка | нет | Короткая подпись оффера (вверху панели товара), цвет-коды `&`. Если не задана — имя предмета |
+| `description` | строка | нет | Развёрнутое описание под ценой, цвет-коды `&`. Длина не ограничена |
+| `stock` | int | нет (дефолт `-1`) | `-1` = бесконечно; иначе сколько раз можно совершить сделку |
+| `stock_scope` | `"per_player"` \| `"global"` | нет (дефолт `"per_player"`) | Чей счётчик у `stock`: у каждого игрока свой или один общий на всех |
+| `condition` | объект | нет | Условие из §9. Не выполнено → оффер скрыт. Перепроверяется на сервере перед каждой сделкой |
+
+**Стек** = `{ "item": "<id>", "count": <n>, "nbt": "<snbt>" }` — `item` обязателен, `count` по умолчанию 1, `nbt` (строка SNBT) опционально.
+
+Минимальный `buy` (игрок платит 2 изумруда, получает 1 железо):
+
+```json
+{ "type": "buy", "result": { "item": "minecraft:iron_ingot" }, "price": [ { "item": "minecraft:emerald", "count": 2 } ] }
+```
+
+Минимальный `sell` (игрок отдаёт 8 пшеницы, получает 1 изумруд):
+
+```json
+{ "type": "sell", "merchandise": { "item": "minecraft:wheat", "count": 8 }, "price": [ { "item": "minecraft:emerald" } ] }
+```
 
 ### 36.4 Два способа обновить ассортимент
 
