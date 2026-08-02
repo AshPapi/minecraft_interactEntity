@@ -70,6 +70,7 @@ Complete reference + tutorial for the **InteractEntity** mod: JSON dialogue form
 33. [Forge API — events and hooks](#33-forge-api)
 34. [Gotchas](#34-gotchas)
 35. [Big example — story map](#35-example)
+36. [Trading / merchants](#36-trading)
 
 ---
 
@@ -233,6 +234,7 @@ The mod auto-detects node type from its fields — no need to declare it. There 
 | `camera` | string | Camera mode. Default `"npc"` |
 | `camera_yaw_offset` | float | Horizontal camera offset |
 | `camera_pitch_offset` | float | Vertical camera offset |
+| `merchant` | string \| false | Merchant flag: a shop file name (e.g. `"harold_basic"`) enables/changes the shop; `false` disables trading. See §36 |
 
 ### Example: linear → choice → end
 
@@ -1562,6 +1564,7 @@ The player has lots of hotkeys — you don't have to use the mouse inside a dial
 | `J` | Open journal |
 | `K` | Toggle quest HUD |
 | `RMB` on NPC | Open dialogue |
+| `T` on NPC | Open trade (only if the NPC is a merchant — see §36) |
 
 **Inside a dialogue:**
 
@@ -2084,6 +2087,120 @@ ForgeEvents.onEvent('net.ashpapi.interactentity.api.QuestCompleteEvent', event =
   }
 })
 ```
+
+---
+
+## 36. Trading / merchants
+
+NPCs can be merchants. While the merchant flag is on, a pouch icon shows up in the top-right corner of the dialogue window — clicking it slides the shop out on top of the dialogue. There is no separate trade key: flag on — icon there, flag off — icon gone.
+
+How it works:
+
+1. The **merchant flag is set on a dialogue node**, not on the shop itself. When the player reaches a node with `"merchant": "<shop_file>"`, the shop becomes available for that NPC — and stays available until another node turns it off.
+2. The **shop file** lives in `config/interactentity/trades/`. It lists the goods (a *shop window*). One file = one window.
+3. **Changing the assortment** = creating a new shop file and pointing the node's `merchant` field at it. You can switch the whole window from one node; and each offer can also be shown/hidden individually via a `condition`.
+
+### 36.1 Enabling / disabling / switching the shop
+
+| `merchant` value | Effect |
+|------------------|--------|
+| `"harold_basic"` | Enable trading with the window `harold_basic` (or switch to it) |
+| `false` | Disable trading for this NPC |
+| *(field absent)* | Don't change the current state |
+
+Example — a node that unlocks the shop:
+
+```json
+"welcome": {
+  "text": "So, traveler... want to see my goods?",
+  "merchant": "harold_basic",
+  "options": [
+    { "text": "Sure", "next": "browse" },
+    { "text": "Later", "next": null }
+  ]
+}
+```
+
+The flag persists: once set, the pouch icon stays until you disable it with `"merchant": false` on another node.
+
+### 36.2 Shop file — `config/interactentity/trades/`
+
+A shop file has no `target` (the NPC link comes from the node flag). Only `shop_name` and `offers`:
+
+```json
+{
+  "shop_name": "&6Harold's Shop",
+  "offers": [
+    {
+      "type": "buy",
+      "result": { "item": "minecraft:bread", "count": 4 },
+      "price": [ { "item": "minecraft:emerald", "count": 1 } ],
+      "info": "&fFresh bread — x4",
+      "description": "Baked every morning, still warm. Keeps you going on the road.",
+      "stock": -1
+    },
+    {
+      "type": "sell",
+      "merchandise": { "item": "minecraft:wheat", "count": 8 },
+      "price": [ { "item": "minecraft:emerald", "count": 1 } ],
+      "info": "&aI buy wheat — x8"
+    },
+    {
+      "type": "buy",
+      "result": { "item": "minecraft:diamond_sword", "count": 1 },
+      "price": [ { "item": "minecraft:emerald", "count": 32 } ],
+      "info": "&bHero's sword",
+      "condition": { "type": "quest_status", "quest_id": "kill_dragon", "status": "completed" }
+    },
+    {
+      "type": "buy",
+      "result": { "item": "minecraft:golden_apple", "count": 1 },
+      "price": [ { "item": "minecraft:emerald", "count": 10 } ],
+      "info": "&6Golden apple (limited)",
+      "stock": 3,
+      "stock_scope": "global"
+    }
+  ]
+}
+```
+
+### 36.3 Offer fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `"buy"` \| `"sell"` | `buy` = the player pays `price` and gets `result`; `sell` = the player gives `merchandise` and gets `price` |
+| `result` | stack | What the player receives on `buy` |
+| `merchandise` | stack | What the player must hand over on `sell` |
+| `price` | array of stacks | The cost (can be multiple items). Always interpreted from the player's side |
+| `info` | string | Offer label in the side panel, color codes `&` supported. Falls back to the item name when omitted |
+| `description` | string | Item description under the price, color codes `&` supported. Wraps to lines; long text scrolls with the wheel |
+| `stock` | int | `-1` (default) = unlimited; otherwise a limit on the number of deals |
+| `stock_scope` | `"per_player"` \| `"global"` | Where the deal counter lives. Default `per_player`; `global` is shared across all players |
+| `condition` | object | Optional condition from §9. Failed → the offer isn't shown. Re-checked on the server before every deal |
+
+A **stack** is `{ "item": "<id>", "count": <n>, "nbt": "<snbt>" }` (`count` defaults to 1, `nbt` is optional).
+
+### 36.4 Two ways to update the assortment
+
+- **Whole window** — create a new shop file and point the node's `merchant` at it.
+- **Per offer** — add a `condition` to an offer (e.g. a `quest_status` or `if_var`). The offer appears/disappears as conditions change. Conditions are evaluated on the server when the window opens.
+
+### 36.5 Interface
+
+The shop opens on top of the dialogue window via the pouch icon in the top-right corner of the panel (the icon only shows when the NPC has the `merchant` flag on).
+
+- Left — a grid of cards: item icon, stock left and a trade button. The price is shown on the card itself only when the side panel does not fit.
+- Right — the selected offer: preview, the `info` caption (or the item name), price, stock, the `description` text and a large trade button.
+- Clicking a card body selects the offer, clicking a button performs the trade. Both buttons — on the card and in the side panel — behave identically.
+- The mouse wheel scrolls the grid by rows, and scrolls the description while hovering it. Arrow keys move the selection, Enter/Space trades, Esc closes the shop.
+- The button turns red when the player lacks the items (clicking plays the deny sound) and grey with "Sold out" when the stock is empty.
+- On a narrow or short screen the side panel is dropped and the grid takes the full width.
+
+### 36.6 Notes
+
+- Trade does **not** freeze the NPC (unlike dialogue). The screen auto-closes if the player walks away (more than 16 blocks) or the target disappears.
+- The shop file id (its path relative to `trades/` without `.json`) is what you put in the `merchant` field. Subfolders are supported, e.g. `trades/village/harold.json` → `"merchant": "village/harold"`.
+- Demo: `config/interactentity/dialogues/story/merchant_demo.json` + `config/interactentity/trades/merchant_demo.json`.
 
 ---
 
@@ -3756,6 +3873,7 @@ Action в одном scope может ссылаться на квест из д
 | `J` | Открыть журнал |
 | `K` | Показать/скрыть HUD активных квестов |
 | `ПКМ` по NPC | Открыть диалог |
+| `T` на NPC | Открыть торговлю (только если NPC — торговец, см. §36) |
 
 **Внутри диалога:**
 
@@ -4349,3 +4467,117 @@ ForgeEvents.onEvent('net.ashpapi.interactentity.api.QuestCompleteEvent', event =
 6. **Тест** → ПКМ по мобу
 
 Если что-то не работает — смотри лог сервера, ищи `[InteractEntity]`, `[skins]`, `WARN`.
+
+---
+
+## 36. Торговля / торговцы
+
+NPC могут быть торговцами. Когда метка торговца включена, в правом верхнем углу окна диалога появляется иконка-мешочек — по клику на неё поверх диалога выезжает витрина. Отдельной клавиши для торговли нет: есть метка — есть иконка, нет метки — нет иконки.
+
+Как это устроено:
+
+1. **Метка торговца ставится на ноду диалога**, а не на сам файл товара. Когда игрок доходит до ноды с `"merchant": "<файл_витрины>"`, для этого NPC появляется торговля — и остаётся, пока другая нода её не выключит.
+2. **Файл-витрина** лежит в `config/interactentity/trades/`. Это список товаров (одно «окно» лавки). Один файл = одно окно.
+3. **Обновить ассортимент** = создать новый файл-витрину и в ноде сослаться на него в поле `merchant`. Витрину можно сменить целиком одной нодой; а каждый оффер ещё и показывать/скрывать поотдельности через `condition`.
+
+### 36.1 Включение / выключение / смена витрины
+
+| Значение `merchant` | Эффект |
+|---------------------|--------|
+| `"harold_basic"` | Включить торговлю с витриной `harold_basic` (или сменить на неё) |
+| `false` | Выключить торговлю для этого NPC |
+| *(поля нет)* | Состояние не менять |
+
+Пример — нода, открывающая лавку:
+
+```json
+"welcome": {
+  "text": "Так, путник... хочешь глянуть товары?",
+  "merchant": "harold_basic",
+  "options": [
+    { "text": "Давай", "next": "browse" },
+    { "text": "Позже", "next": null }
+  ]
+}
+```
+
+Флаг персистентный: раз выставлен — иконка-мешочек держится, пока не снимешь меткой `"merchant": false` в другой ноде.
+
+### 36.2 Файл-витрина — `config/interactentity/trades/`
+
+У витрины нет `target` (привязка к NPC идёт через метку на ноде). Только `shop_name` и `offers`:
+
+```json
+{
+  "shop_name": "&6Лавка Харольда",
+  "offers": [
+    {
+      "type": "buy",
+      "result": { "item": "minecraft:bread", "count": 4 },
+      "price": [ { "item": "minecraft:emerald", "count": 1 } ],
+      "info": "&fСвежий хлеб — x4",
+      "description": "Пекут каждое утро, ещё тёплый. Хорошо держит в дороге.",
+      "stock": -1
+    },
+    {
+      "type": "sell",
+      "merchandise": { "item": "minecraft:wheat", "count": 8 },
+      "price": [ { "item": "minecraft:emerald", "count": 1 } ],
+      "info": "&aКуплю пшеницу — x8"
+    },
+    {
+      "type": "buy",
+      "result": { "item": "minecraft:diamond_sword", "count": 1 },
+      "price": [ { "item": "minecraft:emerald", "count": 32 } ],
+      "info": "&bМеч героя",
+      "condition": { "type": "quest_status", "quest_id": "kill_dragon", "status": "completed" }
+    },
+    {
+      "type": "buy",
+      "result": { "item": "minecraft:golden_apple", "count": 1 },
+      "price": [ { "item": "minecraft:emerald", "count": 10 } ],
+      "info": "&6Золотое яблоко (ограничено)",
+      "stock": 3,
+      "stock_scope": "global"
+    }
+  ]
+}
+```
+
+### 36.3 Поля оффера
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `type` | `"buy"` \| `"sell"` | `buy` = игрок платит `price` и получает `result`; `sell` = игрок отдаёт `merchandise` и получает `price` |
+| `result` | стек | Что получает игрок при `buy` |
+| `merchandise` | стек | Что игрок должен отдать при `sell` |
+| `price` | массив стеков | Стоимость (может быть несколько предметов). Всегда со стороны игрока |
+| `info` | строка | Подпись оффера в панели деталей, поддерживает цвет-коды `&`. Если не задана — берётся имя предмета |
+| `description` | строка | Описание товара под ценой, поддерживает цвет-коды `&`. Переносится по строкам, длинное прокручивается колесом |
+| `stock` | int | `-1` (дефолт) = бесконечно; иначе лимит числа сделок |
+| `stock_scope` | `"per_player"` \| `"global"` | Где живёт счётчик сделок. По умолчанию `per_player`; `global` — общий на всех игроков |
+| `condition` | объект | Необязательное условие из §9. Не выполнено → оффер не показывается. Перепроверяется на сервере перед каждой сделкой |
+
+**Стек** = `{ "item": "<id>", "count": <n>, "nbt": "<snbt>" }` (`count` по умолчанию 1, `nbt` опционально).
+
+### 36.4 Два способа обновить ассортимент
+
+- **Целиком** — создать новый файл-витрину и в ноде сослаться на него в `merchant`.
+- **Поотдельности** — добавить `condition` к офферу (напр. `quest_status` или `if_var`). Оффер появляется/исчезает по мере изменения условий. Условия проверяются на сервере при открытии витрины.
+
+### 36.5 Интерфейс
+
+Витрина открывается поверх окна диалога по иконке-мешочку в правом верхнем углу панели (иконка видна, только если у NPC включена метка `merchant`).
+
+- Слева — сетка карточек: иконка товара, остаток и кнопка сделки. Цена показывается прямо на карточке, только если панель деталей не поместилась.
+- Справа — панель выбранного товара: превью, подпись из `info` (или имя предмета), цена, остаток, описание из `description` и большая кнопка сделки.
+- Клик по телу карточки выбирает товар, клик по кнопке совершает сделку. Обе кнопки — на карточке и в панели — работают одинаково.
+- Колесо мыши прокручивает сетку по рядам, а над описанием — само описание. Стрелки выбирают товар, Enter/Пробел совершает сделку, Esc закрывает витрину.
+- Кнопка красная, если предметов не хватает (клик даёт звук отказа), и серая с надписью «Распродано» при нулевом остатке.
+- На узком или низком экране панель деталей скрывается, и сетка занимает всю ширину.
+
+### 36.6 Заметки
+
+- Торговля **не замораживает** NPC (в отличие от диалога). Экран сам закрывается, если игрок отошёл (> 16 блоков) или цель пропала.
+- id файла-витрины (путь относительно `trades/` без `.json`) — это то, что пишешь в поле `merchant`. Подпапки поддерживаются: `trades/village/harold.json` → `"merchant": "village/harold"`.
+- Демо: `config/interactentity/dialogues/story/merchant_demo.json` + `config/interactentity/trades/merchant_demo.json`.

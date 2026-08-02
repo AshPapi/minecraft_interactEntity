@@ -1,0 +1,36 @@
+{
+  "shop_name": "&6Лавка торговца",
+  "offers": [
+    {
+      "type": "buy",
+      "result": { "item": "minecraft:bread", "count": 4 },
+      "price": [ { "item": "minecraft:emerald", "count": 1 } ],
+      "info": "&fСвежий хлеб — 4 шт.",
+      "description": "Пекут каждое утро, ещё тёплый. Хорошо держит в дороге.",
+      "stock": -1
+    },
+    {
+      "type": "buy",
+      "result": { "item": "minecraft:iron_ingot", "count": 2 },
+      "price": [ { "item": "minecraft:emerald", "count": 3 } ],
+      "info": "&7Железные слитки — 2 шт.",
+      "description": "Переплавлены из руды с ближней шахты. Годятся на инструменты и броню."
+    },
+    {
+      "type": "sell",
+      "merchandise": { "item": "minecraft:wheat", "count": 8 },
+      "price": [ { "item": "minecraft:emerald", "count": 1 } ],
+      "info": "&aКуплю пшеницу — 8 шт.",
+      "description": "Беру только восьмёрками. Мельница работает круглый год."
+    },
+    {
+      "type": "buy",
+      "result": { "item": "minecraft:golden_apple", "count": 1 },
+      "price": [ { "item": "minecraft:emerald", "count": 10 } ],
+      "info": "&6Золотое яблоко — 1 шт.",
+      "description": "&7Редкий товар.&r Даёт регенерацию и сопротивление урону. Когда кончится — больше не привезут.",
+      "stock": 3,
+      "stock_scope": "global"
+    }
+  ]
+}

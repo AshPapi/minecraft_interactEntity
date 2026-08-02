@@ -32,6 +32,8 @@ public class StartDialoguePacket {
             Entity entity = player.level().getEntity(entityId);
             if (!(entity instanceof LivingEntity target)) return;
             if (player.distanceToSqr(target) > 16.0D) return;
+            // Не открываем диалог, если игрок уже торгует
+            if (net.ashpapi.interactentity.trade.TradeSession.hasActive(player)) return;
 
             EntityInteractHandler.startDialogue(player, target);
         });

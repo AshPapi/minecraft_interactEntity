@@ -35,4 +35,23 @@ public class ClientPacketHandler {
             DialogueCameraController.stop();
         }
     }
+
+    public static void handleOpenTrade(OpenTradePacket pkt) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.screen instanceof DialogueScreen screen) {
+            screen.updateTradeData(pkt.shopName, pkt.offers);
+            screen.openTradeOverlay();
+        } else {
+            DialogueScreen screen = DialogueScreen.createStandaloneTrade(pkt.entityId, pkt.shopName, pkt.dialogueId, pkt.offers);
+            mc.setScreen(screen);
+            DialogueCameraController.startLookAt(pkt.entityId);
+        }
+    }
+
+    public static void handleCloseTrade() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.screen instanceof DialogueScreen dialogueScreen) {
+            dialogueScreen.closeTradeOverlay();
+        }
+    }
 }

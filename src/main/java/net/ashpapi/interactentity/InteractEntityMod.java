@@ -8,6 +8,7 @@ import net.ashpapi.interactentity.condition.ConditionRegistry;
 import net.ashpapi.interactentity.entity.ModEntities;
 import net.ashpapi.interactentity.network.ModNetwork;
 import net.ashpapi.interactentity.skin.SkinManager;
+import net.ashpapi.interactentity.trade.TradeCatalogManager;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
@@ -42,6 +43,9 @@ public class InteractEntityMod {
         DialogueManager manager = new DialogueManager();
         DialogueManager.setInstance(manager);
         manager.loadAll();
+        TradeCatalogManager tradeManager = new TradeCatalogManager();
+        TradeCatalogManager.setInstance(tradeManager);
+        tradeManager.loadAll();
         SkinManager.loadAll(event.getServer());
     }
 }

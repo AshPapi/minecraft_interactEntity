@@ -119,6 +119,48 @@ public class ModNetwork {
                 .decoder(ReputationToastPacket::new)
                 .consumerMainThread(ReputationToastPacket::handle)
                 .add();
+
+        // C2S: player pressed [T] to open trade
+        CHANNEL.messageBuilder(StartTradePacket.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(StartTradePacket::encode)
+                .decoder(StartTradePacket::new)
+                .consumerMainThread(StartTradePacket::handle)
+                .add();
+
+        // S2C: open/update trade screen
+        CHANNEL.messageBuilder(OpenTradePacket.class, packetId++, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(OpenTradePacket::encode)
+                .decoder(OpenTradePacket::new)
+                .consumerMainThread(OpenTradePacket::handle)
+                .add();
+
+        // C2S: player selected an offer
+        CHANNEL.messageBuilder(TradeActionPacket.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(TradeActionPacket::encode)
+                .decoder(TradeActionPacket::new)
+                .consumerMainThread(TradeActionPacket::handle)
+                .add();
+
+        // C2S: player closed trade screen
+        CHANNEL.messageBuilder(CloseTradeC2SPacket.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(CloseTradeC2SPacket::encode)
+                .decoder(CloseTradeC2SPacket::new)
+                .consumerMainThread(CloseTradeC2SPacket::handle)
+                .add();
+
+        // S2C: server closes trade screen on client
+        CHANNEL.messageBuilder(CloseTradeS2CPacket.class, packetId++, NetworkDirection.PLAY_TO_CLIENT)
+                .encoder(CloseTradeS2CPacket::encode)
+                .decoder(CloseTradeS2CPacket::new)
+                .consumerMainThread(CloseTradeS2CPacket::handle)
+                .add();
+
+        // C2S: player swapped inventory slots in dialogue inventory overlay
+        CHANNEL.messageBuilder(SwapInventorySlotsC2SPacket.class, packetId++, NetworkDirection.PLAY_TO_SERVER)
+                .encoder(SwapInventorySlotsC2SPacket::encode)
+                .decoder(SwapInventorySlotsC2SPacket::new)
+                .consumerMainThread(SwapInventorySlotsC2SPacket::handle)
+                .add();
     }
 
     public static void sendToTracking(Entity entity, Object msg) {

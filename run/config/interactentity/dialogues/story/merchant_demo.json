@@ -1,0 +1,30 @@
+{
+  "target": {
+    "name": "Demo Merchant",
+    "tag": "demo_merchant",
+    "entity_type": "minecraft:villager"
+  },
+  "display_name": "&6[Торговец]",
+  "scope": "global",
+  "entry": "start",
+  "repeatable": true,
+  "invulnerable": true,
+
+  "summon": {
+    "entity": "minecraft:villager",
+    "custom_name": "Demo Merchant",
+    "tags": ["demo_merchant"],
+    "spawn_position": "behind_player",
+    "trigger": { "type": "on_join", "delay": 60 }
+  },
+
+  "nodes": {
+    "start": {
+      "text": "&fЗдравствуй, путник! У меня есть товары на продажу. Нажми на &eмешочек&f в правом верхнем углу окна, чтобы открыть лавку.",
+      "merchant": "merchant_demo",
+      "options": [
+        { "text": "&aПонятно, спасибо!", "next": null }
+      ]
+    }
+  }
+}

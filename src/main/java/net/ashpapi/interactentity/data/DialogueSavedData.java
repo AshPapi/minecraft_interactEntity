@@ -36,6 +36,10 @@ public class DialogueSavedData extends SavedData {
     /** Reputation: faction/npc id → integer value (-100..100) */
     private final Map<String, Integer> reputation = new HashMap<>();
     private final Map<String, Long> giftCooldowns = new HashMap<>();
+    /** Метки торговца: dialogueId → имя файла-витрины (пустая строка = торговля выключена). */
+    private final Map<String, String> merchantShops = new HashMap<>();
+    /** Остатки stock по офферам: "dialogueId:offerIndex" → оставшееся число сделок. */
+    private final Map<String, Integer> tradeStock = new HashMap<>();
     /** Delayed events: fire actions at a future game tick */
     private final List<DelayedEvent> delayedEvents = new ArrayList<>();
     /** NPC relationships: "npcA:npcB" → relationship type (friend, rival, neutral, lover...) */
@@ -307,6 +311,45 @@ public class DialogueSavedData extends SavedData {
         return Collections.unmodifiableMap(reputation);
     }
 
+    // === Merchant shops (метка merchant на ноде) ===
+    public void setMerchantShop(String dialogueId, String shopFile) {
+        merchantShops.put(dialogueId, shopFile);
+        setDirty();
+    }
+    public void unsetMerchantShop(String dialogueId) {
+        if (merchantShops.remove(dialogueId) != null) setDirty();
+    }
+    /** @return имя файла-витрины или null, если торговля не включена. */
+    @javax.annotation.Nullable
+    public String getMerchantShop(String dialogueId) {
+        return dialogueId != null ? merchantShops.get(dialogueId) : null;
+    }
+    public boolean isMerchantEnabled(String dialogueId) {
+        return dialogueId != null && merchantShops.containsKey(dialogueId);
+    }
+    public Map<String, String> getAllMerchantShops() {
+        return Collections.unmodifiableMap(merchantShops);
+    }
+
+    // === Trade stock (лимит числа сделок по офферу) ===
+    public int getTradeStock(String key) {
+        return tradeStock.getOrDefault(key, -1);
+    }
+    public void setTradeStock(String key, int value) {
+        tradeStock.put(key, value);
+        setDirty();
+    }
+    public boolean hasTradeStock(String key) {
+        return tradeStock.containsKey(key);
+    }
+    public void decrementTradeStock(String key) {
+        Integer cur = tradeStock.get(key);
+        if (cur != null && cur > 0) {
+            tradeStock.put(key, cur - 1);
+            setDirty();
+        }
+    }
+
     // === Gifts & Cooldowns ===
     public boolean canGiveGift(String characterId) {
         long lastGift = giftCooldowns.getOrDefault(characterId, 0L);
@@ -436,6 +479,14 @@ public class DialogueSavedData extends SavedData {
         for (Map.Entry<String, Long> e : giftCooldowns.entrySet()) giftsTag.putLong(e.getKey(), e.getValue());
         tag.put("gift_cooldowns", giftsTag);
 
+        CompoundTag merchantTag = new CompoundTag();
+        for (Map.Entry<String, String> e : merchantShops.entrySet()) merchantTag.putString(e.getKey(), e.getValue());
+        tag.put("merchant_shops", merchantTag);
+
+        CompoundTag tradeStockTag = new CompoundTag();
+        for (Map.Entry<String, Integer> e : tradeStock.entrySet()) tradeStockTag.putInt(e.getKey(), e.getValue());
+        tag.put("trade_stock", tradeStockTag);
+
         return tag;
     }
 
@@ -523,6 +574,12 @@ public class DialogueSavedData extends SavedData {
 
         CompoundTag giftsTag = tag.getCompound("gift_cooldowns");
         for (String k : giftsTag.getAllKeys()) data.giftCooldowns.put(k, giftsTag.getLong(k));
+
+        CompoundTag merchantTag = tag.getCompound("merchant_shops");
+        for (String k : merchantTag.getAllKeys()) data.merchantShops.put(k, merchantTag.getString(k));
+
+        CompoundTag tradeStockTag = tag.getCompound("trade_stock");
+        for (String k : tradeStockTag.getAllKeys()) data.tradeStock.put(k, tradeStockTag.getInt(k));
 
         return data;
     }
