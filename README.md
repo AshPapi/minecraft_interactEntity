@@ -175,6 +175,7 @@ After any JSON edit you have to tell the mod to reread the file. Run `/dialogue 
 | `disable_knockback` | bool | — | `false` (default). If `true` disables knockback/movement from hits for this NPC |
 | `disable_attacks` | bool | — | `false` (default). If `true` completely disables attack registration (pain animation, pain sound, and hits) for this NPC |
 | `items_take` | bool | — | `true` (default). If `false`, players in Survival mode cannot modify the NPC's equipment (cannot take or equip items) |
+| `name_tag` | string | - | Name tag above the NPC head. `"always"` (default): shown as usual. `"hover"`: shown only when the player looks at the NPC. `"hidden"`: never shown. The name itself stays and still links the NPC to its dialogue |
 | `avatar` | string | — | Avatar texture in the dialogue window and journal. **Full path required** (e.g. `"interactentity:textures/entity/skins/harold.png"`). A bare skin name is NOT expanded here — that shortcut works only for `visual.texture` |
 | `faction` | string | — | Faction name (shown in the journal) |
 | `reputation_id` | string | — | Faction ID for reputation accumulation. Defaults to `faction` |
@@ -2451,6 +2452,7 @@ config/interactentity/dialogues/
 | `disable_knockback` | bool | — | `false` (default). Если `true` — отключает отбрасывание и сдвиг для этого NPC при ударах |
 | `disable_attacks` | bool | — | `false` (default). Если `true` — полностью отключает регистрацию атак (анимацию боли, звук боли и получение ударов) для этого NPC |
 | `items_take` | bool | — | `true` (default). Если `false` — игроки в режиме выживания не смогут изменять экипировку NPC (забирать или надевать предметы) |
+| `name_tag` | string | - | Никнейм над головой NPC. `"always"` (default): виден как обычно. `"hover"`: виден, только когда игрок смотрит на NPC. `"hidden"`: не виден никогда. Само имя остаётся и по-прежнему связывает NPC с диалогом |
 | `avatar` | string | — | Текстура аватара в диалоговом окне и журнале. **Нужен полный путь** (напр. `"interactentity:textures/entity/skins/harold.png"`). Простое имя скина здесь НЕ расширяется — этот шорткат работает только для `visual.texture` |
 | `faction` | string | — | Название фракции (отображается в журнале) |
 | `reputation_id` | string | — | ID фракции для накопления репутации. По умолчанию = `faction` |

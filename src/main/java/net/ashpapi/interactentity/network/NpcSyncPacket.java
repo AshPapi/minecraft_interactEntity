@@ -11,23 +11,27 @@ public class NpcSyncPacket {
     public final int entityId;
     public final String dialogueId;      // empty string = remove
     public final String entryNodeId;
+    public final String nameTag;
 
-    public NpcSyncPacket(int entityId, String dialogueId, String entryNodeId) {
+    public NpcSyncPacket(int entityId, String dialogueId, String entryNodeId, String nameTag) {
         this.entityId = entityId;
         this.dialogueId = dialogueId;
         this.entryNodeId = entryNodeId;
+        this.nameTag = nameTag;
     }
 
     public NpcSyncPacket(FriendlyByteBuf buf) {
         this.entityId = buf.readVarInt();
         this.dialogueId = buf.readUtf();
         this.entryNodeId = buf.readUtf();
+        this.nameTag = buf.readUtf();
     }
 
     public void encode(FriendlyByteBuf buf) {
         buf.writeVarInt(entityId);
         buf.writeUtf(dialogueId);
         buf.writeUtf(entryNodeId);
+        buf.writeUtf(nameTag);
     }
 
     public void handle(Supplier<NetworkEvent.Context> ctx) {
@@ -35,7 +39,7 @@ public class NpcSyncPacket {
             if (dialogueId.isEmpty()) {
                 ClientNpcRegistry.remove(entityId);
             } else {
-                ClientNpcRegistry.set(entityId, dialogueId, entryNodeId);
+                ClientNpcRegistry.set(entityId, dialogueId, entryNodeId, nameTag);
             }
         });
         ctx.get().setPacketHandled(true);

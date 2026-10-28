@@ -2,6 +2,7 @@ package net.ashpapi.interactentity.event;
 
 import net.ashpapi.interactentity.InteractEntityMod;
 import net.ashpapi.interactentity.dialogue.DialogueSession;
+import net.ashpapi.interactentity.trade.TradeSession;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraftforge.event.entity.living.LivingDeathEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -34,6 +35,14 @@ public class PlayerProtectionHandler {
     public static void onPlayerLogout(PlayerEvent.PlayerLoggedOutEvent event) {
         if (event.getEntity() instanceof ServerPlayer player) {
             InteractEntityMod.LOGGER.debug("[Event] Player logged out – ending session");
+            // Закрываем торговлю ДО диалога: TradeSession.close восстанавливает NPC
+            // в состояние «во время диалога» (то, что она застала при открытии торга),
+            // а endSession уже доводит NPC до исходного состояния. В обратном порядке
+            // close перезаписал бы результат endSession и оставил NPC замороженным.
+            // Пакет клиенту не шлём — игрок уже отключился, сессию чистим на сервере.
+            if (TradeSession.hasActive(player)) {
+                TradeSession.close(player);
+            }
             DialogueSession.endSession(player);
         }
     }

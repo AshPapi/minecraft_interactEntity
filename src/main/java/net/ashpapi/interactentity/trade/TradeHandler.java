@@ -65,7 +65,7 @@ public class TradeHandler {
         // Замораживаем NPC на время открытого экрана торга
         if (!TradeSession.open(player, target)) return;
 
-        List<TradeOffer> view = buildFilteredView(shop, tree.getId(), data, player, target);
+        List<TradeOffer> view = buildFilteredView(shop, tree.getId(), player, target);
         ModNetwork.sendToPlayer(player, new OpenTradePacket(entityId, shop.getShopName(), tree.getId(), view));
     }
 
@@ -112,7 +112,7 @@ public class TradeHandler {
         }
 
         String stockKey = tree.getId() + ":" + offerIndex;
-        int remaining = resolveStock(data, offer, stockKey);
+        int remaining = resolveStock(player, offer, stockKey);
         if (remaining == 0) {
             deny(player);
             return;
@@ -130,7 +130,7 @@ public class TradeHandler {
         if (ok) {
             // Уменьшаем stock только в нужном scope
             if (!offer.isInfinite()) {
-                decrementStock(player, data, offer, stockKey);
+                stockStore(player, offer).decrementTradeStock(stockKey);
             }
             player.level().playSound(null, player.getX(), player.getY(), player.getZ(),
                     SoundEvents.VILLAGER_YES, SoundSource.NEUTRAL, 0.5f, 1.2f);
@@ -140,14 +140,14 @@ public class TradeHandler {
         }
 
         // Обновлённая витрина (перефильтровать условия, пересчитать stock)
-        List<TradeOffer> view = buildFilteredView(shop, tree.getId(), data, player, target);
+        List<TradeOffer> view = buildFilteredView(shop, tree.getId(), player, target);
         ModNetwork.sendToPlayer(player, new OpenTradePacket(entityId, shop.getShopName(), tree.getId(), view));
     }
 
     // ===================== Фильтрация / stock =====================
 
     private static List<TradeOffer> buildFilteredView(TradeShop shop, String dialogueId,
-                                                      DialogueSavedData data, ServerPlayer player, LivingEntity entity) {
+                                                      ServerPlayer player, LivingEntity entity) {
         List<TradeOffer> out = new ArrayList<>();
         for (int i = 0; i < shop.getOffers().size(); i++) {
             TradeOffer offer = shop.getOffers().get(i);
@@ -155,7 +155,7 @@ public class TradeHandler {
                     && !ConditionRegistry.check(offer.getCondition(), player, entity)) {
                 continue;
             }
-            int remaining = resolveStock(data, offer, dialogueId + ":" + i);
+            int remaining = resolveStock(player, offer, dialogueId + ":" + i);
             int stockForClient = offer.isInfinite() ? TradeOffer.INFINITE_STOCK : remaining;
             out.add(offer.forClientView(i, stockForClient));
         }
@@ -163,8 +163,9 @@ public class TradeHandler {
     }
 
     /** Текущий остаток: -1 = бесконечно, иначе число оставшихся сделок. */
-    private static int resolveStock(DialogueSavedData data, TradeOffer offer, String stockKey) {
+    private static int resolveStock(ServerPlayer player, TradeOffer offer, String stockKey) {
         if (offer.isInfinite()) return TradeOffer.INFINITE_STOCK;
+        DialogueSavedData data = stockStore(player, offer);
         if (data.hasTradeStock(stockKey)) {
             return data.getTradeStock(stockKey);
         }
@@ -173,15 +174,8 @@ public class TradeHandler {
         return offer.getStock();
     }
 
-    /** Уменьшает stock в правильном хранилище (per_player уже в data; global — отдельный store). */
-    private static void decrementStock(ServerPlayer player, DialogueSavedData data, TradeOffer offer, String stockKey) {
-        if ("global".equals(offer.getStockScope())) {
-            DialogueSavedData global = DialogueDataManager.getGlobal(player.serverLevel());
-            if (!global.hasTradeStock(stockKey)) global.setTradeStock(stockKey, offer.getStock());
-            global.decrementTradeStock(stockKey);
-        } else {
-            data.decrementTradeStock(stockKey);
-        }
+    private static DialogueSavedData stockStore(ServerPlayer player, TradeOffer offer) {
+        return DialogueDataManager.get(player, "global".equals(offer.getStockScope()) ? "global" : "per_player");
     }
 
     // ===================== Обмен предметами =====================

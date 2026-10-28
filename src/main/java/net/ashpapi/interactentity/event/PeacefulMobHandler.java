@@ -179,7 +179,7 @@ public class PeacefulMobHandler {
         applyNPCProtections(entity, tree.isInvulnerable());
 
         // Broadcast NPC info to tracking clients for icon rendering
-        ModNetwork.sendToTracking(entity, new NpcSyncPacket(entity.getId(), tree.getId(), tree.getEntryNodeId()));
+        ModNetwork.sendToTracking(entity, new NpcSyncPacket(entity.getId(), tree.getId(), tree.getEntryNodeId(), tree.getNameTag()));
     }
 
     @SubscribeEvent
@@ -195,7 +195,7 @@ public class PeacefulMobHandler {
         if (manager == null) return;
         DialogueTree tree = manager.findDialogueForEntity(entity);
         if (tree == null) return;
-        ModNetwork.sendToPlayer(player, new NpcSyncPacket(entity.getId(), tree.getId(), tree.getEntryNodeId()));
+        ModNetwork.sendToPlayer(player, new NpcSyncPacket(entity.getId(), tree.getId(), tree.getEntryNodeId(), tree.getNameTag()));
     }
 
     private static void applyNPCProtections(LivingEntity entity, boolean invulnerable) {

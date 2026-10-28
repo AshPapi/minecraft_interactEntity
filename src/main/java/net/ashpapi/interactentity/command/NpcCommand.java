@@ -250,7 +250,7 @@ public class NpcCommand {
             }
             ModNetwork.sendToPlayer(p, SyncProgressPacket.createFor(p));
         }
-        ModNetwork.sendToTracking(living, new NpcSyncPacket(living.getId(), tree.getId(), tree.getEntryNodeId()));
+        ModNetwork.sendToTracking(living, new NpcSyncPacket(living.getId(), tree.getId(), tree.getEntryNodeId(), tree.getNameTag()));
         src.sendSuccess(() -> Component.literal("Spawned NPC: " + tree.getTarget().getName()
                 + " (" + entityId + ") for dialogue " + dialogueId), true);
         return 1;
@@ -273,7 +273,7 @@ public class NpcCommand {
         if (target instanceof Mob mob) mob.setPersistenceRequired();
         if (tree.isInvulnerable()) target.setInvulnerable(true);
 
-        ModNetwork.sendToTracking(target, new NpcSyncPacket(target.getId(), tree.getId(), tree.getEntryNodeId()));
+        ModNetwork.sendToTracking(target, new NpcSyncPacket(target.getId(), tree.getId(), tree.getEntryNodeId(), tree.getNameTag()));
         src.sendSuccess(() -> Component.literal("Tagged " + target.getType().getDescription().getString()
                 + " as " + tree.getTarget().getName()), true);
         return 1;
@@ -286,7 +286,7 @@ public class NpcCommand {
                 : target.getType().getDescription().getString();
         int id = target.getId();
         target.discard();
-        ModNetwork.sendToTracking(target, new NpcSyncPacket(id, "", ""));
+        ModNetwork.sendToTracking(target, new NpcSyncPacket(id, "", "", "always"));
         src.sendSuccess(() -> Component.literal("Removed NPC: " + name), true);
         return 1;
     }
