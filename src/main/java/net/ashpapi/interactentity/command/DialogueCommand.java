@@ -11,6 +11,7 @@ import net.ashpapi.interactentity.dialogue.DialogueManager;
 import net.ashpapi.interactentity.dialogue.DialogueSession;
 import net.ashpapi.interactentity.dialogue.DialogueTree;
 import net.ashpapi.interactentity.summon.SummonScheduler;
+import net.ashpapi.interactentity.trade.TradeCatalogManager;
 import net.ashpapi.interactentity.network.ModNetwork;
 import net.ashpapi.interactentity.network.SyncProgressPacket;
 import net.minecraft.commands.CommandSourceStack;
@@ -149,6 +150,10 @@ public class DialogueCommand {
         }
         SummonScheduler.clearAll();
         mgr.loadAll();
+        TradeCatalogManager tradeManager = TradeCatalogManager.get();
+        if (tradeManager != null) {
+            tradeManager.loadAll();
+        }
         // Перечитать скины из <world>/interactentity/skins/ и разослать клиентам.
         net.ashpapi.interactentity.skin.SkinManager.loadAll(server);
         net.ashpapi.interactentity.network.SkinSyncPacket skinPacket =
@@ -168,7 +173,7 @@ public class DialogueCommand {
             ModNetwork.sendToPlayer(p, skinPacket);
         }
         int count = mgr.getLoadedIds().size();
-        src.sendSuccess(() -> Component.literal("Reloaded " + count + " dialogue(s), progress reset"), true);
+        src.sendSuccess(() -> Component.literal("Reloaded " + count + " dialogue(s) and trades, progress reset"), true);
         return 1;
     }
 

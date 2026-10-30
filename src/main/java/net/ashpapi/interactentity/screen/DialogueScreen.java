@@ -806,7 +806,8 @@ public class DialogueScreen extends Screen {
                         .append(Component.literal(String.valueOf(reputation)).withStyle(net.minecraft.network.chat.Style.EMPTY.withColor(repColor)));
                 
                 int factionWidth = (int)(this.font.width(factionText) * TEXT_SCALE);
-                drawStringScaled(graphics, factionText, panelX + panelW - 24 - factionWidth, panelY + 5, 0xFFFFFFFF);
+                int reputationRight = isCurrentMerchant() ? tradeIconX() - 6 : panelX + panelW - 24;
+                drawStringScaled(graphics, factionText, reputationRight - factionWidth, panelY + 5, 0xFFFFFFFF);
             }
 
             // Кнопка-книжка истории в самом углу
