@@ -22,6 +22,10 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.AABB;
 import java.util.List;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import net.minecraft.world.level.storage.LevelResource;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -148,6 +152,7 @@ public class DialogueCommand {
                 net.ashpapi.interactentity.dialogue.DialogueSession.endSession(p);
             }
         }
+        if (!clearAllVariables(src)) return 0;
         SummonScheduler.clearAll();
         mgr.loadAll();
         TradeCatalogManager tradeManager = TradeCatalogManager.get();
@@ -173,8 +178,37 @@ public class DialogueCommand {
             ModNetwork.sendToPlayer(p, skinPacket);
         }
         int count = mgr.getLoadedIds().size();
-        src.sendSuccess(() -> Component.literal("Reloaded " + count + " dialogue(s) and trades, progress reset"), true);
+        src.sendSuccess(() -> Component.literal("Reloaded " + count + " dialogue(s) and trades, progress and variables reset"), true);
         return 1;
+    }
+
+    private static boolean clearAllVariables(CommandSourceStack src) {
+        MinecraftServer server = src.getServer();
+        server.overworld().getDataStorage().save();
+        List<String> savedPlayerData = new java.util.ArrayList<>();
+        Path dataDirectory = server.getWorldPath(LevelResource.ROOT).resolve("data");
+        if (Files.exists(dataDirectory)) {
+            try (var files = Files.newDirectoryStream(dataDirectory, "interactentity_player_*.dat")) {
+                for (Path file : files) {
+                    String name = file.getFileName().toString();
+                    savedPlayerData.add(name.substring(0, name.length() - 4));
+                }
+            } catch (IOException e) {
+                InteractEntityMod.LOGGER.error("Failed to read player data for variable reset", e);
+                src.sendFailure(Component.literal("Failed to read player data; dialogue reload cancelled"));
+                return false;
+            }
+        }
+        DialogueDataManager.getGlobal(server.overworld()).clearAllVars();
+        for (String name : savedPlayerData) {
+            server.overworld().getDataStorage().computeIfAbsent(
+                    DialogueSavedData::load, DialogueSavedData::new, name).clearAllVars();
+        }
+        for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            DialogueSavedData data = DialogueDataManager.getPlayer(player);
+            if (data != null) data.clearAllVars();
+        }
+        return true;
     }
 
     private static int testDialogue(CommandSourceStack src, String id, String startNode) {

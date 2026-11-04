@@ -285,6 +285,12 @@ public class DialogueSavedData extends SavedData {
     public String getVar(String name) {
         return variables.getOrDefault(name, "");
     }
+    public void clearAllVars() {
+        if (!variables.isEmpty()) {
+            variables.clear();
+            setDirty();
+        }
+    }
     public boolean hasVar(String name) {
         return variables.containsKey(name);
     }
