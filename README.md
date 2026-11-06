@@ -6,8 +6,6 @@ A mod for Minecraft Forge 1.20.1. Lets you build full-featured dialogues with mo
 
 ---
 
-<a id="english"></a>
-
 ## English
 
 > [🇷🇺 Перейти к русской версии](#русский)
@@ -35,10 +33,10 @@ Complete reference + tutorial for the **InteractEntity** mod: JSON dialogue form
 ## Table of contents
 
 1. [About the mod](#1-about-the-mod)
-2. [Quick start — minimal dialogue in 30 seconds](#2-quick-start)
+2. [Quick start - minimal dialogue in 30 seconds](#2-quick-start)
 3. [Where dialogue files live and how IDs work](#3-file-location-and-ids)
 4. [Root dialogue fields](#4-root-dialogue-fields)
-5. [target — who we're looking for](#5-target)
+5. [target - who we're looking for](#5-target)
 6. [Nodes and transitions](#6-nodes)
 7. [Options](#7-options)
 8. [Actions](#8-actions)
@@ -46,31 +44,31 @@ Complete reference + tutorial for the **InteractEntity** mod: JSON dialogue form
 10. [Variables](#10-variables)
 11. [Quests](#11-quests)
 12. [Linking NPCs together](#12-linking-npcs)
-13. [on_revisit — revisiting](#13-on_revisit)
-14. [Auto-spawning NPCs (summon)](#14-summon)
-15. [Dialogue triggers](#15-triggers)
-16. [Routines — NPC schedules](#16-routines)
+13. [on_revisit - revisiting](#13-on_revisit)
+14. [Auto-spawning NPCs (summon)](#14-auto-spawning-npcs-summon)
+15. [Dialogue triggers](#15-dialogue-triggers)
+16. [Routines - NPC schedules](#16-routines)
 17. [NPC entities (32 types + custom_npc)](#17-npc-entities)
-18. [Emotes and animations](#18-emotes)
-19. [custom_npc visuals](#19-visuals)
-20. [Skins — dynamic loading](#20-skins)
-21. [Journal, quest HUD and the `!` icon](#21-journal-and-hud)
-22. [NPC avatar in dialogue window](#22-avatar)
-23. [Reputation and factions](#23-reputation)
+18. [Emotes and animations](#18-emotes-and-animations)
+19. [custom_npc visuals](#19-custom_npc-visuals)
+20. [Skins - dynamic loading](#20-skins---dynamic-loading)
+21. [Journal, quest HUD and the `!` icon](#21-journal-quest-hud-and-the--icon)
+22. [NPC avatar in dialogue window](#22-npc-avatar-in-dialogue-window)
+23. [Reputation and factions](#23-reputation-and-factions)
 24. [Gifts](#24-gifts)
-25. [Relationships between NPCs](#25-relationships)
-26. [Companions and NPC home](#26-companions)
-27. [Scope — global vs per_player](#27-scope)
+25. [Relationships between NPCs](#25-relationships-between-npcs)
+26. [Companions and NPC home](#26-companions-and-npc-home)
+27. [Scope - global vs per_player](#27-scope)
 28. [Placeholders](#28-placeholders)
 28a. [Multilingual Dialogues in JSON](#28a-multilingual-dialogues-in-json)
-29. [Text formatting](#29-formatting)
+29. [Text formatting](#29-text-formatting)
 30. [Commands](#30-commands)
 31. [Keybinds](#31-keybinds)
-32. [KubeJS integration](#32-kubejs)
-33. [Forge API — events and hooks](#33-forge-api)
+32. [KubeJS integration](#32-kubejs-integration)
+33. [Forge API - events and hooks](#33-forge-api)
 34. [Gotchas](#34-gotchas)
-35. [Big example — story map](#35-example)
-36. [Trading / merchants](#36-trading)
+35. [Big example - story map](#35-big-example---story-map)
+36. [Trading / merchants](#36-trading--merchants)
 
 ---
 
@@ -78,21 +76,21 @@ Complete reference + tutorial for the **InteractEntity** mod: JSON dialogue form
 
 **InteractEntity** is a Forge 1.20.1 mod that lets you make proper NPCs with dialogues in Minecraft. Not vanilla-villager-style (mumbling and trading) but actual scripted characters: branching conversations, quests, reputation, relationships with each other and the player.
 
-How it works: you put any mob in the world (zombie, villager, skeleton — anything), give it a `CustomName` and a scoreboard tag. Then you write a JSON file describing the dialogue and put the same name and tag inside. When a player right-clicks that mob, your dialogue opens.
+How it works: you put any mob in the world (zombie, villager, skeleton - anything), give it a `CustomName` and a scoreboard tag. Then you write a JSON file describing the dialogue and put the same name and tag inside. When a player right-clicks that mob, your dialogue opens.
 
-The core idea is that **all content lives in JSON files**. No compilation, no Java. Want a new character? Drop a JSON in the dialogues folder, drop a PNG in the skins folder, run `/dialogue reload` — done.
+The core idea is that **all content lives in JSON files**. No compilation, no Java. Want a new character? Drop a JSON in the dialogues folder, drop a PNG in the skins folder, run `/dialogue reload` - done.
 
 What the mod can do:
 - Branching dialogues with conditions ("if the player has a diamond, show the buy-sword option")
 - Quests (personal and global, with objectives, deadlines, auto-counting kills)
 - Reputation and factions
 - Gifts with a cooldown
-- Variables (NPC "memory" — who remembers what about the player)
+- Variables (NPC "memory" - who remembers what about the player)
 - Auto-spawning NPCs (triggers like "player entered a zone")
-- Custom skins via folder — no resource packs to build
+- Custom skins via folder - no resource packs to build
 - Emotes and animations (for the `custom_npc` type)
 - A journal with character cards and a quest HUD
-- KubeJS hooks — listen to events and tweak progress from JS
+- KubeJS hooks - listen to events and tweak progress from JS
 
 ### How the mod is structured internally
 
@@ -100,9 +98,9 @@ Quick mental model so you know where things go:
 
 - **JSON dialogues** are your content. They live in the configuration folder under `config/interactentity/dialogues/`. One file = one dialogue.
 - **Skins (PNG)** live separately from the mod, in the player's config folder (`config/interactentity/skins/`) or in the world folder (`<world>/interactentity/skins/`). Details in §20.
-- **Player progress** is saved automatically by the mod inside the world. You don't have to touch it — just make sure the scope (see §27) is right.
-- **Journal** is opened with `J` — players see every NPC they've talked to, their reply history, and quest list.
-- **If something doesn't work** — check the server log. The mod writes clear warnings about invalid JSON, badly-named skins and so on.
+- **Player progress** is saved automatically by the mod inside the world. You don't have to touch it - just make sure the scope (see §27) is right.
+- **Journal** is opened with `J` - players see every NPC they've talked to, their reply history, and quest list.
+- **If something doesn't work** - check the server log. The mod writes clear warnings about invalid JSON, badly-named skins and so on.
 
 ---
 
@@ -139,13 +137,13 @@ In-game, summon a zombie with the right name and tag:
 /summon zombie ~ ~ ~ {CustomName:'"Test"',CustomNameVisible:1b,Tags:["test_npc"]}
 ```
 
-Right-click the zombie — the dialogue opens. If nothing happens, check that the name matches `target.name` and the tag matches `target.tag`. The classic mistake is an extra space in the name.
+Right-click the zombie - the dialogue opens. If nothing happens, check that the name matches `target.name` and the tag matches `target.tag`. The classic mistake is an extra space in the name.
 
 ---
 
 ## 3. File location and IDs
 
-All dialogue JSONs live in the configuration folder: `config/interactentity/dialogues/`. Subfolders are allowed — handy for organizing chapters or zones.
+All dialogue JSONs live in the configuration folder: `config/interactentity/dialogues/`. Subfolders are allowed - handy for organizing chapters or zones.
 
 Example structure:
 ```
@@ -157,7 +155,7 @@ config/interactentity/dialogues/
 
 The **dialogue ID** is just the path relative to `dialogues/` without `.json`. Subfolders become slashes. You'll use this ID in commands (`/npc spawn showcase/mayor`) and in action fields that reference other dialogues (`force_dialogue`, `notify_npc`).
 
-After any JSON edit you have to tell the mod to reread the file. Run `/dialogue reload` in chat — it rereads everything, also resetting progress and in-memory flags (handy when you're testing and want a clean state). If you want to reload only one file, use `/dialogue reload <id>` — but note that this variant does **not** reset spawn flags (see §34, point 14).
+After any JSON edit you have to tell the mod to reread the file. Run `/dialogue reload` in chat - it rereads everything, also resetting progress and in-memory flags (handy when you're testing and want a clean state). If you want to reload only one file, use `/dialogue reload <id>` - but note that this variant does **not** reset spawn flags (see §34, point 14).
 
 ---
 
@@ -167,24 +165,24 @@ After any JSON edit you have to tell the mod to reread the file. Run `/dialogue 
 |-------|------|------|-------------|
 | `target` | object | yes | See §5 |
 | `entry` | string | yes | ID of the starting node |
-| `nodes` | object | yes | `{id: NodeJson}` — node dictionary |
-| `display_name` | string | — | Name shown in the dialogue UI. Defaults to `target.name` |
-| `scope` | string | — | `"global"` (default) or `"per_player"` — where progress is stored. See §27 |
-| `repeatable` | bool | — | `false` (default). If `true` the dialogue can be replayed |
-| `invulnerable` | bool | — | `true` (default) — NPC is invulnerable while talking |
-| `disable_knockback` | bool | — | `false` (default). If `true` disables knockback/movement from hits for this NPC |
-| `disable_attacks` | bool | — | `false` (default). If `true` completely disables attack registration (pain animation, pain sound, and hits) for this NPC |
-| `items_take` | bool | — | `true` (default). If `false`, players in Survival mode cannot modify the NPC's equipment (cannot take or equip items) |
+| `nodes` | object | yes | `{id: NodeJson}` - node dictionary |
+| `display_name` | string | - | Name shown in the dialogue UI. Defaults to `target.name` |
+| `scope` | string | - | `"global"` (default) or `"per_player"` - where progress is stored. See §27 |
+| `repeatable` | bool | - | `false` (default). If `true` the dialogue can be replayed |
+| `invulnerable` | bool | - | `true` (default) - NPC is invulnerable while talking |
+| `disable_knockback` | bool | - | `false` (default). If `true` disables knockback/movement from hits for this NPC |
+| `disable_attacks` | bool | - | `false` (default). If `true` completely disables attack registration (pain animation, pain sound, and hits) for this NPC |
+| `items_take` | bool | - | `true` (default). If `false`, players in Survival mode cannot modify the NPC's equipment (cannot take or equip items) |
 | `name_tag` | string | - | Name tag above the NPC head. `"always"` (default): shown as usual. `"hover"`: shown only when the player looks at the NPC. `"hidden"`: never shown. The name itself stays and still links the NPC to its dialogue |
-| `avatar` | string | — | Avatar texture in the dialogue window and journal. **Full path required** (e.g. `"interactentity:textures/entity/skins/harold.png"`). A bare skin name is NOT expanded here — that shortcut works only for `visual.texture` |
-| `faction` | string | — | Faction name (shown in the journal) |
-| `reputation_id` | string | — | Faction ID for reputation accumulation. Defaults to `faction` |
-| `character_info` | string | — | Character description for the journal |
-| `visual` | object | — | See §19 — model/texture/scale for `interactentity:custom_npc` |
-| `summon` | object | — | See §14 — auto-spawn config |
-| `triggers` | array | — | See §15 — auto-start dialogue with an existing NPC |
-| `routines` | array | — | See §16 — NPC schedule |
-| `on_revisit` | object | — | See §13 — reaction on subsequent visits |
+| `avatar` | string | - | Avatar texture in the dialogue window and journal. **Full path required** (e.g. `"interactentity:textures/entity/skins/harold.png"`). A bare skin name is NOT expanded here - that shortcut works only for `visual.texture` |
+| `faction` | string | - | Faction name (shown in the journal) |
+| `reputation_id` | string | - | Faction ID for reputation accumulation. Defaults to `faction` |
+| `character_info` | string | - | Character description for the journal |
+| `visual` | object | - | See §19 - model/texture/scale for `interactentity:custom_npc` |
+| `summon` | object | - | See §14 - auto-spawn config |
+| `triggers` | array | - | See §15 - auto-start dialogue with an existing NPC |
+| `routines` | array | - | See §16 - NPC schedule |
+| `on_revisit` | object | - | See §13 - reaction on subsequent visits |
 
 Legacy: `start_trigger` (a single trigger). If `triggers[]` is present, `start_trigger` is ignored.
 
@@ -196,8 +194,8 @@ Legacy: `start_trigger` (a single trigger). If `triggers[]` is present, `start_t
 |-------|------|------|-------------|
 | `name` | string | yes | Must match the mob's `CustomName` |
 | `tag` | string | yes | Must be in the mob's scoreboard tags |
-| `entity_type` | string | — | Entity type (`minecraft:zombie`, `interactentity:custom_npc`, …) |
-| `faction` | string | — | Metadata (doesn't affect resolution) |
+| `entity_type` | string | - | Entity type (`minecraft:zombie`, `interactentity:custom_npc`, …) |
+| `faction` | string | - | Metadata (doesn't affect resolution) |
 
 All specified fields must match. Otherwise right-click does nothing.
 
@@ -206,7 +204,7 @@ All specified fields must match. Otherwise right-click does nothing.
 > - If you specify `entity_type` in the `"target"` section, it must **exactly** match the entity type spawned in the world. For example, if you spawned a `minecraft:villager` but `"target"` requires `"interactentity:custom_npc"`, you will not be able to talk to the NPC.
 > - When using the `/summon` command manually to test, make sure you include the scoreboard tag matching `"target.tag"` (e.g. `/summon interactentity:custom_npc ~ ~ ~ {CustomName:'"Elsa"',Tags:["story_elsa"]}`), otherwise the dialogue will not resolve!
 
-**Auto-mapping on `/npc spawn`:** if `entity_type: minecraft:<mob>` is one of the 32 "peaceful" mobs (see §17), the mod substitutes `interactentity:npc_<mob>` to make sure the NPC won't attack you. In JSON keep writing the vanilla name — the conversion is automatic.
+**Auto-mapping on `/npc spawn`:** if `entity_type: minecraft:<mob>` is one of the 32 "peaceful" mobs (see §17), the mod substitutes `interactentity:npc_<mob>` to make sure the NPC won't attack you. In JSON keep writing the vanilla name - the conversion is automatic.
 
 ---
 
@@ -214,7 +212,7 @@ All specified fields must match. Otherwise right-click does nothing.
 
 Every dialogue is a set of nodes (`nodes`). A node is one NPC reply. The player walks through nodes by right-clicking or choosing an option.
 
-The mod auto-detects node type from its fields — no need to declare it. There are three types:
+The mod auto-detects node type from its fields - no need to declare it. There are three types:
 
 | Type | Marker | Behavior |
 |------|--------|----------|
@@ -227,7 +225,7 @@ The mod auto-detects node type from its fields — no need to declare it. There 
 | Field | Type | Description |
 |-------|------|-------------|
 | `text` | string | NPC reply. Defaults to `""` |
-| `random_text` | array | Array of strings — one picked at random on entry. Overrides `text` |
+| `random_text` | array | Array of strings - one picked at random on entry. Overrides `text` |
 | `next` | string \| null | ID of the next node |
 | `auto_next_ticks` | int | Auto-advance after N ticks (20 = 1 sec) |
 | `options` | array | See §7 |
@@ -288,7 +286,7 @@ Options are the buttons shown in choice nodes. Each option is an object in the n
 | `lock_reason` | string | Tooltip text for the locked reason |
 | `actions` | array | Actions on click |
 
-**Only one condition per option.** Compound (AND/OR) is not supported — for composite logic use an intermediate node.
+**Only one condition per option.** Compound (AND/OR) is not supported - for composite logic use an intermediate node.
 
 ### Example: conditional option
 
@@ -325,7 +323,7 @@ Usage:
 ]
 ```
 
-Below — all 28 types with examples. A `?` after a field means optional; the value in parentheses is the default.
+Below - all 28 types with examples. A `?` after a field means optional; the value in parentheses is the default.
 
 ### 8.1 Basic
 
@@ -354,7 +352,7 @@ No leading slash. Runs as the server with perm-level 2. `@s` = the player.
 { "type": "play_sound", "sound": "minecraft:entity.villager.yes", "volume": 1.0, "pitch": 1.0 }
 { "type": "play_sound", "sound": "minecraft:block.bell.use", "target": "entity" }
 ```
-`target`: `"player"` (default — only the player hears) or `"entity"` (plays at the NPC's position, audible to nearby players).
+`target`: `"player"` (default - only the player hears) or `"entity"` (plays at the NPC's position, audible to nearby players).
 
 #### `give_effect` / `remove_effect`
 ```json
@@ -393,12 +391,12 @@ No leading slash. Runs as the server with perm-level 2. `@s` = the player.
 { "type": "set_var", "name": "trust", "op": "dec" }   // -1
 ```
 
-#### `fire_event` — posts `DialogueChoiceEvent` for KubeJS/Forge
+#### `fire_event` - posts `DialogueChoiceEvent` for KubeJS/Forge
 ```json
 { "type": "fire_event", "tag": "started_quest_chain" }
 ```
 
-#### `schedule_event` — delayed execution
+#### `schedule_event` - delayed execution
 ```json
 {
   "type": "schedule_event",
@@ -411,7 +409,7 @@ No leading slash. Runs as the server with perm-level 2. `@s` = the player.
 ```
 ⚠️ Doesn't survive a server restart if the player is offline.
 
-#### `force_dialogue` — open another dialogue
+#### `force_dialogue` - open another dialogue
 ```json
 {
   "type": "force_dialogue",
@@ -423,12 +421,12 @@ No leading slash. Runs as the server with perm-level 2. `@s` = the player.
 ```
 Finds the nearest NPC with `target_tag` in radius and opens the dialogue with them.
 
-#### `notify_npc` — light up `!` over an NPC with the given dialogue
+#### `notify_npc` - light up `!` over an NPC with the given dialogue
 ```json
 { "type": "notify_npc", "dialogue_id": "blacksmith" }
 ```
 
-#### `summon_npc` — spawn an NPC during the dialogue
+#### `summon_npc` - spawn an NPC during the dialogue
 ```json
 {
   "type": "summon_npc",
@@ -462,7 +460,7 @@ See §11 for the full reference.
 { "type": "add_reputation", "id": "village", "value": 10, "label": "Helped the elder" }
 ```
 
-#### `give_gift` — gift with 1-hour cooldown per NPC
+#### `give_gift` - gift with 1-hour cooldown per NPC
 ```json
 {
   "type": "give_gift",
@@ -476,24 +474,24 @@ See §11 for the full reference.
 }
 ```
 
-#### `set_relationship` — set a relationship between two NPCs
+#### `set_relationship` - set a relationship between two NPCs
 ```json
 { "type": "set_relationship", "npc_a": "mayor", "npc_b": "thief", "relationship": "enemy" }
 ```
 
-#### `set_companion` — make NPC follow the player
+#### `set_companion` - make NPC follow the player
 ```json
 { "type": "set_companion", "enable": true }
 ```
 Only for `interactentity:custom_npc`.
 
-#### `set_home` — set NPC's "home"
+#### `set_home` - set NPC's "home"
 ```json
 { "type": "set_home", "x": 100, "y": 64, "z": 200, "radius": 16 }
 ```
 Without coordinates uses the NPC's current position. NPC will return to within `radius` blocks.
 
-#### `play_emote` — play an animation
+#### `play_emote` - play an animation
 ```json
 { "type": "play_emote", "emote": "wave", "duration_ticks": 40 }
 { "type": "play_emote", "emote": "six_seven" }
@@ -501,15 +499,15 @@ Without coordinates uses the NPC's current position. NPC will return to within `
 ```
 Only for `interactentity:custom_npc`. List in §18.
 
-#### `set_pose` — change NPC's pose and movement
+#### `set_pose` - change NPC's pose and movement
 ```json
 { "type": "set_pose", "pose": "sitting", "is_moving": false }
 ```
 Changes the NPC's active pose and/or enables/disables movement at runtime. Both fields are optional. Works for all NPC entities. Valid poses: `standing`/`idle`, `sitting`, `sleeping`, `sneaking`/`crouching`, `swimming`/`crawling`.
 
-`is_moving` — enables/disables movement (walking/wandering; head tracking keeps working). Default is `true`. Movement also drives the pose animation: `swimming`/`crawling` plays swim strokes only while the NPC is actually moving (with `is_moving: false` it just lies still), and `sneaking` keeps the legs walking while moving. Rule of thumb: `sitting`/`sleeping` → `is_moving: false`, `swimming` → `is_moving: true`.
+`is_moving` - enables/disables movement (walking/wandering; head tracking keeps working). Default is `true`. Movement also drives the pose animation: `swimming`/`crawling` plays swim strokes only while the NPC is actually moving (with `is_moving: false` it just lies still), and `sneaking` keeps the legs walking while moving. Rule of thumb: `sitting`/`sleeping` → `is_moving: false`, `swimming` → `is_moving: true`.
 
-Demo dialogue — a menu that switches all poses:
+Demo dialogue - a menu that switches all poses:
 ```json
 "nodes": {
   "start": {
@@ -532,7 +530,7 @@ Demo dialogue — a menu that switches all poses:
 
 ### 8.5 `scope` on individual actions
 
-You can explicitly add `"scope": "global"` or `"per_player"` to any action. By default the scope is inherited from the dialogue's root — `DialogueTree.injectScope` auto-injects it into every action/condition that doesn't have its own `scope`.
+You can explicitly add `"scope": "global"` or `"per_player"` to any action. By default the scope is inherited from the dialogue's root - `DialogueTree.injectScope` auto-injects it into every action/condition that doesn't have its own `scope`.
 
 ```json
 { "type": "start_quest", "quest": { "id": "epic_quest" }, "scope": "global" }
@@ -555,7 +553,7 @@ All 19 condition types:
 
 | `type` | Fields | Meaning |
 |--------|--------|---------|
-| `has_item` | `item`, `count?` (1), `nbt?` | Counts any items — modded and NBT included. Supports matching specific NBT via optional `"nbt"` string (e.g., `"{GunId:\"tacz:deagle\"}"`) |
+| `has_item` | `item`, `count?` (1), `nbt?` | Counts any items - modded and NBT included. Supports matching specific NBT via optional `"nbt"` string (e.g., `"{GunId:\"tacz:deagle\"}"`) |
 | `visited_node` | `dialogue`, `node` | Player visited this node |
 | `quest_status` | `quest_id`, `status` (`"active"`/`"completed"`/`"failed"`/`"none"`) | |
 | `if_var` | `name`, `op?` (`"eq"`/`"neq"`/`"gt"`/`"lt"`/`"gte"`/`"lte"`/`"exists"`), `value?` | |
@@ -572,8 +570,8 @@ All 19 condition types:
 | `npc_relationship` | `npc_a`, `npc_b`, `relationship` | |
 | `has_advancement` | `advancement` | Vanilla advancement id |
 | `experience_level` | `level`, `op?` (default `"gte"`) | |
-| `is_raining` | — | |
-| `is_night` | — | true between ticks 13000–23000 |
+| `is_raining` | - | |
+| `is_night` | - | true between ticks 13000–23000 |
 
 ### Examples
 
@@ -591,7 +589,7 @@ All 19 condition types:
 
 Variables let an NPC remember things about the player. For example: "this player already met me", "they brought me a gift 3 times", "trust level = 5".
 
-Technically they're name → value pairs (value is always a string, but if it looks like a number the mod compares them as numbers). Stored either globally on the server or per-player — depends on the dialogue's scope (see §27).
+Technically they're name → value pairs (value is always a string, but if it looks like a number the mod compares them as numbers). Stored either globally on the server or per-player - depends on the dialogue's scope (see §27).
 
 ### Setting
 
@@ -681,7 +679,7 @@ Later:
 
 Quests are tasks an NPC gives the player. A quest has a title, description, list of objectives (can be marked complete), status (active/completed/failed) and an optional deadline.
 
-The player sees their quests in the journal (`J`) — they can see progress and pin a quest to the HUD (`K`) so it sticks on screen.
+The player sees their quests in the journal (`J`) - they can see progress and pin a quest to the HUD (`K`) so it sticks on screen.
 
 Like everything else, quests are stored either globally or per-player depending on the scope of the dialogue that started them. "Harold's personal quest for me" → `per_player`; "common server-wide story quest" → `global`.
 
@@ -708,11 +706,11 @@ Like everything else, quests are stored either globally or per-player depending 
 | `id` | string | Unique ID |
 | `title` | string | Short title |
 | `description` | string | Journal description |
-| `objectives` | array | List of strings. **Don't write `[ ]`/`[✓]` yourself** — the mod adds checkmarks |
-| `required_item` | object | `{id, count?}` — if the player already has the count, the first objective auto-closes |
-| `required_kills` | object | `{entity, tag?, count, objective?}` — auto-counter with `(N/M)` label |
+| `objectives` | array | List of strings. **Don't write `[ ]`/`[✓]` yourself** - the mod adds checkmarks |
+| `required_item` | object | `{id, count?}` - if the player already has the count, the first objective auto-closes |
+| `required_kills` | object | `{entity, tag?, count, objective?}` - auto-counter with `(N/M)` label |
 | `deadline` | object | `{type, value?}`: `"ticks"`/`"game_days"` (need `value`), `"sunset"`/`"sunrise"` |
-| `giver` | string | Quest giver's name. **Ignored when started from dialogue JSON** — the giver is taken from the NPC's `display_name`/CustomName. Only honored when a quest is started via the KubeJS API |
+| `giver` | string | Quest giver's name. **Ignored when started from dialogue JSON** - the giver is taken from the NPC's `display_name`/CustomName. Only honored when a quest is started via the KubeJS API |
 
 ### 11.3 "Kill N mobs" objective
 
@@ -732,7 +730,7 @@ Like everything else, quests are stored either globally or per-player depending 
 }
 ```
 
-In the journal you'll see `Kill zombies (3/10)` — counter is automatic.
+In the journal you'll see `Kill zombies (3/10)` - counter is automatic.
 
 ### 11.4 Marking an objective complete manually
 
@@ -744,7 +742,7 @@ Use **one** of three (mutually exclusive):
 { "type": "complete_objective", "quest_id": "harold_bread", "objective_text": "Bring 3 bread" }
 ```
 
-⚠️ The field `"index"` **does not work** — silently logs a warn.
+⚠️ The field `"index"` **does not work** - silently logs a warn.
 
 ### 11.5 Deadline
 
@@ -776,17 +774,17 @@ When time runs out the quest status auto-flips to `"failed"`.
 }
 ```
 
-⚠️ Replaces the **entire** objectives list — breaks the kills counter if it was tied to an index.
+⚠️ Replaces the **entire** objectives list - breaks the kills counter if it was tied to an index.
 
 ---
 
 ## 12. Linking NPCs
 
-A storyline is rarely about a single NPC — usually it's a chain. The player talks to one, who sends them to a second, who unlocks a third. The mod gives you several tools to build these chains.
+A storyline is rarely about a single NPC - usually it's a chain. The player talks to one, who sends them to a second, who unlocks a third. The mod gives you several tools to build these chains.
 
 They all share one idea: one NPC leaves a "trace" (a flag, a visited node, a quest status), another NPC checks for that trace in its `condition`.
 
-### Tool 1 — `visited_node`
+### Tool 1 - `visited_node`
 
 ```json
 // In villager_b's dialogue
@@ -797,17 +795,17 @@ They all share one idea: one NPC leaves a "trace" (a flag, a visited node, a que
 }
 ```
 
-### Tool 2 — `quest_status`
+### Tool 2 - `quest_status`
 
 ```json
 { "type": "quest_status", "quest_id": "main_story_1", "status": "completed" }
 ```
 
-### Tool 3 — `set_var` / `if_var`
+### Tool 3 - `set_var` / `if_var`
 
 A sets a flag, B reads it.
 
-### Tool 4 — `notify_npc`
+### Tool 4 - `notify_npc`
 
 Lights up the yellow `!` over the NPC with the given `dialogue_id`. Use it to highlight the "next" NPC after a chapter ends.
 
@@ -855,26 +853,26 @@ Triggers after the player has reached an end-node (the dialogue is marked comple
 
 **Logic:**
 1. Conditions are checked top-to-bottom.
-2. First match: if there's a `start_node` — opens a full dialogue from it; otherwise shows the short `text` (no dialogue window).
+2. First match: if there's a `start_node` - opens a full dialogue from it; otherwise shows the short `text` (no dialogue window).
 3. If nothing matched: fallback to `default_start_node` (full dialogue) or `default` (text).
 
 ---
 
 ## 14. Auto-spawning NPCs (summon)
 
-If you don't want to spawn NPCs manually (via commands or `/summon`) but want them to appear by themselves — add a `summon` block to the JSON. Specify which mob, on what trigger, and where.
+If you don't want to spawn NPCs manually (via commands or `/summon`) but want them to appear by themselves - add a `summon` block to the JSON. Specify which mob, on what trigger, and where.
 
 Example: "when a player joins the world, 3 seconds later a merchant appears in front of them". Or: "when a player finishes the blacksmith's dialogue, spawn the sage 5 blocks in front of them".
 
 | Field | Type | Req. | Description |
 |-------|------|------|-------------|
-| `entity` | string | yes | Entity type (vanilla names are auto-mapped — see §17) |
+| `entity` | string | yes | Entity type (vanilla names are auto-mapped - see §17) |
 | `custom_name` | string | yes | Must match `target.name` |
-| `tags` | array | — | Must contain `target.tag` |
+| `tags` | array | - | Must contain `target.tag` |
 | `trigger` | object | **yes** | See §14.1. Without it loading throws NPE |
-| `spawn_position` | string | — | `"behind_player"` (default), `"front_of_player"`, `"at_player"` |
-| `despawn_after_dialogue` | bool | — | Mob disappears after the dialogue |
-| `walk_away_before_despawn` | bool | — | Walks ~10 blocks away before disappearing |
+| `spawn_position` | string | - | `"behind_player"` (default), `"front_of_player"`, `"at_player"` |
+| `despawn_after_dialogue` | bool | - | Mob disappears after the dialogue |
+| `walk_away_before_despawn` | bool | - | Walks ~10 blocks away before disappearing |
 
 ### 14.1 Spawn trigger types
 
@@ -921,7 +919,7 @@ A top-level array. Starts a dialogue with an **already existing** NPC on an even
 ]
 ```
 
-**Do not confuse with `summon.trigger`** — different set, different role.
+**Do not confuse with `summon.trigger`** - different set, different role.
 
 ---
 
@@ -967,7 +965,7 @@ NPC behavior schedule across the in-game day (0..24000 ticks).
 
 ## 17. NPC entities
 
-The mod registers 33 types. To prevent NPCs from attacking the player, the mod adds "peaceful" versions of every vanilla aggressive mob. They look and behave like the original but won't attack you. Plus a universal `custom_npc` type for important characters — with custom models, skins, scales and emotes.
+The mod registers 33 types. To prevent NPCs from attacking the player, the mod adds "peaceful" versions of every vanilla aggressive mob. They look and behave like the original but won't attack you. Plus a universal `custom_npc` type for important characters - with custom models, skins, scales and emotes.
 
 ### 17.1 Peaceful counterparts of vanilla mobs (32)
 
@@ -1022,11 +1020,11 @@ You can manage the equipment (held items and armor) of any registered NPC entity
 
 ## 18. Emotes and animations
 
-NPCs of type `interactentity:custom_npc` can play one-shot animations — emotes. Wave, bow, surprised, shrug. Triggered via `play_emote`.
+NPCs of type `interactentity:custom_npc` can play one-shot animations - emotes. Wave, bow, surprised, shrug. Triggered via `play_emote`.
 
 Useful for liveliness: when an NPC says "hi!" play `wave`; when they're surprised by a plot twist play `surprised`; when they're annoyed at the player play `crossed_arms`.
 
-Regular peaceful mobs (zombie-NPC, skeleton-NPC etc.) **don't support emotes** — they lack the animations.
+Regular peaceful mobs (zombie-NPC, skeleton-NPC etc.) **don't support emotes** - they lack the animations.
 
 ### Emote list
 
@@ -1044,13 +1042,13 @@ Removed: `angry`, `sad`, `salute`.
 { "type": "play_emote", "emote": "" }         // clear
 ```
 
-`duration_ticks` is optional — it sets how many ticks the emote stays active before returning to idle. If omitted, a per-emote default (matching the animation length) is used. One-shot animations (wave, bow) play through once regardless of the value.
+`duration_ticks` is optional - it sets how many ticks the emote stays active before returning to idle. If omitted, a per-emote default (matching the animation length) is used. One-shot animations (wave, bow) play through once regardless of the value.
 
 ### Base animations (not emotes)
 
 These play automatically:
-- `animation.custom_npc.idle` — when standing
-- `animation.custom_npc.walk` — when moving
+- `animation.custom_npc.idle` - when standing
+- `animation.custom_npc.walk` - when moving
 
 Not configurable from JSON. Can only be replaced by overriding `custom_npc.animation.json` via a resource pack.
 
@@ -1083,7 +1081,7 @@ Not configurable from JSON. Can only be replaced by overriding `custom_npc.anima
 | `scale` | float | 0.1..5.0 |
 | `pose` | string | Active pose: `standing`/`idle`, `sitting`, `sleeping`, `sneaking`/`crouching`, `swimming`/`crawling` |
 | `is_moving` | boolean | If `false`, disables NPC walking/wandering (looking around still works). Default is `true` |
-| `equipment` | object | `{slot: itemId}` — pre-equipped items for the NPC on spawn (slots: `mainhand`, `offhand`, `head`, `chest`, `legs`, `feet`) |
+| `equipment` | object | `{slot: itemId}` - pre-equipped items for the NPC on spawn (slots: `mainhand`, `offhand`, `head`, `chest`, `legs`, `feet`) |
 
 ### Built-in models
 
@@ -1102,13 +1100,13 @@ Not configurable from JSON. Can only be replaced by overriding `custom_npc.anima
 
 ---
 
-## 20. Skins — dynamic loading
+## 20. Skins - dynamic loading
 
-The big feature for map makers. Normally, giving an NPC a custom skin meant building a resource pack, hosting it somewhere, wiring it into `server.properties` — a pain. Here it's simpler.
+The big feature for map makers. Normally, giving an NPC a custom skin meant building a resource pack, hosting it somewhere, wiring it into `server.properties` - a pain. Here it's simpler.
 
 You just drop a PNG into one of two folders. The server reads it on startup, sends the PNG bytes to clients on login, the client displays it. Done. No resource packs, no hosting, no recompile.
 
-The mod ships with only one fallback texture (`custom_npc_default.png`) — shown when nothing matches.
+The mod ships with only one fallback texture (`custom_npc_default.png`) - shown when nothing matches.
 
 ### 20.1 Where to put files
 
@@ -1123,7 +1121,7 @@ When names collide, **per-world wins** (logic: the map author intentionally put 
 
 | Rule | Details |
 |------|---------|
-| Filename | `[a-z0-9_]+\.png` — lowercase letters, digits, underscores |
+| Filename | `[a-z0-9_]+\.png` - lowercase letters, digits, underscores |
 | Size | **64×64** or 64×32 (legacy) |
 | Invalid file | Skipped, warn in log |
 
@@ -1138,9 +1136,9 @@ When names collide, **per-world wins** (logic: the map author intentionally put 
 
 | Spelling | What happens |
 |----------|--------------|
-| `"texture": "harold"` | Resolves to `interactentity:textures/entity/skins/harold.png` — dynamic skin or resource pack fallback |
+| `"texture": "harold"` | Resolves to `interactentity:textures/entity/skins/harold.png` - dynamic skin or resource pack fallback |
 | `"texture": "interactentity:textures/entity/foo.png"` | Used as-is |
-| `"avatar": "interactentity:textures/entity/skins/harold.png"` | Avatar needs the **full path** — a bare skin name is not expanded |
+| `"avatar": "interactentity:textures/entity/skins/harold.png"` | Avatar needs the **full path** - a bare skin name is not expanded |
 
 **Recommendation:** for your own NPCs use simple names. For textures coming from resource packs use full namespaced paths.
 
@@ -1151,7 +1149,7 @@ When names collide, **per-world wins** (logic: the map author intentionally put 
 3. Author zips the world folder
 4. Recipient unzips → server picks up skins on startup → everyone on the server sees them
 
-### 20.6 Troubleshooting — skin not showing?
+### 20.6 Troubleshooting - skin not showing?
 
 - Filename doesn't match `[a-z0-9_]+\.png`
 - Size isn't 64×64 or 64×32
@@ -1164,9 +1162,9 @@ When names collide, **per-world wins** (logic: the map author intentionally put 
 ## 21. Journal, quest HUD and the `!` icon
 
 The mod has three UI elements the player can see:
-- **Journal** — the big window with conversation history and quests (`J`)
-- **Quest HUD** — a small on-screen panel with active quests (`K`)
-- **`!` icon** — a yellow exclamation mark above NPCs that have something new for the player
+- **Journal** - the big window with conversation history and quests (`J`)
+- **Quest HUD** - a small on-screen panel with active quests (`K`)
+- **`!` icon** - a yellow exclamation mark above NPCs that have something new for the player
 
 ### 21.1 Journal (`J`)
 
@@ -1180,7 +1178,7 @@ Opened with `J`. Three sections inside:
 
 Character details: 3D model, faction, relationship status (from reputation), completed quests, lore.
 
-"Track" button pins the quest to the HUD — limit 3 tracked quests at once.
+"Track" button pins the quest to the HUD - limit 3 tracked quests at once.
 
 ### 21.2 Quest HUD (`K`)
 
@@ -1188,16 +1186,16 @@ Shows tracked quests on screen. Toggle with `K`.
 
 ### 21.3 "Current dialogue" overlay (`H` while in dialogue)
 
-While a dialogue is open, `H` shows the scrollable history of replies in the current conversation. Useful if you missed something five lines back — scroll up without restarting the dialogue.
+While a dialogue is open, `H` shows the scrollable history of replies in the current conversation. Useful if you missed something five lines back - scroll up without restarting the dialogue.
 
 ### 21.4 `!` icon above NPCs
 
 The mod automatically draws a yellow `!` above an NPC's head in two cases:
 
-1. **The player has never talked to this NPC** — they haven't opened its dialogue yet.
-2. **`notify_npc` was triggered** — another NPC explicitly said "this one has something new".
+1. **The player has never talked to this NPC** - they haven't opened its dialogue yet.
+2. **`notify_npc` was triggered** - another NPC explicitly said "this one has something new".
 
-Visible within 16 blocks, always faces the camera. Disappears the moment the player opens the dialogue (unless `notify_npc` was the cause — then it disappears after the next conversation).
+Visible within 16 blocks, always faces the camera. Disappears the moment the player opens the dialogue (unless `notify_npc` was the cause - then it disappears after the next conversation).
 
 Very useful for guiding the player: finished one quest → next NPC auto-lights up thanks to `notify_npc` in the closing option's actions.
 
@@ -1212,13 +1210,13 @@ This is the head of the NPC shown to the left of the reply. Set in the dialogue'
 "avatar": "interactentity:textures/entity/mayor.png"
 ```
 
-Unlike `visual.texture`, the `avatar` field needs a **full texture path** — a bare skin name like `"harold"` is not expanded into the skins folder and will render as a missing texture.
+Unlike `visual.texture`, the `avatar` field needs a **full texture path** - a bare skin name like `"harold"` is not expanded into the skins folder and will render as a missing texture.
 
-The mod takes the 8×8 region from coordinate (8,8) of the texture — that's the face in the standard 64×64 player-skin layout. So you can drop in regular player/NPC skins directly and the mod will crop out the head.
+The mod takes the 8×8 region from coordinate (8,8) of the texture - that's the face in the standard 64×64 player-skin layout. So you can drop in regular player/NPC skins directly and the mod will crop out the head.
 
 ### Avatar via NBT (no JSON edit)
 
-You can set the avatar of a specific mob via the `DialogueAvatar` NBT tag — it overrides the `avatar` from the JSON. Handy when you want two instances of the same NPC with different faces without two separate JSON files.
+You can set the avatar of a specific mob via the `DialogueAvatar` NBT tag - it overrides the `avatar` from the JSON. Handy when you want two instances of the same NPC with different faces without two separate JSON files.
 
 ```
 /data merge entity @e[name=NpcName,limit=1] {DialogueAvatar:"interactentity:textures/entity/skins/harold.png"}
@@ -1273,7 +1271,7 @@ Four steps to set it up:
 
 ## 24. Gifts
 
-Gifts are a special action that lets the player give an NPC something nice and get reputation in return. The main trick is the built-in cooldown: you can't gift the same NPC more often than once an hour (real time). This prevents spam — the player can't max out reputation by handing over 100 bread loaves in a minute.
+Gifts are a special action that lets the player give an NPC something nice and get reputation in return. The main trick is the built-in cooldown: you can't gift the same NPC more often than once an hour (real time). This prevents spam - the player can't max out reputation by handing over 100 bread loaves in a minute.
 
 If the cooldown hasn't elapsed, the action does nothing (just shows a message). Check separately with `can_give_gift`.
 
@@ -1383,8 +1381,8 @@ Scope is the "visibility" of a dialogue's progress. In plain words: is progress 
 
 Two options:
 
-- `"global"` (default) — shared. If one player completes a quest, everyone else sees it as completed too. Good for co-op story maps and singleplayer.
-- `"per_player"` (legacy `"player"`) — each player has their own. Good for multiplayer servers where each player goes through the story independently.
+- `"global"` (default) - shared. If one player completes a quest, everyone else sees it as completed too. Good for co-op story maps and singleplayer.
+- `"per_player"` (legacy `"player"`) - each player has their own. Good for multiplayer servers where each player goes through the story independently.
 
 Scope affects: variables (`set_var` / `if_var`), reputation, visited nodes, quests, NPC-to-NPC relationships.
 
@@ -1394,10 +1392,10 @@ This matters because many people get surprised:
 
 - `visited_node` is true if **at least one** player has visited it. If your friend visited the node, it counts for you too.
 - `killed_mob` counts kills **summed across all players**. A 10-zombie quest could be split: ten people, one zombie each, done.
-- Variables (`set_var`) are the same for everyone. One player sets `trust` to 5 — everyone sees 5.
+- Variables (`set_var`) are the same for everyone. One player sets `trust` to 5 - everyone sees 5.
 - Quests show up in **every** player's journal but the status is shared.
 - The `notify_npc` icon lights up **for everyone**.
-- Storage is anchored to the Overworld — progress isn't lost crossing to Nether/End.
+- Storage is anchored to the Overworld - progress isn't lost crossing to Nether/End.
 
 ### What `per_player` means
 
@@ -1409,7 +1407,7 @@ For a proper multiplayer server where each player runs the story alone, this is 
 
 ## 28. Placeholders
 
-In any text field (`text`, `display_name`, `random_text`, option texts) you can drop in placeholders — the mod substitutes the live value. `{player}` becomes the player's name, `{var:trust}` becomes your variable's value.
+In any text field (`text`, `display_name`, `random_text`, option texts) you can drop in placeholders - the mod substitutes the live value. `{player}` becomes the player's name, `{var:trust}` becomes your variable's value.
 
 Super handy for lively lines: "Hi, Steve!" instead of a generic "Hi, traveler".
 
@@ -1507,7 +1505,7 @@ Here is how a complete node looks with multilingual support:
 
 ## 29. Text formatting
 
-Inside any string you can color and style text. Standard Minecraft codes work (use `&` instead of `§`), plus a HEX color extension. Codes can be combined — `&l&c` is bold red.
+Inside any string you can color and style text. Standard Minecraft codes work (use `&` instead of `§`), plus a HEX color extension. Codes can be combined - `&l&c` is bold red.
 
 | Code | Effect |
 |------|--------|
@@ -1536,7 +1534,7 @@ Inside any string you can color and style text. Standard Minecraft codes work (u
 | `/dialogue reload <id>` | One dialogue + reset its progress (NOT in-memory spawn flags) |
 | `/dialogue test <id> [node]` | Opens dialogue with the nearest mob without target checks |
 | `/dialogue goto <node>` | Jump to a node inside the active dialogue |
-| `/dialogue var set <name> <value> [target]` | Set a variable — global, or per-player if `target` is given |
+| `/dialogue var set <name> <value> [target]` | Set a variable - global, or per-player if `target` is given |
 | `/dialogue var get <name> [target]` | Print a variable's value (global, or the target player's) |
 
 ### `/npc`
@@ -1556,7 +1554,7 @@ Inside any string you can color and style text. Standard Minecraft codes work (u
 
 ## 31. Keybinds
 
-The player has lots of hotkeys — you don't have to use the mouse inside a dialogue if you don't want to.
+The player has lots of hotkeys - you don't have to use the mouse inside a dialogue if you don't want to.
 
 **Outside a dialogue:**
 
@@ -1575,7 +1573,7 @@ The player has lots of hotkeys — you don't have to use the mouse inside a dial
 | `↑` / `↓` | Highlight previous/next answer |
 | `Enter` / `Space` | Confirm highlighted answer |
 | `H` | Toggle "current dialogue" overlay with reply history |
-| `ESC` | Close dialogue. **Note:** ESC does NOT count as completion — `on_revisit` won't fire, you need a real end node |
+| `ESC` | Close dialogue. **Note:** ESC does NOT count as completion - `on_revisit` won't fire, you need a real end node |
 
 Journal and quest-HUD keys are rebindable via Minecraft's Options → Controls.
 
@@ -1587,7 +1585,7 @@ If KubeJS is installed alongside the mod, you can do things plain JSON can't. Fo
 
 The mod provides two integration points: a static Java API (methods callable from JS) and Forge events (subscribe and react).
 
-### 32.1 Static API — `InteractEntityAPI`
+### 32.1 Static API - `InteractEntityAPI`
 
 ```js
 // kubejs/server_scripts/my_quests.js
@@ -1620,7 +1618,7 @@ boolean openDialogue(ServerPlayer player, String dialogueId, LivingEntity entity
 
 `scope` is `"global"` or `"player"`.
 
-### 32.2 Events — listen to dialogues from KubeJS
+### 32.2 Events - listen to dialogues from KubeJS
 
 ```js
 ForgeEvents.onEvent('net.ashpapi.interactentity.api.DialogueChoiceEvent', event => {
@@ -1691,27 +1689,25 @@ public static void onQuestStart(QuestStartEvent event) {
 ## 34. Gotchas
 
 1. **`summon` without `trigger`** → NPE on load. The trigger inside `summon` is mandatory.
-2. **`update_quest` breaks the kills counter** — it replaces the entire `objectives[]`.
-3. **`triggers[]` ≠ `summon.trigger`** — different sets and roles.
+2. **`update_quest` breaks the kills counter** - it replaces the entire `objectives[]`.
+3. **`triggers[]` ≠ `summon.trigger`** - different sets and roles.
 4. **Non-`repeatable` dialogues won't re-issue an `after_dialogue` spawn** of a child NPC if the child's entry node was already visited. Reset: `/dialogue reload` (no arg).
-5. **ESC doesn't mark a dialogue completed** — `on_revisit` won't fire. You need a real end node.
-6. **`has_item` counts any items** — modded items and items with NBT (enchanted, anvil-renamed, with durability) all count.
-7. **Options support only one `condition`** — use an intermediate node for AND/OR.
+5. **ESC doesn't mark a dialogue completed** - `on_revisit` won't fire. You need a real end node.
+6. **`has_item` counts any items** - modded items and items with NBT (enchanted, anvil-renamed, with durability) all count.
+7. **Options support only one `condition`** - use an intermediate node for AND/OR.
 8. **`fire_event` is caught via `DialogueChoiceEvent`** with `source == "action"`.
 9. **`schedule_event` doesn't survive a server restart** if the player is offline.
 10. **Skin not showing?** Check filename (only `[a-z0-9_]+`), size (64×64 or 64×32), folder, and that you ran `/dialogue reload` after changes.
-11. **The `"index"` field in `complete_objective` is not supported** — use `objective` / `objective_number` / `objective_text`.
+11. **The `"index"` field in `complete_objective` is not supported** - use `objective` / `objective_number` / `objective_text`.
 12. **`set_companion` works only with `interactentity:custom_npc`**.
 13. **`play_emote` works only with `interactentity:custom_npc`**.
-14. **`/dialogue reload <id>` does not reset in-memory `TRIGGERED_DIALOGUES`** — for a full spawn reset use `/dialogue reload` without arguments.
-15. **JSON parser is strict about trailing commas** — an extra comma after the last field = load error, the dialogue won't appear. Check the log.
-16. **Entity type and tag mismatch in `target` / `/summon`** — If you specify `entity_type` in the `target` block (e.g., `"interactentity:custom_npc"`), it must exactly match the type of entity spawned in the world. If you spawn a `"minecraft:villager"` but require `"interactentity:custom_npc"` in target (or vice versa), the dialogue will **not** start. Also, if you use the `/summon` command manually, remember to add the tag (e.g., `Tags:["tag_name"]`) and CustomName, otherwise the dialogue won't match.
+14. **`/dialogue reload <id>` does not reset in-memory `TRIGGERED_DIALOGUES`** - for a full spawn reset use `/dialogue reload` without arguments.
+15. **JSON parser is strict about trailing commas** - an extra comma after the last field = load error, the dialogue won't appear. Check the log.
+16. **Entity type and tag mismatch in `target` / `/summon`** - If you specify `entity_type` in the `target` block (e.g., `"interactentity:custom_npc"`), it must exactly match the type of entity spawned in the world. If you spawn a `"minecraft:villager"` but require `"interactentity:custom_npc"` in target (or vice versa), the dialogue will **not** start. Also, if you use the `/summon` command manually, remember to add the tag (e.g., `Tags:["tag_name"]`) and CustomName, otherwise the dialogue won't match.
 
 ---
 
-<a id="35-example"></a>
-
-## 35. Big example — story map
+## 35. Big example - story map
 
 To put it all together, here's a fully working example with two linked NPCs. You can copy this into your world and it'll work.
 
@@ -1772,14 +1768,14 @@ Plot: the player meets Elsa (the herbalist) → she asks to find her lost pocket
       ]
     },
     "explain": {
-      "text": "&fMy &dpocket watch&f is gone. I left it on a tree stump this morning — got distracted by the garden bed, turned around, and it was gone. And there were fox tracks nearby...",
+      "text": "&fMy &dpocket watch&f is gone. I left it on a tree stump this morning - got distracted by the garden bed, turned around, and it was gone. And there were fox tracks nearby...",
       "next": "ask_help",
       "actions": [
         { "type": "play_emote", "emote": "facepalm", "duration_ticks": 45 }
       ]
     },
     "ask_help": {
-      "text": "&fOver in that part of the forest lives a hunter named &6Harold&f. Foxes often drag things to him — maybe he saw my watch. Will you help me?",
+      "text": "&fOver in that part of the forest lives a hunter named &6Harold&f. Foxes often drag things to him - maybe he saw my watch. Will you help me?",
       "actions": [
         { "type": "play_emote", "emote": "please", "duration_ticks": 60 }
       ],
@@ -1806,7 +1802,7 @@ Plot: the player meets Elsa (the herbalist) → she asks to find her lost pocket
       ]
     },
     "accept": {
-      "text": "&dThank you! Harold lives in the forest — you'll find him by the smoke above his cabin. He can be a bit gruff, but he's not mean.",
+      "text": "&dThank you! Harold lives in the forest - you'll find him by the smoke above his cabin. He can be a bit gruff, but he's not mean.",
       "actions": [
         { "type": "play_emote", "emote": "bow", "duration_ticks": 40 }
       ]
@@ -1839,7 +1835,7 @@ Plot: the player meets Elsa (the herbalist) → she asks to find her lost pocket
       ]
     },
     "thanks": {
-      "text": "&fHarold, huh... Give him a jar of honey from me next time. And for you — here, take this.",
+      "text": "&fHarold, huh... Give him a jar of honey from me next time. And for you - here, take this.",
       "next": "reward",
       "actions": [
         { "type": "remove_item", "item": "minecraft:clock", "count": 1 },
@@ -1958,7 +1954,7 @@ Plot: the player meets Elsa (the herbalist) → she asks to find her lost pocket
       ]
     },
     "offer_amulet": {
-      "text": "&fSince you're from Elsa, go ahead and take it. But... &7*narrows his eyes* &fI won't let you go empty-handed. Bring me a piece of &6bread&f — to treat the fox.",
+      "text": "&fSince you're from Elsa, go ahead and take it. But... &7*narrows his eyes* &fI won't let you go empty-handed. Bring me a piece of &6bread&f - to treat the fox.",
       "actions": [
         { "type": "play_emote", "emote": "crossed_arms", "duration_ticks": 40 }
       ],
@@ -1975,7 +1971,7 @@ Plot: the player meets Elsa (the herbalist) → she asks to find her lost pocket
         { "type": "start_quest", "quest": {
             "id": "harold_bread",
             "title": "Bread for Rusty",
-            "description": "Harold asks to bring bread for his fox Rusty — only then will he hand over the found watch.",
+            "description": "Harold asks to bring bread for his fox Rusty - only then will he hand over the found watch.",
             "objectives": ["Bring 1 bread to Harold"]
           }
         }
@@ -2090,15 +2086,13 @@ ForgeEvents.onEvent('net.ashpapi.interactentity.api.QuestCompleteEvent', event =
 
 ---
 
-<a id="36-trading"></a>
-
 ## 36. Trading / merchants
 
 NPCs can be merchants. While the merchant flag is on, the player opens the shop straight from the dialogue via the pouch icon. Remove the flag and trading is gone.
 
 How it works:
 
-1. The **merchant flag is set on a dialogue node**, not on the shop itself. When the player reaches a node with `"merchant": "<shop_file>"`, the shop becomes available for that NPC — and stays available until another node turns it off.
+1. The **merchant flag is set on a dialogue node**, not on the shop itself. When the player reaches a node with `"merchant": "<shop_file>"`, the shop becomes available for that NPC - and stays available until another node turns it off.
 2. The **shop file** lives in `config/interactentity/trades/`. It lists the goods (a *shop window*). One file = one window.
 3. **Changing the assortment** = creating a new shop file and pointing the node's `merchant` field at it. You can switch the whole window from one node; and each offer can also be shown/hidden individually via a `condition`.
 
@@ -2110,7 +2104,7 @@ How it works:
 | `false` | Disable trading for this NPC |
 | *(field absent)* | Don't change the current state |
 
-Example — a node that unlocks the shop:
+Example - a node that unlocks the shop:
 
 ```json
 "welcome": {
@@ -2125,9 +2119,9 @@ Example — a node that unlocks the shop:
 
 The flag persists: once set, the pouch icon stays until you disable it with `"merchant": false` on another node.
 
-### 36.2 Shop file — `config/interactentity/trades/`
+### 36.2 Shop file - `config/interactentity/trades/`
 
-A shop file has no `target` (the NPC link comes from the node flag). It only needs `shop_name` and `offers`. The example below is a **complete, ready-to-use shop** that shows every offer variety at once — copy it into `config/interactentity/trades/harold_basic.json` and it works as is:
+A shop file has no `target` (the NPC link comes from the node flag). It only needs `shop_name` and `offers`. The example below is a **complete, ready-to-use shop** that shows every offer variety at once - copy it into `config/interactentity/trades/harold_basic.json` and it works as is:
 
 ```json
 {
@@ -2137,7 +2131,7 @@ A shop file has no `target` (the NPC link comes from the node flag). It only nee
       "type": "buy",
       "result": { "item": "minecraft:bread", "count": 4 },
       "price": [ { "item": "minecraft:emerald", "count": 1 } ],
-      "info": "&fFresh bread — x4",
+      "info": "&fFresh bread - x4",
       "description": "Baked every morning, still warm. Keeps you going on the road.",
       "stock": -1
     },
@@ -2148,14 +2142,14 @@ A shop file has no `target` (the NPC link comes from the node flag). It only nee
         { "item": "minecraft:emerald", "count": 3 },
         { "item": "minecraft:coal", "count": 16 }
       ],
-      "info": "&fIron ingots — x8",
+      "info": "&fIron ingots - x8",
       "description": "Straight from the mine. The coal is for the forge."
     },
     {
       "type": "sell",
       "merchandise": { "item": "minecraft:wheat", "count": 8 },
       "price": [ { "item": "minecraft:emerald", "count": 1 } ],
-      "info": "&aI buy wheat — x8",
+      "info": "&aI buy wheat - x8",
       "description": "Bring me eights of wheat and I'll pay in emeralds."
     },
     {
@@ -2167,7 +2161,7 @@ A shop file has no `target` (the NPC link comes from the node flag). It only nee
       },
       "price": [ { "item": "minecraft:emerald", "count": 12 } ],
       "info": "&bSharpness III",
-      "description": "An enchanted book — the price buys exactly this enchantment."
+      "description": "An enchanted book - the price buys exactly this enchantment."
     },
     {
       "type": "buy",
@@ -2201,19 +2195,19 @@ Every offer is one line in the shop. `type` decides its direction; `price` is **
 | `type` | `"buy"` \| `"sell"` | no (default `"buy"`) | `buy` = the player pays `price`, receives `result`. `sell` = the player hands over `merchandise`, receives `price` |
 | `result` | stack | **for `buy`** | What the player receives on a `buy` offer |
 | `merchandise` | stack | **for `sell`** | What the player hands over on a `sell` offer |
-| `price` | array of stacks | yes | The player's side of the deal — cost for `buy`, payout for `sell`. May list several items |
+| `price` | array of stacks | yes | The player's side of the deal - cost for `buy`, payout for `sell`. May list several items |
 | `info` | string | no | Short label of the offer (top of the info panel), `&` color codes. Falls back to the item name |
 | `description` | string | no | Longer item description below the price, `&` color codes. No length limit |
 | `stock` | int | no (default `-1`) | `-1` = unlimited; otherwise how many times the deal can be made |
 | `stock_scope` | `"per_player"` \| `"global"` | no (default `"per_player"`) | Whose counter `stock` uses: each player has their own, or one shared across everyone |
 | `condition` | object | no | A condition from §9. If it fails, the offer is hidden. Re-checked on the server before every deal |
 
-A **stack** is `{ "item": "<id>", "count": <n>, "nbt": "<snbt>" }` — `item` is required, `count` defaults to 1, `nbt` (SNBT string) is optional. See the full shop in §36.2 for every field in context.
+A **stack** is `{ "item": "<id>", "count": <n>, "nbt": "<snbt>" }` - `item` is required, `count` defaults to 1, `nbt` (SNBT string) is optional. See the full shop in §36.2 for every field in context.
 
 ### 36.4 Two ways to update the assortment
 
-- **Whole window** — create a new shop file and point the node's `merchant` at it.
-- **Per offer** — add a `condition` to an offer (e.g. a `quest_status` or `if_var`). The offer appears/disappears as conditions change. Conditions are evaluated on the server when the window opens.
+- **Whole window** - create a new shop file and point the node's `merchant` at it.
+- **Per offer** - add a `condition` to an offer (e.g. a `quest_status` or `if_var`). The offer appears/disappears as conditions change. Conditions are evaluated on the server when the window opens.
 
 ### 36.5 Notes
 
@@ -2225,9 +2219,9 @@ A **stack** is `{ "item": "<id>", "count": <n>, "nbt": "<snbt>" }` — `item` is
 
 ## Four ways to add an NPC to the world
 
-When your dialogue JSON is ready, you need to place a mob with the matching name and tag. There are four ways — pick whatever fits.
+When your dialogue JSON is ready, you need to place a mob with the matching name and tag. There are four ways - pick whatever fits.
 
-### Way 1 — `/npc spawn` (simplest)
+### Way 1 - `/npc spawn` (simplest)
 
 ```
 /npc spawn my_dialogue
@@ -2235,7 +2229,7 @@ When your dialogue JSON is ready, you need to place a mob with the matching name
 
 The mod creates a mob of the right type with the right name and tag at your feet. Type from `summon.entity`, name and tag from `target`. Downside: requires `summon` in JSON (for entity type). Upside: one click and done.
 
-### Way 2 — `/npc tag` (convert an existing mob)
+### Way 2 - `/npc tag` (convert an existing mob)
 
 If you already have a mob of the right type and want to make it an NPC, walk up and:
 
@@ -2245,7 +2239,7 @@ If you already have a mob of the right type and want to make it an NPC, walk up 
 
 The nearest mob is given the name and tag. Handy when mobs are already placed.
 
-### Way 3 — manual vanilla
+### Way 3 - manual vanilla
 
 If you don't want mod commands at all:
 
@@ -2261,15 +2255,15 @@ Or if the mob already exists:
 
 Works regardless of `summon` in JSON.
 
-### Way 4 — auto-spawn via `summon`
+### Way 4 - auto-spawn via `summon`
 
-Want the NPC to appear automatically (no commands)? Add a `summon` block with a trigger (see §14). The mob will appear when the condition fires — player joined, finished another dialogue, walked into a zone, etc. Best for story maps where you don't want the player doing anything manual.
+Want the NPC to appear automatically (no commands)? Add a `summon` block with a trigger (see §14). The mob will appear when the condition fires - player joined, finished another dialogue, walked into a zone, etc. Best for story maps where you don't want the player doing anything manual.
 
 ---
 
 ## Cheatsheet for quickly making an NPC
 
-1. **JSON** → `config/interactentity/dialogues/my_npc.json` (minimal — see §2)
+1. **JSON** → `config/interactentity/dialogues/my_npc.json` (minimal - see §2)
 2. **Skin** (if `custom_npc`) → `<world>/interactentity/skins/my_npc.png` or `config/interactentity/skins/my_npc.png` (64×64, name `[a-z0-9_]+`)
 3. **target** → declare `name` and `tag` (see §5)
 4. **Spawn** → one of:
@@ -2279,11 +2273,9 @@ Want the NPC to appear automatically (no commands)? Add a `summon` block with a 
 5. **Reload** → `/dialogue reload`
 6. **Test** → right-click the mob
 
-If something doesn't work — check the server log, look for `[InteractEntity]`, `[skins]`, `WARN`.
+If something doesn't work - check the server log, look for `[InteractEntity]`, `[skins]`, `WARN`.
 
 ---
-
-<a id="русский"></a>
 
 ## Русский
 
@@ -2298,24 +2290,24 @@ If something doesn't work — check the server log, look for `[InteractEntity]`,
 > Просто **загрузите или скопируйте весь этот файл `README.md`** вашему ИИ-ассистенту и отправьте следующий промпт:
 > 
 > ```
-> Ты — профессиональный сценарист квестов в Minecraft. Используя прикреплённое руководство по моду "InteractEntity", напиши полностью рабочий ветвящийся диалог в указанном JSON-формате.
+> Ты - профессиональный сценарист квестов в Minecraft. Используя прикреплённое руководство по моду "InteractEntity", напиши полностью рабочий ветвящийся диалог в указанном JSON-формате.
 > 
 > Сюжет квеста: [Опишите здесь свой сюжет своими словами. Например: "Кузнец по имени Боргин просит принести ему 10 железных слитков. Если игрок приносит их, забрать железо, выдать в награду алмаз, дать +20 репутации гильдии кузнецов и заспавнить NPC Старца перед игроком. Иначе сказать, чтобы приходил позже."]
 > 
 > Выдай строго готовый и чистый JSON, соответствующий спецификации. Внимательно проверь синтаксис (запятые) и правильность типов действий (actions) и условий (conditions).
 > ```
 > 
-> Скопируйте полученный JSON в файл вашего диалога в папке мира, напишите в игре `/dialogue reload` — и всё готово к тестированию!
+> Скопируйте полученный JSON в файл вашего диалога в папке мира, напишите в игре `/dialogue reload` - и всё готово к тестированию!
 
 ---
 
 ## Оглавление
 
-1. [О моде — что это и как работает](#1-о-моде)
-2. [Быстрый старт — минимальный диалог за 30 секунд](#2-быстрый-старт)
+1. [О моде - что это и как работает](#1-о-моде)
+2. [Быстрый старт - минимальный диалог за 30 секунд](#2-быстрый-старт)
 3. [Расположение и ID диалогов](#3-расположение-и-id-диалогов)
 4. [Корневые поля диалога](#4-корневые-поля-диалога)
-5. [target — кого ищем](#5-target--кого-ищем)
+5. [target - кого ищем](#5-target---кого-ищем)
 6. [Узлы и переходы](#6-узлы-и-переходы)
 7. [Опции (Option)](#7-опции-option)
 8. [Действия (actions)](#8-действия-actions)
@@ -2323,69 +2315,69 @@ If something doesn't work — check the server log, look for `[InteractEntity]`,
 10. [Переменные](#10-переменные)
 11. [Квесты](#11-квесты)
 12. [Связывание NPC между собой](#12-связывание-npc-между-собой)
-13. [on_revisit — повторный разговор](#13-on_revisit--повторный-разговор)
+13. [on_revisit - повторный разговор](#13-on_revisit---повторный-разговор)
 14. [Авто-спавн NPC (summon)](#14-авто-спавн-npc-summon)
 15. [Триггеры диалога (triggers)](#15-триггеры-диалога-triggers)
-16. [Рутины — расписание NPC](#16-рутины--расписание-npc)
+16. [Рутины - расписание NPC](#16-рутины---расписание-npc)
 17. [NPC-сущности (32 типа + custom_npc)](#17-npc-сущности)
 18. [Эмоции и анимации](#18-эмоции-и-анимации)
 19. [Визуал custom_npc](#19-визуал-custom_npc)
-20. [Скины — динамическая загрузка](#20-скины--динамическая-загрузка)
-21. [Журнал и HUD квестов](#21-журнал-и-hud-квестов)
+20. [Скины - динамическая загрузка](#20-скины---динамическая-загрузка)
+21. [Журнал и HUD квестов](#21-журнал-hud-квестов-и-иконка-над-npc)
 22. [Аватар NPC в окне диалога](#22-аватар-npc-в-окне-диалога)
 23. [Репутация и фракции](#23-репутация-и-фракции)
 24. [Подарки](#24-подарки)
 25. [Отношения между NPC](#25-отношения-между-npc)
 26. [Компаньоны и дом NPC](#26-компаньоны-и-дом-npc)
-27. [Scope — global vs per_player](#27-scope)
+27. [Scope - global vs per_player](#27-scope-1)
 28. [Плейсхолдеры](#28-плейсхолдеры)
 28a. [Мультиязычные диалоги в JSON](#28a-мультиязычные-диалоги-в-json)
 29. [Форматирование текста](#29-форматирование-текста)
 30. [Команды](#30-команды)
 31. [Клавиши](#31-клавиши)
 32. [KubeJS интеграция](#32-kubejs-интеграция)
-33. [Forge API — события и хуки](#33-forge-api)
+33. [Forge API - события и хуки](#33-forge-api-1)
 34. [Подводные камни](#34-подводные-камни)
-35. [Большой пример — сюжетная карта](#35-большой-пример)
-36. [Торговля / торговцы](#36-торговля)
+35. [Большой пример - сюжетная карта](#35-большой-пример)
+36. [Торговля / торговцы](#36-торговля--торговцы)
 
 ---
 
 ## 1. О моде
 
-**InteractEntity** — это мод для Forge 1.20.1, который позволяет делать в Minecraft нормальных NPC с диалогами. Не как у ванильных жителей (которые что-то бубнят и торгуют), а полноценные сценарные персонажи: с ветвистыми разговорами, квестами, репутацией, отношениями между собой и игроком.
+**InteractEntity** - это мод для Forge 1.20.1, который позволяет делать в Minecraft нормальных NPC с диалогами. Не как у ванильных жителей (которые что-то бубнят и торгуют), а полноценные сценарные персонажи: с ветвистыми разговорами, квестами, репутацией, отношениями между собой и игроком.
 
-Работает это так: ты ставишь в мире моба (любого — зомби, жителя, скелета, что угодно), даёшь ему имя через `CustomName` и какой-нибудь тег через scoreboard. Потом пишешь JSON-файл диалога, в котором указываешь это же имя и тег. Когда игрок кликнет ПКМ по такому мобу — откроется твой диалог.
+Работает это так: ты ставишь в мире моба (любого - зомби, жителя, скелета, что угодно), даёшь ему имя через `CustomName` и какой-нибудь тег через scoreboard. Потом пишешь JSON-файл диалога, в котором указываешь это же имя и тег. Когда игрок кликнет ПКМ по такому мобу - откроется твой диалог.
 
-Главная идея — **весь контент описывается JSON-файлами**. Не нужно ничего компилировать, не нужно лезть в код. Хочешь добавить нового персонажа? Кидаешь JSON в папку диалогов, кидаешь PNG-скин в папку скинов, пишешь `/dialogue reload` — и персонаж готов.
+Главная идея - **весь контент описывается JSON-файлами**. Не нужно ничего компилировать, не нужно лезть в код. Хочешь добавить нового персонажа? Кидаешь JSON в папку диалогов, кидаешь PNG-скин в папку скинов, пишешь `/dialogue reload` - и персонаж готов.
 
 Что мод умеет:
 - Ветвистые диалоги с условиями («если у игрока есть алмаз, показать опцию купить меч»)
 - Квесты (личные и общие на сервере, с целями, дедлайнами, авто-счётчиком убийств)
 - Репутацию и фракции
 - Подарки с кулдауном
-- Переменные (флаги памяти NPC — кто помнит что про игрока)
+- Переменные (флаги памяти NPC - кто помнит что про игрока)
 - Авто-спавн NPC (по триггерам типа «игрок вошёл в зону»)
-- Кастомные скины через папку — не нужно собирать ресурспак
+- Кастомные скины через папку - не нужно собирать ресурспак
 - Эмоции и анимации (для NPC типа `custom_npc`)
 - Журнал персонажей и HUD активных квестов
-- Связь с KubeJS — можно из JS-скриптов слушать события и менять прогресс
+- Связь с KubeJS - можно из JS-скриптов слушать события и менять прогресс
 
 ### Как мод устроен внутри
 
 Чтобы понять что куда класть и где что искать, держи в голове такое разделение:
 
-- **JSON-диалоги** — это твой контент. Лежат в папке конфигурации в `config/interactentity/dialogues/`. Каждый файл = один диалог.
-- **Скины (PNG)** — лежат отдельно от мода, в папке игрока (`config/interactentity/skins/`) или в папке мира (`<world>/interactentity/skins/`). Подробности в §20.
-- **Прогресс игроков** мод сохраняет автоматически в файлах мира. Тебе не нужно с этим возиться — главное, чтобы scope (см. §27) был указан правильно.
-- **Журнал** игрок открывает клавишей `J` — там он видит всех NPC с которыми разговаривал, их историю реплик и список квестов.
-- **Если что-то не работает** — смотри лог сервера. Мод пишет туда понятные warn-ы про невалидные JSON, скины с неправильным именем и т.п.
+- **JSON-диалоги** - это твой контент. Лежат в папке конфигурации в `config/interactentity/dialogues/`. Каждый файл = один диалог.
+- **Скины (PNG)** - лежат отдельно от мода, в папке игрока (`config/interactentity/skins/`) или в папке мира (`<world>/interactentity/skins/`). Подробности в §20.
+- **Прогресс игроков** мод сохраняет автоматически в файлах мира. Тебе не нужно с этим возиться - главное, чтобы scope (см. §27) был указан правильно.
+- **Журнал** игрок открывает клавишей `J` - там он видит всех NPC с которыми разговаривал, их историю реплик и список квестов.
+- **Если что-то не работает** - смотри лог сервера. Мод пишет туда понятные warn-ы про невалидные JSON, скины с неправильным именем и т.п.
 
 ---
 
 ## 2. Быстрый старт
 
-Самый простой способ убедиться что всё работает — сделать одного NPC с двумя репликами и проверить.
+Самый простой способ убедиться что всё работает - сделать одного NPC с двумя репликами и проверить.
 
 Создай файл `config/interactentity/dialogues/test.json`:
 
@@ -2416,13 +2408,13 @@ If something doesn't work — check the server log, look for `[InteractEntity]`,
 /summon zombie ~ ~ ~ {CustomName:'"Тест"',CustomNameVisible:1b,Tags:["test_npc"]}
 ```
 
-Теперь ПКМ по этому зомби — диалог откроется. Если не открылся: проверь что имя совпадает с `target.name` и тег с `target.tag`. Обычная типичная ошибка — лишний пробел в имени.
+Теперь ПКМ по этому зомби - диалог откроется. Если не открылся: проверь что имя совпадает с `target.name` и тег с `target.tag`. Обычная типичная ошибка - лишний пробел в имени.
 
 ---
 
 ## 3. Расположение и ID диалогов
 
-Все JSON-файлы диалогов лежат в папке конфигурации: `config/interactentity/dialogues/`. Подпапки разрешены — можно организовывать сюжет как удобно, например складывать главы в отдельные папки.
+Все JSON-файлы диалогов лежат в папке конфигурации: `config/interactentity/dialogues/`. Подпапки разрешены - можно организовывать сюжет как удобно, например складывать главы в отдельные папки.
 
 Пример структуры:
 ```
@@ -2432,9 +2424,9 @@ config/interactentity/dialogues/
   story/chapter_1/intro.json → ID диалога: "story/chapter_1/intro"
 ```
 
-**ID диалога** — это просто его путь относительно папки `dialogues/`, без `.json`. Подпапки превращаются в слэши внутри ID. Этот ID ты будешь использовать в командах (например `/npc spawn showcase/mayor`) и в полях action'ов которые ссылаются на другой диалог (`force_dialogue`, `notify_npc`).
+**ID диалога** - это просто его путь относительно папки `dialogues/`, без `.json`. Подпапки превращаются в слэши внутри ID. Этот ID ты будешь использовать в командах (например `/npc spawn showcase/mayor`) и в полях action'ов которые ссылаются на другой диалог (`force_dialogue`, `notify_npc`).
 
-**После любой правки JSON** нужно сказать моду что-то изменилось. Для этого пиши в чат: `/dialogue reload` — он перечитает все файлы. Заодно эта команда сбросит весь прогресс и in-memory флаги — удобно когда тестируешь и хочешь начать с чистого листа. Если хочешь перечитать только один файл — `/dialogue reload <id>`, но имей в виду что этот вариант не сбросит флаги спавна (см. §34, пункт 14).
+**После любой правки JSON** нужно сказать моду что-то изменилось. Для этого пиши в чат: `/dialogue reload` - он перечитает все файлы. Заодно эта команда сбросит весь прогресс и in-memory флаги - удобно когда тестируешь и хочешь начать с чистого листа. Если хочешь перечитать только один файл - `/dialogue reload <id>`, но имей в виду что этот вариант не сбросит флаги спавна (см. §34, пункт 14).
 
 ---
 
@@ -2444,37 +2436,37 @@ config/interactentity/dialogues/
 |------|-----|-------|----------|
 | `target` | object | да | См. §5 |
 | `entry` | string | да | ID стартового узла |
-| `nodes` | object | да | `{id: NodeJson}` — словарь узлов |
-| `display_name` | string | — | Имя в GUI диалога. По умолчанию = `target.name` |
-| `scope` | string | — | `"global"` (default) или `"per_player"` — где хранится прогресс. См. §27 |
-| `repeatable` | bool | — | `false` (default). Если `true` — диалог можно перепроходить |
-| `invulnerable` | bool | — | `true` (default) — NPC неуязвим во время диалога |
-| `disable_knockback` | bool | — | `false` (default). Если `true` — отключает отбрасывание и сдвиг для этого NPC при ударах |
-| `disable_attacks` | bool | — | `false` (default). Если `true` — полностью отключает регистрацию атак (анимацию боли, звук боли и получение ударов) для этого NPC |
-| `items_take` | bool | — | `true` (default). Если `false` — игроки в режиме выживания не смогут изменять экипировку NPC (забирать или надевать предметы) |
+| `nodes` | object | да | `{id: NodeJson}` - словарь узлов |
+| `display_name` | string | - | Имя в GUI диалога. По умолчанию = `target.name` |
+| `scope` | string | - | `"global"` (default) или `"per_player"` - где хранится прогресс. См. §27 |
+| `repeatable` | bool | - | `false` (default). Если `true` - диалог можно перепроходить |
+| `invulnerable` | bool | - | `true` (default) - NPC неуязвим во время диалога |
+| `disable_knockback` | bool | - | `false` (default). Если `true` - отключает отбрасывание и сдвиг для этого NPC при ударах |
+| `disable_attacks` | bool | - | `false` (default). Если `true` - полностью отключает регистрацию атак (анимацию боли, звук боли и получение ударов) для этого NPC |
+| `items_take` | bool | - | `true` (default). Если `false` - игроки в режиме выживания не смогут изменять экипировку NPC (забирать или надевать предметы) |
 | `name_tag` | string | - | Никнейм над головой NPC. `"always"` (default): виден как обычно. `"hover"`: виден, только когда игрок смотрит на NPC. `"hidden"`: не виден никогда. Само имя остаётся и по-прежнему связывает NPC с диалогом |
-| `avatar` | string | — | Текстура аватара в диалоговом окне и журнале. **Нужен полный путь** (напр. `"interactentity:textures/entity/skins/harold.png"`). Простое имя скина здесь НЕ расширяется — этот шорткат работает только для `visual.texture` |
-| `faction` | string | — | Название фракции (отображается в журнале) |
-| `reputation_id` | string | — | ID фракции для накопления репутации. По умолчанию = `faction` |
-| `character_info` | string | — | Описание персонажа для журнала |
-| `visual` | object | — | См. §19 — модель/текстура/размер для `interactentity:custom_npc` |
-| `summon` | object | — | См. §14 — авто-спавн NPC |
-| `triggers` | array | — | См. §15 — авто-старт диалога с существующим NPC |
-| `routines` | array | — | См. §16 — расписание поведения NPC |
-| `on_revisit` | object | — | См. §13 — реакция на повторный заход |
+| `avatar` | string | - | Текстура аватара в диалоговом окне и журнале. **Нужен полный путь** (напр. `"interactentity:textures/entity/skins/harold.png"`). Простое имя скина здесь НЕ расширяется - этот шорткат работает только для `visual.texture` |
+| `faction` | string | - | Название фракции (отображается в журнале) |
+| `reputation_id` | string | - | ID фракции для накопления репутации. По умолчанию = `faction` |
+| `character_info` | string | - | Описание персонажа для журнала |
+| `visual` | object | - | См. §19 - модель/текстура/размер для `interactentity:custom_npc` |
+| `summon` | object | - | См. §14 - авто-спавн NPC |
+| `triggers` | array | - | См. §15 - авто-старт диалога с существующим NPC |
+| `routines` | array | - | См. §16 - расписание поведения NPC |
+| `on_revisit` | object | - | См. §13 - реакция на повторный заход |
 
-Legacy: `start_trigger` (один триггер). Если есть `triggers[]` — `start_trigger` игнорируется.
+Legacy: `start_trigger` (один триггер). Если есть `triggers[]` - `start_trigger` игнорируется.
 
 ---
 
-## 5. target — кого ищем
+## 5. target - кого ищем
 
 | Поле | Тип | Обяз. | Описание |
 |------|-----|-------|----------|
 | `name` | string | да | Должен совпадать с `CustomName` моба |
 | `tag` | string | да | Должен быть в scoreboard-тегах моба |
-| `entity_type` | string | — | Тип сущности (`minecraft:zombie`, `interactentity:custom_npc`, …) |
-| `faction` | string | — | Метаданные (не влияет на резолв) |
+| `entity_type` | string | - | Тип сущности (`minecraft:zombie`, `interactentity:custom_npc`, …) |
+| `faction` | string | - | Метаданные (не влияет на резолв) |
 
 Все указанные поля должны совпасть. Иначе ПКМ ничего не делает.
 
@@ -2483,15 +2475,15 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 > - Если вы указываете `entity_type` в разделе `"target"`, он должен **строго** совпадать с типом сущности, заспавненной в мире. Например, если вы заспавнили `minecraft:villager`, а в `"target"` требуется `"interactentity:custom_npc"`, вы не сможете поговорить с NPC.
 > - При ручном вызове команды `/summon` для тестирования, обязательно передавайте scoreboard-тег, совпадающий с `"target.tag"` (например, `/summon interactentity:custom_npc ~ ~ ~ {CustomName:'"Elsa"',Tags:["story_elsa"]}`), иначе диалог не начнется!
 
-**Авто-маппинг при `/npc spawn`:** если `entity_type: minecraft:<mob>` указан для одного из 32 «мирных» мобов — мод подставит `interactentity:npc_<mob>` (см. §17). В JSON пиши vanilla-имя, конвертация автоматическая.
+**Авто-маппинг при `/npc spawn`:** если `entity_type: minecraft:<mob>` указан для одного из 32 «мирных» мобов - мод подставит `interactentity:npc_<mob>` (см. §17). В JSON пиши vanilla-имя, конвертация автоматическая.
 
 ---
 
 ## 6. Узлы и переходы
 
-Каждый диалог — это набор узлов (`nodes`). Узел — это одна реплика NPC. Игрок движется по узлам нажимая ПКМ или выбирая опцию.
+Каждый диалог - это набор узлов (`nodes`). Узел - это одна реплика NPC. Игрок движется по узлам нажимая ПКМ или выбирая опцию.
 
-Мод сам определяет тип узла по его полям — ничего вручную указывать не надо. Есть три типа:
+Мод сам определяет тип узла по его полям - ничего вручную указывать не надо. Есть три типа:
 
 | Тип | Признак | Поведение |
 |-----|---------|-----------|
@@ -2504,7 +2496,7 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 | Поле | Тип | Описание |
 |------|-----|----------|
 | `text` | string | Реплика NPC. По умолчанию `""` |
-| `random_text` | array | Массив строк — при входе выбирается случайная. Перекрывает `text` |
+| `random_text` | array | Массив строк - при входе выбирается случайная. Перекрывает `text` |
 | `next` | string \| null | ID следующего узла |
 | `auto_next_ticks` | int | Авто-переход через N тиков (20 = 1 сек) |
 | `options` | array | См. §7 |
@@ -2554,7 +2546,7 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 
 ## 7. Опции (Option)
 
-Опции — это кнопки которые показываются игроку в узле типа «выбор». Каждая опция это объект внутри массива `options` у узла. У опции есть текст на кнопке и куда перейти при клике. Можно навешать на опцию условие (тогда она будет показана серой если не выполнено) и действия (выполнятся при клике).
+Опции - это кнопки которые показываются игроку в узле типа «выбор». Каждая опция это объект внутри массива `options` у узла. У опции есть текст на кнопке и куда перейти при клике. Можно навешать на опцию условие (тогда она будет показана серой если не выполнено) и действия (выполнятся при клике).
 
 | Поле | Тип | Описание |
 |------|-----|----------|
@@ -2565,7 +2557,7 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 | `locked` | bool | Принудительно сделать заблокированной |
 | `lock_reason` | string | Текст-причина блокировки (для подсказки) |
 
-**Только одно condition на опцию.** Compound (and/or) не поддерживается — для составной логики делай промежуточный узел или фильтруй через action `set_var`+условный переход.
+**Только одно condition на опцию.** Compound (and/or) не поддерживается - для составной логики делай промежуточный узел или фильтруй через action `set_var`+условный переход.
 
 ### Пример: условная опция
 
@@ -2592,7 +2584,7 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 
 ## 8. Действия (actions)
 
-`actions` — это массив команд, которые мод выполняет когда срабатывает узел (при входе в узел) или опция (при клике). Например: «дать игроку 5 хлеба», «запустить звук колокола», «начать квест», «открыть другой диалог». Действия выполняются последовательно сверху вниз.
+`actions` - это массив команд, которые мод выполняет когда срабатывает узел (при входе в узел) или опция (при клике). Например: «дать игроку 5 хлеба», «запустить звук колокола», «начать квест», «открыть другой диалог». Действия выполняются последовательно сверху вниз.
 
 Используются так:
 ```json
@@ -2602,7 +2594,7 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 ]
 ```
 
-Ниже — все 28 типов с примерами. Поле помеченное `?` означает «не обязательно, в скобках указано значение по умолчанию».
+Ниже - все 28 типов с примерами. Поле помеченное `?` означает «не обязательно, в скобках указано значение по умолчанию».
 
 ### 8.1 Базовые
 
@@ -2639,7 +2631,7 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 { "type": "play_sound", "sound": "minecraft:block.bell.use", "target": "entity" }
 ```
 
-`target`: `"player"` (default — звук слышит только игрок) или `"entity"` (играется в позиции NPC, слышат окружающие).
+`target`: `"player"` (default - звук слышит только игрок) или `"entity"` (играется в позиции NPC, слышат окружающие).
 
 #### `give_effect` / `remove_effect`
 
@@ -2649,7 +2641,7 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 { "type": "remove_effect" }  // снять все
 ```
 
-`duration` в тиках (default 200), `amplifier` 0-255, `ambient`/`particles` — bool.
+`duration` в тиках (default 200), `amplifier` 0-255, `ambient`/`particles` - bool.
 
 #### `spawn_particles`
 
@@ -2686,13 +2678,13 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 { "type": "set_var", "name": "trust", "op": "dec" }   // -1
 ```
 
-#### `fire_event` — постит `DialogueChoiceEvent` для KubeJS/Forge
+#### `fire_event` - постит `DialogueChoiceEvent` для KubeJS/Forge
 
 ```json
 { "type": "fire_event", "tag": "started_quest_chain" }
 ```
 
-#### `schedule_event` — отложенное исполнение
+#### `schedule_event` - отложенное исполнение
 
 ```json
 {
@@ -2705,9 +2697,9 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 }
 ```
 
-⚠️ Если игрок офлайн — не сохраняется через рестарт.
+⚠️ Если игрок офлайн - не сохраняется через рестарт.
 
-#### `force_dialogue` — открыть другой диалог
+#### `force_dialogue` - открыть другой диалог
 
 ```json
 {
@@ -2721,13 +2713,13 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 
 Ищет ближайшего NPC с `target_tag` в радиусе и открывает с ним диалог.
 
-#### `notify_npc` — зажечь `!` над NPC с указанным диалогом
+#### `notify_npc` - зажечь `!` над NPC с указанным диалогом
 
 ```json
 { "type": "notify_npc", "dialogue_id": "blacksmith" }
 ```
 
-#### `summon_npc` — создать NPC прямо во время диалога
+#### `summon_npc` - создать NPC прямо во время диалога
 
 ```json
 {
@@ -2764,7 +2756,7 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 { "type": "add_reputation", "id": "village", "value": 10, "label": "Помощь старосте" }
 ```
 
-#### `give_gift` — подарок с кулдауном 1 час
+#### `give_gift` - подарок с кулдауном 1 час
 
 ```json
 {
@@ -2779,13 +2771,13 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 }
 ```
 
-#### `set_relationship` — установить отношение между двумя NPC
+#### `set_relationship` - установить отношение между двумя NPC
 
 ```json
 { "type": "set_relationship", "npc_a": "mayor", "npc_b": "thief", "relationship": "enemy" }
 ```
 
-#### `set_companion` — сделать NPC спутником игрока
+#### `set_companion` - сделать NPC спутником игрока
 
 ```json
 { "type": "set_companion", "enable": true }
@@ -2793,15 +2785,15 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 
 Только для `interactentity:custom_npc`. NPC начинает следовать за игроком.
 
-#### `set_home` — задать «дом» NPC
+#### `set_home` - задать «дом» NPC
 
 ```json
 { "type": "set_home", "x": 100, "y": 64, "z": 200, "radius": 16 }
 ```
 
-Без координат — берётся текущая позиция NPC. NPC будет возвращаться в этот радиус.
+Без координат - берётся текущая позиция NPC. NPC будет возвращаться в этот радиус.
 
-#### `play_emote` — проиграть анимацию
+#### `play_emote` - проиграть анимацию
 
 ```json
 { "type": "play_emote", "emote": "wave", "duration_ticks": 40 }
@@ -2811,15 +2803,15 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 
 Только для `interactentity:custom_npc`. Список см. §18.
 
-#### `set_pose` — изменить позу и движение NPC
+#### `set_pose` - изменить позу и движение NPC
 ```json
 { "type": "set_pose", "pose": "sitting", "is_moving": false }
 ```
 Изменяет позу и/или включает/выключает движение NPC во время выполнения. Оба поля опциональны. Работает для всех NPC. Доступные позы: `standing`/`idle`, `sitting`, `sleeping`, `sneaking`/`crouching`, `swimming`/`crawling`.
 
-`is_moving` — включает/выключает движение (ходьба/блуждание; слежение головой продолжает работать). По умолчанию `true`. Движение влияет и на анимацию позы: `swimming`/`crawling` играет гребки только когда NPC реально движется (с `is_moving: false` он просто лежит), а при `sneaking` в движении ноги продолжают шагать. Практическое правило: `sitting`/`sleeping` → `is_moving: false`, `swimming` → `is_moving: true`.
+`is_moving` - включает/выключает движение (ходьба/блуждание; слежение головой продолжает работать). По умолчанию `true`. Движение влияет и на анимацию позы: `swimming`/`crawling` играет гребки только когда NPC реально движется (с `is_moving: false` он просто лежит), а при `sneaking` в движении ноги продолжают шагать. Практическое правило: `sitting`/`sleeping` → `is_moving: false`, `swimming` → `is_moving: true`.
 
-Демо-диалог — меню, переключающее все позы:
+Демо-диалог - меню, переключающее все позы:
 ```json
 "nodes": {
   "start": {
@@ -2842,7 +2834,7 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 
 ### 8.5 Поле `scope` в action
 
-Любому action можно явно указать `"scope": "global"` или `"per_player"`. По умолчанию scope наследуется из корня диалога — `DialogueTree.injectScope` автоматически вставляет его в каждый action/condition без своего `scope`.
+Любому action можно явно указать `"scope": "global"` или `"per_player"`. По умолчанию scope наследуется из корня диалога - `DialogueTree.injectScope` автоматически вставляет его в каждый action/condition без своего `scope`.
 
 ```json
 { "type": "start_quest", "quest": { "id": "epic_quest" }, "scope": "global" }
@@ -2856,12 +2848,12 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 
 `condition` проверяет какое-то состояние мира или игрока и возвращает true/false. Используется в опциях (чтобы скрыть/заблокировать кнопку) и в `on_revisit` (чтобы выбрать какую ветку показать при повторном заходе).
 
-Каждое условие — это JSON-объект с полем `type` и набором параметров, специфичных для типа. Например проверить наличие предмета:
+Каждое условие - это JSON-объект с полем `type` и набором параметров, специфичных для типа. Например проверить наличие предмета:
 ```json
 { "type": "has_item", "item": "minecraft:diamond", "count": 5 }
 ```
 
-Всего 19 типов условий. Ниже — все они:
+Всего 19 типов условий. Ниже - все они:
 
 | `type` | Поля | Семантика |
 |--------|------|-----------|
@@ -2882,8 +2874,8 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 | `npc_relationship` | `npc_a`, `npc_b`, `relationship` | |
 | `has_advancement` | `advancement` | Vanilla advancement id |
 | `experience_level` | `level`, `op?` (default `"gte"`) | |
-| `is_raining` | — | |
-| `is_night` | — | true 13000–23000 тиков |
+| `is_raining` | - | |
+| `is_night` | - | true 13000–23000 тиков |
 
 ### Примеры
 
@@ -2901,7 +2893,7 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 
 Переменные нужны чтобы NPC запоминал что-то про игрока. Например: «этот игрок уже встречался со мной», «он принёс мне 3 раза подарок», «уровень доверия = 5».
 
-Технически это пары имя → значение (значение всегда строка, но если в нём число — мод умеет сравнивать как числа). Хранятся либо глобально для всего сервера, либо лично для игрока — зависит от scope диалога (см. §27).
+Технически это пары имя → значение (значение всегда строка, но если в нём число - мод умеет сравнивать как числа). Хранятся либо глобально для всего сервера, либо лично для игрока - зависит от scope диалога (см. §27).
 
 ### Установка
 
@@ -2989,11 +2981,11 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 
 ## 11. Квесты
 
-Квесты — это задания которые NPC выдаёт игроку. У квеста есть название, описание, список целей (можно отмечать как выполненные), статус (активен / завершён / провален) и опционально дедлайн.
+Квесты - это задания которые NPC выдаёт игроку. У квеста есть название, описание, список целей (можно отмечать как выполненные), статус (активен / завершён / провален) и опционально дедлайн.
 
-Игрок видит свои квесты в журнале (клавиша `J`) — там можно посмотреть прогресс и закрепить квест в HUD (клавиша `K`), чтобы он висел на экране постоянно.
+Игрок видит свои квесты в журнале (клавиша `J`) - там можно посмотреть прогресс и закрепить квест в HUD (клавиша `K`), чтобы он висел на экране постоянно.
 
-Квесты как и всё остальное хранятся либо глобально, либо лично — зависит от scope диалога который их выдал. То есть «личный квест Гарольда для меня» — это `per_player`, а «общий сюжетный квест на всю команду» — `global`.
+Квесты как и всё остальное хранятся либо глобально, либо лично - зависит от scope диалога который их выдал. То есть «личный квест Гарольда для меня» - это `per_player`, а «общий сюжетный квест на всю команду» - `global`.
 
 ### 11.1 start_quest
 
@@ -3018,11 +3010,11 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 | `id` | string | Уникальный ID |
 | `title` | string | Краткое название |
 | `description` | string | Описание для журнала |
-| `objectives` | array | Список строк. **Не пиши `[ ]`/`[✓]`** — мод сам ставит галочки |
-| `required_item` | object | `{id, count?}` — если у игрока уже есть нужное кол-во, первая цель закрывается сразу |
-| `required_kills` | object | `{entity, tag?, count, objective?}` — авто-счётчик убийств с подписью `(N/M)` |
+| `objectives` | array | Список строк. **Не пиши `[ ]`/`[✓]`** - мод сам ставит галочки |
+| `required_item` | object | `{id, count?}` - если у игрока уже есть нужное кол-во, первая цель закрывается сразу |
+| `required_kills` | object | `{entity, tag?, count, objective?}` - авто-счётчик убийств с подписью `(N/M)` |
 | `deadline` | object | `{type, value?}`: `"ticks"`/`"game_days"` (`value` обязат.), `"sunset"`/`"sunrise"` |
-| `giver` | string | Имя выдавшего квест. **При запуске из диалогового JSON игнорируется** — берётся из `display_name`/CustomName NPC. Учитывается только при запуске квеста через KubeJS API |
+| `giver` | string | Имя выдавшего квест. **При запуске из диалогового JSON игнорируется** - берётся из `display_name`/CustomName NPC. Учитывается только при запуске квеста через KubeJS API |
 
 ### 11.3 Цель «убить N мобов»
 
@@ -3042,7 +3034,7 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 }
 ```
 
-В журнале появится `Убить зомби (3/10)` — счётчик автоматический.
+В журнале появится `Убить зомби (3/10)` - счётчик автоматический.
 
 ### 11.4 Завершение цели вручную
 
@@ -3086,17 +3078,17 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 }
 ```
 
-⚠️ Заменяет **весь** список objectives — ломает счётчик kills, если он был привязан к индексу.
+⚠️ Заменяет **весь** список objectives - ломает счётчик kills, если он был привязан к индексу.
 
 ---
 
 ## 12. Связывание NPC между собой
 
-Сюжет редко бывает про одного NPC — обычно цепочка. Игрок поговорил с одним, тот направил ко второму, второй открыл третьего. Мод даёт несколько инструментов, чтобы такие цепочки делать.
+Сюжет редко бывает про одного NPC - обычно цепочка. Игрок поговорил с одним, тот направил ко второму, второй открыл третьего. Мод даёт несколько инструментов, чтобы такие цепочки делать.
 
 Все они построены на одной идее: один NPC оставляет «след» (флаг, посещённый узел, статус квеста), а другой проверяет этот след в своём `condition`.
 
-### Инструмент 1 — `visited_node`
+### Инструмент 1 - `visited_node`
 
 ```json
 // В диалоге villager_b
@@ -3107,17 +3099,17 @@ Legacy: `start_trigger` (один триггер). Если есть `triggers[]
 }
 ```
 
-### Инструмент 2 — `quest_status`
+### Инструмент 2 - `quest_status`
 
 ```json
 { "type": "quest_status", "quest_id": "main_story_1", "status": "completed" }
 ```
 
-### Инструмент 3 — `set_var` / `if_var`
+### Инструмент 3 - `set_var` / `if_var`
 
 A зажигает флаг, B его читает.
 
-### Инструмент 4 — `notify_npc`
+### Инструмент 4 - `notify_npc`
 
 Зажигает иконку `!` над NPC с указанным `dialogue_id`. Используй чтобы подсветить «следующего» NPC после диалога.
 
@@ -3142,9 +3134,9 @@ A зажигает флаг, B его читает.
 
 ---
 
-## 13. on_revisit — повторный разговор
+## 13. on_revisit - повторный разговор
 
-Срабатывает после того как игрок дошёл до end-нода (диалог помечен завершённым). **ESC из диалога — НЕ завершение.**
+Срабатывает после того как игрок дошёл до end-нода (диалог помечен завершённым). **ESC из диалога - НЕ завершение.**
 
 ```json
 "on_revisit": {
@@ -3165,26 +3157,26 @@ A зажигает флаг, B его читает.
 
 **Логика:**
 1. Условия проверяются сверху вниз.
-2. Первое match'нувшее: если есть `start_node` — открывается полный диалог с этого узла; иначе показывается короткое `text` (без диалогового окна).
+2. Первое match'нувшее: если есть `start_node` - открывается полный диалог с этого узла; иначе показывается короткое `text` (без диалогового окна).
 3. Если ни одно не match: fallback на `default_start_node` (полный диалог) или `default` (текст).
 
 ---
 
 ## 14. Авто-спавн NPC (`summon`)
 
-Если ты не хочешь спавнить NPC вручную каждый раз (через команды или `/summon`), а хочешь чтобы он появлялся автоматически — добавь в JSON блок `summon`. Внутри указывается какой моб появится, при каком событии и где.
+Если ты не хочешь спавнить NPC вручную каждый раз (через команды или `/summon`), а хочешь чтобы он появлялся автоматически - добавь в JSON блок `summon`. Внутри указывается какой моб появится, при каком событии и где.
 
 Например: «когда игрок заходит в мир, через 3 секунды перед ним появляется купец». Или: «когда игрок завершит диалог с кузнецом, заспавнить старца в 5 блоках перед ним».
 
 | Поле | Тип | Обяз. | Описание |
 |------|-----|-------|----------|
-| `entity` | string | да | Тип сущности (vanilla имя авто-маппится — см. §17) |
+| `entity` | string | да | Тип сущности (vanilla имя авто-маппится - см. §17) |
 | `custom_name` | string | да | Должно совпадать с `target.name` |
-| `tags` | array | — | Должно содержать `target.tag` |
-| `trigger` | object | **да** | См. §14.1. Без триггера — NPE на загрузке |
-| `spawn_position` | string | — | `"behind_player"` (default), `"front_of_player"`, `"at_player"` |
-| `despawn_after_dialogue` | bool | — | Моб исчезает после диалога |
-| `walk_away_before_despawn` | bool | — | Сперва уходит ~10 блоков, потом исчезает |
+| `tags` | array | - | Должно содержать `target.tag` |
+| `trigger` | object | **да** | См. §14.1. Без триггера - NPE на загрузке |
+| `spawn_position` | string | - | `"behind_player"` (default), `"front_of_player"`, `"at_player"` |
+| `despawn_after_dialogue` | bool | - | Моб исчезает после диалога |
+| `walk_away_before_despawn` | bool | - | Сперва уходит ~10 блоков, потом исчезает |
 
 ### 14.1 Типы spawn-триггеров
 
@@ -3210,15 +3202,15 @@ A зажигает флаг, B его читает.
 }
 ```
 
-**Важно:** для не-`repeatable` диалогов спавн блокируется через in-memory `TRIGGERED_DIALOGUES` (сброс — полный `/dialogue reload`) и через `hasVisited(entry)`.
+**Важно:** для не-`repeatable` диалогов спавн блокируется через in-memory `TRIGGERED_DIALOGUES` (сброс - полный `/dialogue reload`) и через `hasVisited(entry)`.
 
 ---
 
 ## 15. Триггеры диалога (`triggers`)
 
-Если NPC уже стоит в мире и ты хочешь чтобы диалог открывался без ПКМ — добавь массив `triggers` в корень диалога. Тогда диалог будет стартовать сам когда сработает указанное событие. Например: «игрок подошёл ближе чем на 4 блока», «игрок ударил NPC», «у NPC осталось меньше половины HP».
+Если NPC уже стоит в мире и ты хочешь чтобы диалог открывался без ПКМ - добавь массив `triggers` в корень диалога. Тогда диалог будет стартовать сам когда сработает указанное событие. Например: «игрок подошёл ближе чем на 4 блока», «игрок ударил NPC», «у NPC осталось меньше половины HP».
 
-Это полезно для боссов, для случайных встреч, для «эмбиентных» сцен типа «когда подходишь — слышишь шёпот».
+Это полезно для боссов, для случайных встреч, для «эмбиентных» сцен типа «когда подходишь - слышишь шёпот».
 
 | `type` | Поля | Когда |
 |--------|------|-------|
@@ -3233,11 +3225,11 @@ A зажигает флаг, B его читает.
 ]
 ```
 
-**Не путать с `summon.trigger`** — там другой набор и оно только для спавна.
+**Не путать с `summon.trigger`** - там другой набор и оно только для спавна.
 
 ---
 
-## 16. Рутины — расписание NPC
+## 16. Рутины - расписание NPC
 
 Расписание поведения в течение игрового дня (0..24000 тиков).
 
@@ -3245,7 +3237,7 @@ A зажигает флаг, B его читает.
 |------|-----|----------|
 | `type` | string | `"idle_at"` / `"wander"` / `"patrol"` |
 | `start` | int | Начало периода (default 0) |
-| `end` | int | Конец (default 24000). Если `start > end` — перекрывает полночь |
+| `end` | int | Конец (default 24000). Если `start > end` - перекрывает полночь |
 | `x`, `y`, `z` | int | Опорная точка (для `idle_at`, `wander`) |
 | `radius` | int | Радиус блуждания (default 8) |
 | `waypoints` | array | Для `patrol`: `[{x,y,z}, ...]` |
@@ -3279,13 +3271,13 @@ A зажигает флаг, B его читает.
 
 ## 17. NPC-сущности
 
-Чтобы NPC не нападал на игрока, мод добавляет «мирные» версии всех агрессивных мобов. Они выглядят как оригинал и ведут себя похоже, но не атакуют. Плюс есть отдельный универсальный тип `custom_npc` для важных персонажей — с поддержкой кастомных моделей, скинов, размеров и эмоций.
+Чтобы NPC не нападал на игрока, мод добавляет «мирные» версии всех агрессивных мобов. Они выглядят как оригинал и ведут себя похоже, но не атакуют. Плюс есть отдельный универсальный тип `custom_npc` для важных персонажей - с поддержкой кастомных моделей, скинов, размеров и эмоций.
 
 Всего получается 33 типа:
 
 ### 17.1 Мирные аналоги ванильных мобов (32)
 
-Каждый ванильный «враг» имеет «спокойную» версию — не атакует игрока, но в остальном выглядит и работает как обычный моб.
+Каждый ванильный «враг» имеет «спокойную» версию - не атакует игрока, но в остальном выглядит и работает как обычный моб.
 
 | Vanilla | Аналог мода |
 |---------|-------------|
@@ -3338,11 +3330,11 @@ A зажигает флаг, B его читает.
 
 ## 18. Эмоции и анимации
 
-NPC типа `interactentity:custom_npc` умеет проигрывать одноразовые анимации — эмоции. Например помахать рукой, поклониться, удивиться, пожать плечами. Запускаются через action `play_emote`.
+NPC типа `interactentity:custom_npc` умеет проигрывать одноразовые анимации - эмоции. Например помахать рукой, поклониться, удивиться, пожать плечами. Запускаются через action `play_emote`.
 
-Это удобно для оживления сцен — например когда NPC говорит «привет!», запусти ему `wave`; когда он удивлён сюжетным поворотом — `surprised`; когда зол на игрока — `crossed_arms`.
+Это удобно для оживления сцен - например когда NPC говорит «привет!», запусти ему `wave`; когда он удивлён сюжетным поворотом - `surprised`; когда зол на игрока - `crossed_arms`.
 
-На обычных «мирных мобах» (зомби-NPC, скелет-NPC и т.п.) эмоции не работают — там нет нужных анимаций.
+На обычных «мирных мобах» (зомби-NPC, скелет-NPC и т.п.) эмоции не работают - там нет нужных анимаций.
 
 ### Список эмоций
 
@@ -3360,13 +3352,13 @@ NPC типа `interactentity:custom_npc` умеет проигрывать од�
 { "type": "play_emote", "emote": "" }         // сброс
 ```
 
-`duration_ticks` опционально — задаёт, сколько тиков эмоция остаётся активной до возврата в idle. Если не указано, берётся дефолт под каждую эмоцию (по длине анимации). Одноразовые анимации (wave, bow) в любом случае проигрываются один раз до конца.
+`duration_ticks` опционально - задаёт, сколько тиков эмоция остаётся активной до возврата в idle. Если не указано, берётся дефолт под каждую эмоцию (по длине анимации). Одноразовые анимации (wave, bow) в любом случае проигрываются один раз до конца.
 
 ### Базовые анимации (не эмоции)
 
 Эти играются автоматически:
-- `animation.custom_npc.idle` — когда стоит
-- `animation.custom_npc.walk` — когда идёт
+- `animation.custom_npc.idle` - когда стоит
+- `animation.custom_npc.walk` - когда идёт
 
 Они не настраиваются через JSON, заданы в коде. Можно заменить только подменив `custom_npc.animation.json` через ресурспак.
 
@@ -3399,7 +3391,7 @@ NPC типа `interactentity:custom_npc` умеет проигрывать од�
 | `scale` | float | 0.1..5.0 |
 | `pose` | string | Активная поза: `standing`/`idle`, `sitting`, `sleeping`, `sneaking`/`crouching`, `swimming`/`crawling` |
 | `is_moving` | boolean | Если `false`, NPC стоит на месте и не ходит (продолжая поворачивать голову). По умолчанию `true` |
-| `equipment` | object | `{slot: itemId}` — предустановленная экипировка NPC при первом спавне (слоты: `mainhand`, `offhand`, `head`, `chest`, `legs`, `feet`) |
+| `equipment` | object | `{slot: itemId}` - предустановленная экипировка NPC при первом спавне (слоты: `mainhand`, `offhand`, `head`, `chest`, `legs`, `feet`) |
 
 ### Доступные встроенные модели
 
@@ -3418,13 +3410,13 @@ NPC типа `interactentity:custom_npc` умеет проигрывать од�
 
 ---
 
-## 20. Скины — динамическая загрузка
+## 20. Скины - динамическая загрузка
 
-Главная фишка мода для создателей карт. Раньше чтобы дать NPC свой скин нужно было собирать ресурспак, заливать его куда-то на хостинг, прописывать в `server.properties` и так далее — морока. Тут всё проще.
+Главная фишка мода для создателей карт. Раньше чтобы дать NPC свой скин нужно было собирать ресурспак, заливать его куда-то на хостинг, прописывать в `server.properties` и так далее - морока. Тут всё проще.
 
 Ты просто кидаешь PNG-файл в одну из двух папок. Сервер на старте сам прочитает его, при заходе игрока пошлёт PNG-байты клиенту, клиент покажет этот скин на NPC. Всё. Без ресурспаков, без хостинга, без перекомпиляции мода.
 
-Внутри мода никаких скинов не лежит, кроме одного дефолтного `custom_npc_default.png` — он показывается если ничего не нашли.
+Внутри мода никаких скинов не лежит, кроме одного дефолтного `custom_npc_default.png` - он показывается если ничего не нашли.
 
 ### 20.1 Где хранить
 
@@ -3439,7 +3431,7 @@ NPC типа `interactentity:custom_npc` умеет проигрывать од�
 
 | Правило | Подробности |
 |---------|-------------|
-| Имя файла | `[a-z0-9_]+\.png` — только маленькие буквы, цифры, подчёркивания |
+| Имя файла | `[a-z0-9_]+\.png` - только маленькие буквы, цифры, подчёркивания |
 | Размер | **64×64** или 64×32 (legacy) |
 | Невалидный файл | Пропускается, warn в лог |
 
@@ -3454,11 +3446,11 @@ NPC типа `interactentity:custom_npc` умеет проигрывать од�
 
 | Запись | Что произойдёт |
 |--------|----------------|
-| `"texture": "harold"` | резолвится в `interactentity:textures/entity/skins/harold.png` — динамика или fallback ресурспака |
+| `"texture": "harold"` | резолвится в `interactentity:textures/entity/skins/harold.png` - динамика или fallback ресурспака |
 | `"texture": "interactentity:textures/entity/foo.png"` | используется как есть |
-| `"avatar": "interactentity:textures/entity/skins/harold.png"` | Для аватара нужен **полный путь** — простое имя скина не расширяется |
+| `"avatar": "interactentity:textures/entity/skins/harold.png"` | Для аватара нужен **полный путь** - простое имя скина не расширяется |
 
-**Рекомендация:** для своих NPC используй простое имя. Для текстур из ресурспаков — полный namespaced путь.
+**Рекомендация:** для своих NPC используй простое имя. Для текстур из ресурспаков - полный namespaced путь.
 
 ### 20.5 Сценарий распространения карты
 
@@ -3467,7 +3459,7 @@ NPC типа `interactentity:custom_npc` умеет проигрывать од�
 3. Zip'ит папку мира
 4. Скачавший распаковывает → сервер при старте подгрузит → у всех на сервере появится
 
-### 20.6 Диагностика — почему не отображается?
+### 20.6 Диагностика - почему не отображается?
 
 - Имя файла не соответствует `[a-z0-9_]+\.png`
 - Размер не 64×64 / 64×32
@@ -3480,9 +3472,9 @@ NPC типа `interactentity:custom_npc` умеет проигрывать од�
 ## 21. Журнал, HUD квестов и иконка над NPC
 
 В моде есть три UI-элемента которые игрок видит:
-- **Журнал** — большое окно с историей разговоров и квестами (`J`)
-- **HUD квестов** — маленькая панель с активными квестами на экране (`K`)
-- **Иконка `!`** — жёлтый восклицательный знак над головой NPC у которого есть для тебя что-то новое
+- **Журнал** - большое окно с историей разговоров и квестами (`J`)
+- **HUD квестов** - маленькая панель с активными квестами на экране (`K`)
+- **Иконка `!`** - жёлтый восклицательный знак над головой NPC у которого есть для тебя что-то новое
 
 ### 21.1 Журнал (`J`)
 
@@ -3496,7 +3488,7 @@ NPC типа `interactentity:custom_npc` умеет проигрывать од�
 
 Детали персонажа: 3D-модель, фракция, отношения (статус по репутации), завершённые квесты, lore.
 
-Кнопка «Отслеживать» (закрепляет квест в HUD) — лимит 3 одновременно.
+Кнопка «Отслеживать» (закрепляет квест в HUD) - лимит 3 одновременно.
 
 ### 21.2 HUD квестов (`K`)
 
@@ -3504,16 +3496,16 @@ NPC типа `interactentity:custom_npc` умеет проигрывать од�
 
 ### 21.3 Оверлей «Текущий диалог» (`H` в диалоге)
 
-В открытом диалоге `H` показывает прокручиваемую историю реплик текущего разговора. Удобно если ты пропустил что NPC сказал пять реплик назад — можно вернуться и перечитать без перезахода.
+В открытом диалоге `H` показывает прокручиваемую историю реплик текущего разговора. Удобно если ты пропустил что NPC сказал пять реплик назад - можно вернуться и перечитать без перезахода.
 
 ### 21.4 Иконка `!` над NPC
 
 Мод автоматически рисует жёлтый восклицательный знак над головой NPC в двух случаях:
 
-1. **С этим NPC ещё не разговаривали** — игрок никогда не открывал его диалог.
-2. **Сработал action `notify_npc`** — другой NPC явно сказал «у этого появилось новое».
+1. **С этим NPC ещё не разговаривали** - игрок никогда не открывал его диалог.
+2. **Сработал action `notify_npc`** - другой NPC явно сказал «у этого появилось новое».
 
-Иконка видна в радиусе 16 блоков от игрока, всегда повёрнута к камере. Исчезает сразу после того как игрок открыл диалог (если только не было `notify_npc` — тогда исчезнет только после нового захода).
+Иконка видна в радиусе 16 блоков от игрока, всегда повёрнута к камере. Исчезает сразу после того как игрок открыл диалог (если только не было `notify_npc` - тогда исчезнет только после нового захода).
 
 Это очень полезно для подсказок куда идти дальше: завершил один квест → следующий NPC автоматически загорелся `!` благодаря `notify_npc` в действиях завершающей опции.
 
@@ -3528,13 +3520,13 @@ NPC типа `interactentity:custom_npc` умеет проигрывать од�
 "avatar": "interactentity:textures/entity/mayor.png"
 ```
 
-В отличие от `visual.texture`, полю `avatar` нужен **полный путь к текстуре** — простое имя скина вроде `"harold"` здесь не расширяется в папку скинов и отрисуется как отсутствующая текстура.
+В отличие от `visual.texture`, полю `avatar` нужен **полный путь к текстуре** - простое имя скина вроде `"harold"` здесь не расширяется в папку скинов и отрисуется как отсутствующая текстура.
 
-Мод берёт из текстуры область 8×8 от координаты (8,8) — это лицо в стандартной player-skin раскладке (64×64). Поэтому удобно использовать обычные скины игроков и NPC напрямую — мод сам вырежет из них голову.
+Мод берёт из текстуры область 8×8 от координаты (8,8) - это лицо в стандартной player-skin раскладке (64×64). Поэтому удобно использовать обычные скины игроков и NPC напрямую - мод сам вырежет из них голову.
 
 ### Аватар через NBT (без правки JSON)
 
-Можно задать аватар конкретному мобу через NBT-тег `DialogueAvatar` — он перекроет `avatar` из JSON. Удобно если хочешь два экземпляра одного NPC с разной внешностью без двух разных JSON-файлов.
+Можно задать аватар конкретному мобу через NBT-тег `DialogueAvatar` - он перекроет `avatar` из JSON. Удобно если хочешь два экземпляра одного NPC с разной внешностью без двух разных JSON-файлов.
 
 ```
 /data merge entity @e[name=ИмяНПС,limit=1] {DialogueAvatar:"interactentity:textures/entity/skins/harold.png"}
@@ -3548,7 +3540,7 @@ NPC типа `interactentity:custom_npc` умеет проигрывать од�
 
 ## 23. Репутация и фракции
 
-Репутация — это просто число привязанное к ID фракции (например `village`). Игрок может его повышать (помогая NPC) или понижать (грубя или нарушая обещания). NPC из этой фракции могут проверять текущее значение в своих условиях и реагировать по-разному.
+Репутация - это просто число привязанное к ID фракции (например `village`). Игрок может его повышать (помогая NPC) или понижать (грубя или нарушая обещания). NPC из этой фракции могут проверять текущее значение в своих условиях и реагировать по-разному.
 
 Чтобы это работало, нужно сделать четыре простые вещи:
 
@@ -3589,7 +3581,7 @@ NPC типа `interactentity:custom_npc` умеет проигрывать од�
 
 ## 24. Подарки
 
-Подарки — это специальный action который позволяет игроку отдать NPC что-то приятное и получить за это репутацию. Главная фишка — встроенный кулдаун: одному и тому же NPC нельзя подарить чаще раза в час (реального времени). Это защищает от спама — игрок не может за минуту прокачать репутацию на максимум, отдавая 100 хлебов подряд.
+Подарки - это специальный action который позволяет игроку отдать NPC что-то приятное и получить за это репутацию. Главная фишка - встроенный кулдаун: одному и тому же NPC нельзя подарить чаще раза в час (реального времени). Это защищает от спама - игрок не может за минуту прокачать репутацию на максимум, отдавая 100 хлебов подряд.
 
 Если кулдаун не истёк, action ничего не сделает (только покажет сообщение). Проверить можно отдельным условием `can_give_gift`.
 
@@ -3607,8 +3599,8 @@ NPC типа `interactentity:custom_npc` умеет проигрывать од�
 ```
 
 Логика:
-1. Проверка — есть ли у игрока 1 хлеб
-2. Проверка — истёк ли кулдаун подарка для `harold` (1 час реального времени)
+1. Проверка - есть ли у игрока 1 хлеб
+2. Проверка - истёк ли кулдаун подарка для `harold` (1 час реального времени)
 3. Если ОК: предмет забирается, +5 к репутации, показывается `success_message`
 4. Если кулдаун не истёк: показывается `cooldown_message`, ничего не происходит
 
@@ -3634,7 +3626,7 @@ NPC могут «знать» друг о друге через relationship-ф�
 }
 ```
 
-`relationship` — произвольная строка: `"ally"`, `"enemy"`, `"family"`, `"rival"`, что угодно.
+`relationship` - произвольная строка: `"ally"`, `"enemy"`, `"family"`, `"rival"`, что угодно.
 
 ### Проверка
 
@@ -3689,18 +3681,18 @@ NPC могут «знать» друг о друге через relationship-ф�
 { "type": "set_home", "x": 100, "y": 64, "z": 200, "radius": 16 }
 ```
 
-NPC будет возвращаться в радиус `radius` блоков от точки. Без координат — берётся текущая позиция NPC.
+NPC будет возвращаться в радиус `radius` блоков от точки. Без координат - берётся текущая позиция NPC.
 
 ---
 
 ## 27. Scope
 
-Scope — это «область видимости» прогресса диалога. Простыми словами: общий ли прогресс у всех игроков на сервере, или у каждого свой.
+Scope - это «область видимости» прогресса диалога. Простыми словами: общий ли прогресс у всех игроков на сервере, или у каждого свой.
 
 Есть два варианта:
 
-- `"global"` (по умолчанию) — прогресс общий. Если один игрок прошёл квест, у всех остальных он тоже считается пройденным. Подходит для совместного сюжета (кооп-карты) или для одиночной игры.
-- `"per_player"` — у каждого игрока свой прогресс. Подходит для мультиплеерных серверов, где каждый игрок проходит сюжет отдельно. Можно также писать `"player"` — это синоним.
+- `"global"` (по умолчанию) - прогресс общий. Если один игрок прошёл квест, у всех остальных он тоже считается пройденным. Подходит для совместного сюжета (кооп-карты) или для одиночной игры.
+- `"per_player"` - у каждого игрока свой прогресс. Подходит для мультиплеерных серверов, где каждый игрок проходит сюжет отдельно. Можно также писать `"player"` - это синоним.
 
 Scope влияет на: переменные (`set_var` / `if_var`), репутацию, посещённые узлы (`visited_node`), квесты, отношения между NPC (`set_relationship`).
 
@@ -3708,28 +3700,28 @@ Scope влияет на: переменные (`set_var` / `if_var`), репут
 
 Это важно понимать заранее, потому что многих удивляет:
 
-- `visited_node` срабатывает если **хоть один** игрок прошёл этот узел. То есть если друг прошёл — у тебя тоже зачтётся.
-- `killed_mob` считает убийства **всех игроков на сервере вместе**. Если квест «убить 10 зомби» — могут вдесятером по одному убить и квест закроется.
-- Переменные (`set_var`) — одинаковы для всех. Один поменял `trust` на 5 — у всех такой же.
+- `visited_node` срабатывает если **хоть один** игрок прошёл этот узел. То есть если друг прошёл - у тебя тоже зачтётся.
+- `killed_mob` считает убийства **всех игроков на сервере вместе**. Если квест «убить 10 зомби» - могут вдесятером по одному убить и квест закроется.
+- Переменные (`set_var`) - одинаковы для всех. Один поменял `trust` на 5 - у всех такой же.
 - Квесты видны в журнале **у каждого игрока**, но статус общий.
 - Иконка `notify_npc` загорается **для всех** на сервере.
-- Хранилище привязано к Overworld — прогресс не теряется при переходе в Nether/End.
+- Хранилище привязано к Overworld - прогресс не теряется при переходе в Nether/End.
 
 ### Что происходит при `per_player`
 
 Всё то же самое, но привязано к UUID конкретного игрока. У каждого свои переменные, свои квесты, свои посещённые узлы, своя репутация. Журналы у разных игроков покажут разный прогресс.
 
-Если делаешь нормальный мультиплеерный сервер где каждый идёт по сюжету сам — это твой выбор почти всегда.
+Если делаешь нормальный мультиплеерный сервер где каждый идёт по сюжету сам - это твой выбор почти всегда.
 
 ### Cross-scope
 
-Action в одном scope может ссылаться на квест из другого. `findQuestStore()` ищет квест во всех хранилищах. Если явно указан `"scope"` в action — берётся он.
+Action в одном scope может ссылаться на квест из другого. `findQuestStore()` ищет квест во всех хранилищах. Если явно указан `"scope"` в action - берётся он.
 
 ### Когда что использовать
 
 | Сценарий | Scope |
 |----------|-------|
-| Сюжетная карта на одного | `global` или `per_player` — без разницы |
+| Сюжетная карта на одного | `global` или `per_player` - без разницы |
 | Мультиплеер кооп с общим сюжетом | `global` |
 | Мультиплеер где каждый идёт по сюжету сам | `per_player` |
 | Личные квесты вроде «Принеси мне меч» | `per_player` |
@@ -3739,7 +3731,7 @@ Action в одном scope может ссылаться на квест из д
 
 ## 28. Плейсхолдеры
 
-В любом текстовом поле (`text`, `display_name`, `random_text`, тексты опций) можно вставлять плейсхолдеры — мод подменит их на актуальные значения. Например `{player}` превратится в ник игрока, `{var:trust}` — в значение твоей переменной.
+В любом текстовом поле (`text`, `display_name`, `random_text`, тексты опций) можно вставлять плейсхолдеры - мод подменит их на актуальные значения. Например `{player}` превратится в ник игрока, `{var:trust}` - в значение твоей переменной.
 
 Это очень удобно для живых реплик: «Привет, Стив!» вместо обезличенного «Привет, путник».
 
@@ -3837,7 +3829,7 @@ Action в одном scope может ссылаться на квест из д
 
 ## 29. Форматирование текста
 
-Внутри строки можно красить и стилить текст. Работают стандартные Minecraft-коды (через `&` вместо `§`) плюс расширение для HEX-цветов. Коды можно комбинировать — например `&l&c` даст жирный красный.
+Внутри строки можно красить и стилить текст. Работают стандартные Minecraft-коды (через `&` вместо `§`) плюс расширение для HEX-цветов. Коды можно комбинировать - например `&l&c` даст жирный красный.
 
 | Код | Эффект |
 |-----|--------|
@@ -3865,8 +3857,8 @@ Action в одном scope может ссылаться на квест из д
 | `/dialogue reload` | Перезагружает все диалоги + скины, сбрасывает прогресс и in-memory флаги |
 | `/dialogue reload <id>` | Один диалог + сброс прогресса (но НЕ in-memory флаги спавна) |
 | `/dialogue test <id> [node]` | Открывает диалог с ближайшим мобом без проверок target |
-| `/dialogue goto <node>` | В активном диалоге — прыжок к узлу |
-| `/dialogue var set <name> <value> [target]` | Задать переменную — глобально или per-player, если указан `target` |
+| `/dialogue goto <node>` | В активном диалоге - прыжок к узлу |
+| `/dialogue var set <name> <value> [target]` | Задать переменную - глобально или per-player, если указан `target` |
 | `/dialogue var get <name> [target]` | Вывести значение переменной (глобальной или у игрока `target`) |
 
 ### `/npc`
@@ -3886,7 +3878,7 @@ Action в одном scope может ссылаться на квест из д
 
 ## 31. Клавиши
 
-Игроку доступно довольно много горячих клавиш — мышью можно вообще не пользоваться внутри диалога если хочешь.
+Игроку доступно довольно много горячих клавиш - мышью можно вообще не пользоваться внутри диалога если хочешь.
 
 **Вне диалога:**
 
@@ -3900,12 +3892,12 @@ Action в одном scope может ссылаться на квест из д
 
 | Клавиша | Что |
 |---------|-----|
-| `ПКМ` или `Пробел` или `Enter` | Перейти дальше (для линейных и при ответе игрока). Если текст ещё не дорисовался — мгновенно дорисовать |
+| `ПКМ` или `Пробел` или `Enter` | Перейти дальше (для линейных и при ответе игрока). Если текст ещё не дорисовался - мгновенно дорисовать |
 | `1` ... `5` | Быстрый выбор варианта ответа по номеру |
 | `↑` / `↓` | Подсветить предыдущий / следующий вариант |
 | `Enter` или `Пробел` | Подтвердить подсвеченный вариант |
-| `H` | Показать/скрыть «Текущий диалог» — оверлей с историей реплик внутри текущего разговора |
-| `ESC` | Закрыть диалог. **Внимание:** ESC НЕ помечает диалог завершённым — `on_revisit` не сработает, нужен реальный end-нод |
+| `H` | Показать/скрыть «Текущий диалог» - оверлей с историей реплик внутри текущего разговора |
+| `ESC` | Закрыть диалог. **Внимание:** ESC НЕ помечает диалог завершённым - `on_revisit` не сработает, нужен реальный end-нод |
 
 Все клавиши открытия журнала и HUD переназначаются через стандартное меню Minecraft: Options → Controls.
 
@@ -3913,11 +3905,11 @@ Action в одном scope может ссылаться на квест из д
 
 ## 32. KubeJS интеграция
 
-Если поставить рядом KubeJS — можно делать вещи которые в чистом JSON не выразить. Например: динамически генерировать квесты от состояния мира, слушать события диалогов и встраивать кастомную логику, выдавать награды через свои таблицы.
+Если поставить рядом KubeJS - можно делать вещи которые в чистом JSON не выразить. Например: динамически генерировать квесты от состояния мира, слушать события диалогов и встраивать кастомную логику, выдавать награды через свои таблицы.
 
 Мод даёт два инструмента: статический Java-API (методы которые можно вызывать из JS) и Forge-события (на них можно подписаться и реагировать).
 
-### 32.1 Статический API — `InteractEntityAPI`
+### 32.1 Статический API - `InteractEntityAPI`
 
 ```js
 // kubejs/server_scripts/my_quests.js
@@ -3956,9 +3948,9 @@ String getVar(ServerPlayer player, String name, String scope)
 boolean openDialogue(ServerPlayer player, String dialogueId, LivingEntity entity)
 ```
 
-`scope` — `"global"` или `"player"`.
+`scope` - `"global"` или `"player"`.
 
-### 32.2 События — слушаем диалоги из KubeJS
+### 32.2 События - слушаем диалоги из KubeJS
 
 ```js
 // kubejs/server_scripts/dialogue_listener.js
@@ -4034,27 +4026,25 @@ public static void onQuestStart(QuestStartEvent event) {
 
 1. **`summon` без `trigger`** → NPE при загрузке. Триггер внутри `summon` обязателен.
 2. **`update_quest` ломает счётчик kills**, потому что заменяет весь `objectives[]`.
-3. **`triggers[]` ≠ `summon.trigger`** — разные наборы типов, разные роли.
+3. **`triggers[]` ≠ `summon.trigger`** - разные наборы типов, разные роли.
 4. **Не-repeatable диалог не перевыдаст after_dialogue-спавн** дочернего NPC, если энтри-нода дочернего уже посещался. Сброс: `/dialogue reload` (без аргумента).
-5. **ESC не помечает диалог завершённым** — `on_revisit` не сработает. Нужен реальный end-нод.
-6. **`has_item` считает любые предметы** — модовые и с NBT (зачарованные, переименованные через анвил, с прочностью) учитываются.
-7. **Опции поддерживают только одно `condition`** — для AND/OR делай промежуточный узел.
+5. **ESC не помечает диалог завершённым** - `on_revisit` не сработает. Нужен реальный end-нод.
+6. **`has_item` считает любые предметы** - модовые и с NBT (зачарованные, переименованные через анвил, с прочностью) учитываются.
+7. **Опции поддерживают только одно `condition`** - для AND/OR делай промежуточный узел.
 8. **`fire_event` ловится через `DialogueChoiceEvent`** с `source == "action"`.
 9. **`schedule_event` не сохраняется через рестарт** если игрок офлайн.
 10. **Скин не отображается?** Проверь имя (только `[a-z0-9_]+`), размер (64×64 или 64×32), папку, наличие `/dialogue reload` после изменений.
-11. **Поле `"index"` в `complete_objective` не поддерживается** — используй `objective` / `objective_number` / `objective_text`.
+11. **Поле `"index"` в `complete_objective` не поддерживается** - используй `objective` / `objective_number` / `objective_text`.
 12. **`set_companion` работает только с `interactentity:custom_npc`**.
 13. **`play_emote` работает только с `interactentity:custom_npc`**.
-14. **`/dialogue reload <id>` не сбрасывает in-memory `TRIGGERED_DIALOGUES`** — для полного сброса спавна используй `/dialogue reload` без аргументов.
-15. **JSON-парсер чувствителен к запятым** — лишняя запятая после последнего поля = ошибка загрузки, диалог не появится. Смотри лог.
+14. **`/dialogue reload <id>` не сбрасывает in-memory `TRIGGERED_DIALOGUES`** - для полного сброса спавна используй `/dialogue reload` без аргументов.
+15. **JSON-парсер чувствителен к запятым** - лишняя запятая после последнего поля = ошибка загрузки, диалог не появится. Смотри лог.
 
 ---
 
-<a id="35-большой-пример"></a>
-
 ## 35. Большой пример
 
-Чтобы собрать всё вместе, ниже — полностью рабочий пример из двух связанных NPC. Можно скопировать в свой мир и оно заработает.
+Чтобы собрать всё вместе, ниже - полностью рабочий пример из двух связанных NPC. Можно скопировать в свой мир и оно заработает.
 
 Сюжет: игрок встречает Эльзу (травницу) → она просит найти её потерянные карманные часы, начиная квест «Потерянный амулет» → игрок находит Гарольда (охотника) → Гарольд просит принести кусок хлеба для лиса Rusty перед тем, как отдать часы, начиная квест «Хлеб для Расти» → игрок приносит хлеб Гарольду, забирает часы и возвращает их Эльзе за награду.
 
@@ -4113,14 +4103,14 @@ public static void onQuestStart(QuestStartEvent event) {
       ]
     },
     "explain": {
-      "text": "&fMy &dpocket watch&f is gone. I left it on a tree stump this morning — got distracted by the garden bed, turned around, and it was gone. And there were fox tracks nearby...",
+      "text": "&fMy &dpocket watch&f is gone. I left it on a tree stump this morning - got distracted by the garden bed, turned around, and it was gone. And there were fox tracks nearby...",
       "next": "ask_help",
       "actions": [
         { "type": "play_emote", "emote": "facepalm", "duration_ticks": 45 }
       ]
     },
     "ask_help": {
-      "text": "&fOver in that part of the forest lives a hunter named &6Harold&f. Foxes often drag things to him — maybe he saw my watch. Will you help me?",
+      "text": "&fOver in that part of the forest lives a hunter named &6Harold&f. Foxes often drag things to him - maybe he saw my watch. Will you help me?",
       "actions": [
         { "type": "play_emote", "emote": "please", "duration_ticks": 60 }
       ],
@@ -4147,7 +4137,7 @@ public static void onQuestStart(QuestStartEvent event) {
       ]
     },
     "accept": {
-      "text": "&dThank you! Harold lives in the forest — you'll find him by the smoke above his cabin. He can be a bit gruff, but he's not mean.",
+      "text": "&dThank you! Harold lives in the forest - you'll find him by the smoke above his cabin. He can be a bit gruff, but he's not mean.",
       "actions": [
         { "type": "play_emote", "emote": "bow", "duration_ticks": 40 }
       ]
@@ -4180,7 +4170,7 @@ public static void onQuestStart(QuestStartEvent event) {
       ]
     },
     "thanks": {
-      "text": "&fHarold, huh... Give him a jar of honey from me next time. And for you — here, take this.",
+      "text": "&fHarold, huh... Give him a jar of honey from me next time. And for you - here, take this.",
       "next": "reward",
       "actions": [
         { "type": "remove_item", "item": "minecraft:clock", "count": 1 },
@@ -4299,7 +4289,7 @@ public static void onQuestStart(QuestStartEvent event) {
       ]
     },
     "offer_amulet": {
-      "text": "&fSince you're from Elsa, go ahead and take it. But... &7*narrows his eyes* &fI won't let you go empty-handed. Bring me a piece of &6bread&f — to treat the fox.",
+      "text": "&fSince you're from Elsa, go ahead and take it. But... &7*narrows his eyes* &fI won't let you go empty-handed. Bring me a piece of &6bread&f - to treat the fox.",
       "actions": [
         { "type": "play_emote", "emote": "crossed_arms", "duration_ticks": 40 }
       ],
@@ -4316,7 +4306,7 @@ public static void onQuestStart(QuestStartEvent event) {
         { "type": "start_quest", "quest": {
             "id": "harold_bread",
             "title": "Bread for Rusty",
-            "description": "Harold asks to bring bread for his fox Rusty — only then will he hand over the found watch.",
+            "description": "Harold asks to bring bread for his fox Rusty - only then will he hand over the found watch.",
             "objectives": ["Bring 1 bread to Harold"]
           }
         }
@@ -4433,19 +4423,19 @@ ForgeEvents.onEvent('net.ashpapi.interactentity.api.QuestCompleteEvent', event =
 
 ## Четыре способа добавить NPC в мир
 
-Когда у тебя готов JSON-диалог, нужно как-то поставить моба с подходящим именем и тегом. Есть четыре способа — выбирай удобный.
+Когда у тебя готов JSON-диалог, нужно как-то поставить моба с подходящим именем и тегом. Есть четыре способа - выбирай удобный.
 
-### Способ 1 — `/npc spawn` (самый простой)
+### Способ 1 - `/npc spawn` (самый простой)
 
 ```
 /npc spawn my_dialogue
 ```
 
-Мод сам создаст моба нужного типа с нужным именем и тегом прямо у твоих ног. Тип берётся из `summon.entity` в JSON, имя и тег — из `target`. Минус: должен быть прописан блок `summon` (для типа сущности). Плюс: один клик и готово.
+Мод сам создаст моба нужного типа с нужным именем и тегом прямо у твоих ног. Тип берётся из `summon.entity` в JSON, имя и тег - из `target`. Минус: должен быть прописан блок `summon` (для типа сущности). Плюс: один клик и готово.
 
-### Способ 2 — `/npc tag` (превратить существующего моба)
+### Способ 2 - `/npc tag` (превратить существующего моба)
 
-Если у тебя уже стоит моб подходящего типа и ты хочешь сделать из него NPC — подойди и пиши:
+Если у тебя уже стоит моб подходящего типа и ты хочешь сделать из него NPC - подойди и пиши:
 
 ```
 /npc tag my_dialogue
@@ -4453,7 +4443,7 @@ ForgeEvents.onEvent('net.ashpapi.interactentity.api.QuestCompleteEvent', event =
 
 Ближайшему мобу присвоятся нужные имя и тег. Удобно когда мобы уже расставлены.
 
-### Способ 3 — вручную через ваниль
+### Способ 3 - вручную через ваниль
 
 Если хочется без всяких команд мода:
 
@@ -4469,15 +4459,15 @@ ForgeEvents.onEvent('net.ashpapi.interactentity.api.QuestCompleteEvent', event =
 
 Этот способ работает всегда, даже если в JSON нет блока `summon`.
 
-### Способ 4 — авто-спавн через `summon` в JSON
+### Способ 4 - авто-спавн через `summon` в JSON
 
-Если хочешь чтобы NPC появлялся автоматически (без команд) — добавь блок `summon` с триггером (см. §14). Тогда моб появится сам когда сработает условие — игрок зашёл в мир, прошёл другой диалог, подошёл к точке и т.д. Лучше всего для сюжетных карт где не хочешь чтобы игрок что-то вручную делал.
+Если хочешь чтобы NPC появлялся автоматически (без команд) - добавь блок `summon` с триггером (см. §14). Тогда моб появится сам когда сработает условие - игрок зашёл в мир, прошёл другой диалог, подошёл к точке и т.д. Лучше всего для сюжетных карт где не хочешь чтобы игрок что-то вручную делал.
 
 ---
 
 ## Шпаргалка для быстрого создания NPC
 
-1. **JSON** → `config/interactentity/dialogues/my_npc.json` (минимальный — см. §2)
+1. **JSON** → `config/interactentity/dialogues/my_npc.json` (минимальный - см. §2)
 2. **Скин** (если `custom_npc`) → `<world>/interactentity/skins/my_npc.png` или `config/interactentity/skins/my_npc.png` (64×64, имя `[a-z0-9_]+`)
 3. **target** → объяви `name` и `tag` (см. §5)
 4. **Спавн** → один из:
@@ -4487,19 +4477,17 @@ ForgeEvents.onEvent('net.ashpapi.interactentity.api.QuestCompleteEvent', event =
 5. **Reload** → `/dialogue reload`
 6. **Тест** → ПКМ по мобу
 
-Если что-то не работает — смотри лог сервера, ищи `[InteractEntity]`, `[skins]`, `WARN`.
+Если что-то не работает - смотри лог сервера, ищи `[InteractEntity]`, `[skins]`, `WARN`.
 
 ---
 
-<a id="36-торговля"></a>
-
 ## 36. Торговля / торговцы
 
-NPC могут быть торговцами. Пока на персонаже стоит метка торговца, игрок открывает его витрину прямо из диалога — по иконке-мешочку. Снял метку — торговля пропала.
+NPC могут быть торговцами. Пока на персонаже стоит метка торговца, игрок открывает его витрину прямо из диалога - по иконке-мешочку. Снял метку - торговля пропала.
 
 Как это устроено:
 
-1. **Метка торговца ставится на ноду диалога**, а не на сам файл товара. Когда игрок доходит до ноды с `"merchant": "<файл_витрины>"`, для этого NPC появляется торговля — и остаётся, пока другая нода её не выключит.
+1. **Метка торговца ставится на ноду диалога**, а не на сам файл товара. Когда игрок доходит до ноды с `"merchant": "<файл_витрины>"`, для этого NPC появляется торговля - и остаётся, пока другая нода её не выключит.
 2. **Файл-витрина** лежит в `config/interactentity/trades/`. Это список товаров (одно «окно» лавки). Один файл = одно окно.
 3. **Обновить ассортимент** = создать новый файл-витрину и в ноде сослаться на него в поле `merchant`. Витрину можно сменить целиком одной нодой; а каждый оффер ещё и показывать/скрывать поотдельности через `condition`.
 
@@ -4511,7 +4499,7 @@ NPC могут быть торговцами. Пока на персонаже �
 | `false` | Выключить торговлю для этого NPC |
 | *(поля нет)* | Состояние не менять |
 
-Пример — нода, открывающая лавку:
+Пример - нода, открывающая лавку:
 
 ```json
 "welcome": {
@@ -4524,11 +4512,11 @@ NPC могут быть торговцами. Пока на персонаже �
 }
 ```
 
-Флаг персистентный: раз выставлен — иконка-мешочек держится, пока не снимешь меткой `"merchant": false` в другой ноде.
+Флаг персистентный: раз выставлен - иконка-мешочек держится, пока не снимешь меткой `"merchant": false` в другой ноде.
 
-### 36.2 Файл-витрина — `config/interactentity/trades/`
+### 36.2 Файл-витрина - `config/interactentity/trades/`
 
-У витрины нет `target` (привязка к NPC идёт через метку на ноде). Нужны только `shop_name` и `offers`. Пример ниже — **готовая витрина**, показывающая сразу все виды офферов: скопируй её в `config/interactentity/trades/harold_basic.json`, и она работает как есть:
+У витрины нет `target` (привязка к NPC идёт через метку на ноде). Нужны только `shop_name` и `offers`. Пример ниже - **готовая витрина**, показывающая сразу все виды офферов: скопируй её в `config/interactentity/trades/harold_basic.json`, и она работает как есть:
 
 ```json
 {
@@ -4538,7 +4526,7 @@ NPC могут быть торговцами. Пока на персонаже �
       "type": "buy",
       "result": { "item": "minecraft:bread", "count": 4 },
       "price": [ { "item": "minecraft:emerald", "count": 1 } ],
-      "info": "&fСвежий хлеб — x4",
+      "info": "&fСвежий хлеб - x4",
       "description": "Пекут каждое утро, ещё тёплый. Хорошо держит в дороге.",
       "stock": -1
     },
@@ -4549,15 +4537,15 @@ NPC могут быть торговцами. Пока на персонаже �
         { "item": "minecraft:emerald", "count": 3 },
         { "item": "minecraft:coal", "count": 16 }
       ],
-      "info": "&fЖелезные слитки — x8",
-      "description": "Прямо из шахты. Уголь — для горна."
+      "info": "&fЖелезные слитки - x8",
+      "description": "Прямо из шахты. Уголь - для горна."
     },
     {
       "type": "sell",
       "merchandise": { "item": "minecraft:wheat", "count": 8 },
       "price": [ { "item": "minecraft:emerald", "count": 1 } ],
-      "info": "&aКуплю пшеницу — x8",
-      "description": "Приноси пшеницу восьмёрками — плачу изумрудами."
+      "info": "&aКуплю пшеницу - x8",
+      "description": "Приноси пшеницу восьмёрками - плачу изумрудами."
     },
     {
       "type": "buy",
@@ -4568,7 +4556,7 @@ NPC могут быть торговцами. Пока на персонаже �
       },
       "price": [ { "item": "minecraft:emerald", "count": 12 } ],
       "info": "&bОстрота III",
-      "description": "Зачарованная книга — цена покупает именно это зачарование."
+      "description": "Зачарованная книга - цена покупает именно это зачарование."
     },
     {
       "type": "buy",
@@ -4583,7 +4571,7 @@ NPC могут быть торговцами. Пока на персонаже �
       "result": { "item": "minecraft:golden_apple", "count": 1 },
       "price": [ { "item": "minecraft:emerald", "count": 10 } ],
       "info": "&6Золотое яблоко",
-      "description": "&7Редкий товар.&r Когда три штуки кончатся — больше не привезут.",
+      "description": "&7Редкий товар.&r Когда три штуки кончатся - больше не привезут.",
       "stock": 3,
       "stock_scope": "global"
     }
@@ -4595,7 +4583,7 @@ NPC могут быть торговцами. Пока на персонаже �
 
 ### 36.3 Поля оффера
 
-Оффер — это одна позиция в лавке. `type` задаёт направление сделки; `price` — **всегда** то, что игрок отдаёт или получает (изумруды или любой предмет на твой выбор).
+Оффер - это одна позиция в лавке. `type` задаёт направление сделки; `price` - **всегда** то, что игрок отдаёт или получает (изумруды или любой предмет на твой выбор).
 
 | Поле | Тип | Обязательно | Описание |
 |------|-----|-------------|----------|
@@ -4603,21 +4591,21 @@ NPC могут быть торговцами. Пока на персонаже �
 | `result` | стек | **для `buy`** | Что получает игрок при `buy` |
 | `merchandise` | стек | **для `sell`** | Что игрок отдаёт при `sell` |
 | `price` | массив стеков | да | Сторона игрока: цена при `buy`, выплата при `sell`. Можно перечислить несколько предметов |
-| `info` | строка | нет | Короткая подпись оффера (вверху панели товара), цвет-коды `&`. Если не задана — имя предмета |
+| `info` | строка | нет | Короткая подпись оффера (вверху панели товара), цвет-коды `&`. Если не задана - имя предмета |
 | `description` | строка | нет | Развёрнутое описание под ценой, цвет-коды `&`. Длина не ограничена |
 | `stock` | int | нет (дефолт `-1`) | `-1` = бесконечно; иначе сколько раз можно совершить сделку |
 | `stock_scope` | `"per_player"` \| `"global"` | нет (дефолт `"per_player"`) | Чей счётчик у `stock`: у каждого игрока свой или один общий на всех |
 | `condition` | объект | нет | Условие из §9. Не выполнено → оффер скрыт. Перепроверяется на сервере перед каждой сделкой |
 
-**Стек** = `{ "item": "<id>", "count": <n>, "nbt": "<snbt>" }` — `item` обязателен, `count` по умолчанию 1, `nbt` (строка SNBT) опционально. Полную витрину со всеми полями в контексте см. в §36.2.
+**Стек** = `{ "item": "<id>", "count": <n>, "nbt": "<snbt>" }` - `item` обязателен, `count` по умолчанию 1, `nbt` (строка SNBT) опционально. Полную витрину со всеми полями в контексте см. в §36.2.
 
 ### 36.4 Два способа обновить ассортимент
 
-- **Целиком** — создать новый файл-витрину и в ноде сослаться на него в `merchant`.
-- **Поотдельности** — добавить `condition` к офферу (напр. `quest_status` или `if_var`). Оффер появляется/исчезает по мере изменения условий. Условия проверяются на сервере при открытии витрины.
+- **Целиком** - создать новый файл-витрину и в ноде сослаться на него в `merchant`.
+- **Поотдельности** - добавить `condition` к офферу (напр. `quest_status` или `if_var`). Оффер появляется/исчезает по мере изменения условий. Условия проверяются на сервере при открытии витрины.
 
 ### 36.5 Заметки
 
 - На время открытой витрины NPC заморожен и развёрнут к игроку, как и в диалоге. Витрина сама закрывается, если игрок отошёл дальше 16 блоков, сменил измерение или NPC погиб. Один NPC не торгует с двумя игроками сразу.
-- id файла-витрины (путь относительно `trades/` без `.json`) — это то, что пишешь в поле `merchant`. Подпапки поддерживаются: `trades/village/harold.json` → `"merchant": "village/harold"`.
+- id файла-витрины (путь относительно `trades/` без `.json`) - это то, что пишешь в поле `merchant`. Подпапки поддерживаются: `trades/village/harold.json` → `"merchant": "village/harold"`.
 - Демо: `config/interactentity/dialogues/story/merchant_demo.json` + `config/interactentity/trades/merchant_demo.json`.
