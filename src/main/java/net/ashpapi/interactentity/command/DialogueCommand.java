@@ -10,6 +10,7 @@ import net.ashpapi.interactentity.data.DialogueSavedData;
 import net.ashpapi.interactentity.dialogue.DialogueManager;
 import net.ashpapi.interactentity.dialogue.DialogueSession;
 import net.ashpapi.interactentity.dialogue.DialogueTree;
+import net.ashpapi.interactentity.event.PeacefulMobHandler;
 import net.ashpapi.interactentity.summon.SummonScheduler;
 import net.ashpapi.interactentity.trade.TradeCatalogManager;
 import net.ashpapi.interactentity.network.ModNetwork;
@@ -155,6 +156,7 @@ public class DialogueCommand {
         if (!clearAllVariables(src)) return 0;
         SummonScheduler.clearAll();
         mgr.loadAll();
+        PeacefulMobHandler.resyncNpcNameTags(server, mgr);
         TradeCatalogManager tradeManager = TradeCatalogManager.get();
         if (tradeManager != null) {
             tradeManager.loadAll();
@@ -253,6 +255,7 @@ public class DialogueCommand {
         MinecraftServer server = src.getServer();
         boolean ok = mgr.reloadOne(id);
         if (ok) {
+            PeacefulMobHandler.resyncNpcNameTags(server, mgr);
             // Полный сброс прогресса для этого диалога + всех квестов в обоих хранилищах
             DialogueSavedData data = DialogueDataManager.getGlobal(server.overworld());
             data.resetDialogue(id);

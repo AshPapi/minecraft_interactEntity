@@ -8,7 +8,10 @@ import net.ashpapi.interactentity.npc.CompanionHandler;
 import net.ashpapi.interactentity.npc.NpcRoutineHandler;
 import net.ashpapi.interactentity.network.ModNetwork;
 import net.ashpapi.interactentity.network.NpcSyncPacket;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.player.Player;
@@ -193,9 +196,38 @@ public class PeacefulMobHandler {
 
         DialogueManager manager = DialogueManager.get();
         if (manager == null) return;
-        DialogueTree tree = manager.findDialogueForEntity(entity);
+        DialogueTree tree = findTrackedDialogue(manager, entity);
         if (tree == null) return;
         ModNetwork.sendToPlayer(player, new NpcSyncPacket(entity.getId(), tree.getId(), tree.getEntryNodeId(), tree.getNameTag()));
+    }
+
+    public static void resyncNpcNameTags(MinecraftServer server, DialogueManager manager) {
+        for (ServerLevel level : server.getAllLevels()) {
+            for (Entity entity : level.getAllEntities()) {
+                if (!(entity instanceof LivingEntity npc)
+                        || !npc.getPersistentData().getBoolean("InteractEntity_NPC")) continue;
+
+                DialogueTree tree = findTrackedDialogue(manager, npc);
+                if (tree != null) {
+                    ModNetwork.sendToTracking(npc,
+                            new NpcSyncPacket(npc.getId(), tree.getId(), tree.getEntryNodeId(), tree.getNameTag()));
+                }
+            }
+        }
+    }
+
+    private static DialogueTree findTrackedDialogue(DialogueManager manager, LivingEntity entity) {
+        DialogueTree tree = manager.findDialogueForEntity(entity);
+        if (tree != null) return tree;
+
+        for (String tag : entity.getTags()) {
+            if (!tag.startsWith(NPC_TAG_PREFIX)) continue;
+            int separator = tag.indexOf(':', NPC_TAG_PREFIX.length());
+            if (separator < 0) continue;
+            tree = manager.getDialogueById(tag.substring(NPC_TAG_PREFIX.length(), separator));
+            if (tree != null) return tree;
+        }
+        return null;
     }
 
     private static void applyNPCProtections(LivingEntity entity, boolean invulnerable) {

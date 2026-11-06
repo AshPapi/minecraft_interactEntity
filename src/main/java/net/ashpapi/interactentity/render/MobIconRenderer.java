@@ -10,10 +10,12 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.MultiBufferSource;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.ForgeHooksClient;
 import net.minecraftforge.client.event.RenderLivingEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -49,16 +51,20 @@ public class MobIconRenderer {
 
         if (!notified && (visited || completed)) return;
 
-        renderIcon(poseStack, buffers, entity, "!", 0xFFFFDD00);
+        EntityRenderDispatcher dispatcher = Minecraft.getInstance().getEntityRenderDispatcher();
+        boolean nameVisible = !NpcNameTagHandler.hidesName(entity, npc)
+                && dispatcher.getRenderer(entity).shouldShowName(entity)
+                && ForgeHooksClient.isNameplateInRenderDistance(entity, dispatcher.distanceToSqr(entity));
+        float yOffset = entity.getNameTagOffsetY() + (nameVisible ? 0.45f : 0.15f);
+        renderIcon(poseStack, buffers, yOffset, "!", 0xFFFFDD00);
     }
 
     private static void renderIcon(PoseStack poseStack, MultiBufferSource buffers,
-                                   LivingEntity entity, String icon, int color) {
+                                   float yOffset, String icon, int color) {
         Minecraft mc = Minecraft.getInstance();
 
         poseStack.pushPose();
 
-        float yOffset = entity.getBbHeight() + 0.95f;
         poseStack.translate(0, yOffset, 0);
         poseStack.mulPose(mc.getEntityRenderDispatcher().camera.rotation());
         poseStack.scale(-0.04f, -0.04f, 0.04f);

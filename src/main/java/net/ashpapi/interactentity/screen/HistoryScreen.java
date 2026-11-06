@@ -177,6 +177,12 @@ public class HistoryScreen extends Screen {
 
     @Override
     public void removed() {
+        if (closingJournal) {
+            long window = minecraft.getWindow().getWindow();
+            if (GLFW.glfwGetInputMode(window, GLFW.GLFW_CURSOR) == GLFW.GLFW_CURSOR_HIDDEN) {
+                GLFW.glfwSetInputMode(window, GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
+            }
+        }
         entityCache.values().forEach(Entity::discard);
         entityCache.clear();
         historyLinesCache.clear();
@@ -188,6 +194,7 @@ public class HistoryScreen extends Screen {
         if (!closingJournal) {
             closingJournal = true;
             journalCloseStartTime = net.minecraft.Util.getMillis();
+            GLFW.glfwSetInputMode(minecraft.getWindow().getWindow(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_HIDDEN);
         }
     }
 
@@ -893,6 +900,7 @@ public class HistoryScreen extends Screen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (closingJournal) return true;
         long elapsedOpen = net.minecraft.Util.getMillis() - journalOpenStartTime;
         if (elapsedOpen < JOURNAL_OPEN_DURATION) return false;
 
@@ -976,6 +984,7 @@ public class HistoryScreen extends Screen {
 
     @Override
     public boolean mouseDragged(double mouseX, double mouseY, int button, double dragX, double deltaY) {
+        if (closingJournal) return true;
         long elapsedOpen = net.minecraft.Util.getMillis() - journalOpenStartTime;
         if (elapsedOpen < JOURNAL_OPEN_DURATION) return false;
 
@@ -1094,6 +1103,7 @@ public class HistoryScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double delta) {
+        if (closingJournal) return true;
         long elapsedOpen = net.minecraft.Util.getMillis() - journalOpenStartTime;
         if (elapsedOpen < JOURNAL_OPEN_DURATION) return false;
 
@@ -1119,6 +1129,7 @@ public class HistoryScreen extends Screen {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (closingJournal) return true;
         long elapsedOpen = net.minecraft.Util.getMillis() - journalOpenStartTime;
         if (elapsedOpen < JOURNAL_OPEN_DURATION) return false;
 
